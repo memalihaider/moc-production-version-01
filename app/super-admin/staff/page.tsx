@@ -363,13 +363,13 @@ export default function SuperAdminStaff() {
   };
 
   const roles = [...new Set(staff.map(member => member.role))];
-  const nationalities = [...new Set(staff.map(member => member.nationality).filter(Boolean))];
+  const nationalities = [...new Set(staff.map(member => member.nationality).filter(Boolean))] as string[];
 
   const filteredStaff = staff.filter(member => {
     const matchesSearch = member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          member.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          member.role.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         member.documentId?.toLowerCase().includes(searchTerm.toLowerCase());
+                         (member.documentId && member.documentId.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesBranch = branchFilter === 'all' || member.branch === branchFilter;
     const matchesRole = roleFilter === 'all' || member.role === roleFilter;
     const matchesStatus = statusFilter === 'all' || member.status === statusFilter;
@@ -602,7 +602,7 @@ export default function SuperAdminStaff() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="all">All Nationalities</SelectItem>
-                          {nationalities.map(nat => (
+                          {nationalities.filter(Boolean).map(nat => (
                             <SelectItem key={nat} value={nat}>{nat}</SelectItem>
                           ))}
                         </SelectContent>
@@ -770,7 +770,7 @@ export default function SuperAdminStaff() {
                             </div>
                           </div>
 
-                          {member.specialization?.length > 0 && (
+                          {member.specialization && member.specialization.length > 0 && (
                             <div>
                               <h4 className="font-medium text-gray-900 mb-2">Specialization</h4>
                               <div className="flex flex-wrap gap-1">

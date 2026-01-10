@@ -334,7 +334,7 @@ export default function SuperAdminProducts() {
       const categoryName = selectedCategory?.name || productForm.category;
       
       // Calculate initial status based on stock
-      let status: 'active' | 'low-stock' | 'out-of-stock' = 'active';
+      let status: 'active' | 'inactive' | 'low-stock' | 'out-of-stock' = 'active';
       const stock = parseInt(productForm.totalStock);
       if (stock === 0) {
         status = 'out-of-stock';
@@ -510,13 +510,16 @@ export default function SuperAdminProducts() {
       const productDoc = doc(db, 'products', product.id);
       
       // Calculate new status based on stock
-      let newStatus: 'active' | 'low-stock' | 'out-of-stock' = 'active';
-      if (newStock === 0) {
-        newStatus = 'out-of-stock';
-      } else if (newStock < 10) {
-        newStatus = 'low-stock';
-      } else if (product.status === 'inactive') {
-        newStatus = 'inactive';
+      let newStatus: 'active' | 'inactive' | 'low-stock' | 'out-of-stock' = product.status;
+      
+      if (product.status !== 'inactive') {
+        if (newStock === 0) {
+          newStatus = 'out-of-stock';
+        } else if (newStock < 10) {
+          newStatus = 'low-stock';
+        } else {
+          newStatus = 'active';
+        }
       }
       
       await updateDoc(productDoc, {
@@ -939,9 +942,6 @@ export default function SuperAdminProducts() {
                               </span>
                             </div>
                           </div>
-
-                          
-
 
                           <div>
                             <h4 className="font-medium text-gray-900 mb-2 text-sm">Available at Branch</h4>
