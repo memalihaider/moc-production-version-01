@@ -129,16 +129,16 @@ const superAdminNavItems = [
     icon: Building,
   },
   {
-    title: 'All Appointments',
-    href: '/super-admin/appointments',
-    icon: Calendar,
-  },
-  {
     title: 'Staff Management',
     href: '/super-admin/staff',
     icon: Users,
   },
   {
+    title: 'Categories',
+    href: '/super-admin/categories',
+    icon: Tag,
+  },
+   {
     title: 'Services',
     href: '/super-admin/services',
     icon: Scissors,
@@ -149,15 +149,32 @@ const superAdminNavItems = [
     icon: Package,
   },
   {
-    title: 'Categories',
-    href: '/super-admin/categories',
-    icon: Tag,
-  },
-  {
     title: 'Membership',
     href: '/super-admin/membership',
     icon: Award,
   },
+  {
+    title: 'All Appointments',
+    href: '/super-admin/appointments',
+    icon: Calendar,
+  },
+  
+ {
+    title: 'Analytics',
+    href: '/super-admin/analytics',
+    icon: PieChart,
+  },
+  {
+    title: 'Expenses',
+    href: '/super-admin/expenses',
+    icon: DollarSign,
+  },
+  {
+    title: 'Financial',
+    href: '/super-admin/financial',
+    icon: DollarSign,
+  },
+  
   {
     title: 'Mobile App',
     href: '/mobile-app',
@@ -168,26 +185,14 @@ const superAdminNavItems = [
     href: '/cms',
     icon: FileText,
   },
-  {
-    title: 'Analytics',
-    href: '/super-admin/analytics',
-    icon: PieChart,
-  },
+  
   {
     title: 'Messages',
     href: '/super-admin/messages',
     icon: MessageCircle,
   },
-  {
-    title: 'Financial',
-    href: '/super-admin/financial',
-    icon: DollarSign,
-  },
-  {
-    title: 'Expenses',
-    href: '/super-admin/expenses',
-    icon: DollarSign,
-  },
+  
+  
   {
     title: 'Settings',
     href: '/super-admin/settings',
@@ -200,17 +205,17 @@ function SidebarContent({ role, onLogout, onToggle, isCollapsed = false }: Omit<
   const navItems = role === 'super_admin' ? superAdminNavItems : branchAdminNavItems;
 
   return (
-    <div className="flex h-full flex-col bg-primary border-r border-secondary/10">
+    <div className="flex h-full flex-col  bg-primary border-r border-secondary/10">
       {/* Logo */}
-      <div className="flex h-16 items-center border-b border-secondary/10 px-4 lg:px-6">
+      <div className="flex h-16 items-center  px-4 lg:px-6">
         <div className="flex items-center justify-between w-full">
           <Link href="/" className="flex items-center gap-2 group">
-            <div className="w-8 h-8 bg-secondary flex items-center justify-center rounded-lg transition-all duration-300 group-hover:rotate-12 shadow-lg shadow-secondary/20">
+            <div className="w-8 h-8 mt-1 bg-secondary flex items-center justify-center rounded-lg transition-all duration-300 group-hover:rotate-12 shadow-lg shadow-secondary/20">
               <Scissors className="h-4 w-4 text-primary" />
             </div>
             {!isCollapsed && (
-              <span className="text-lg font-serif font-bold text-white tracking-tighter">
-                MAN OF<span className="text-secondary">CAVE</span>
+              <span className="text-lg font-serif font-bold text-white tracking-tighter mt-1">
+                MAN OF <span className="text-secondary">CAVE</span>
               </span>
             )}
           </Link>
@@ -240,7 +245,7 @@ function SidebarContent({ role, onLogout, onToggle, isCollapsed = false }: Omit<
       </div>
 
       {/* Navigation */}
-      <ScrollArea className="flex-1 px-3 h-full">
+      <ScrollArea className="flex-1 px-3 h-full -mt-2">
         <div className="space-y-1 py-4">
           {navItems.map((item) => {
             const isActive = pathname === item.href;
@@ -266,7 +271,7 @@ function SidebarContent({ role, onLogout, onToggle, isCollapsed = false }: Omit<
       </ScrollArea>
 
       {/* Logout */}
-      <div className="border-t border-secondary/10 p-4 mt-auto">
+      <div className="p-4  -mt-7 ml-7">
         <Button
           variant="ghost"
           className={cn(
