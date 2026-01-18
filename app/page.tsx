@@ -8,7 +8,8 @@ import {
   Scissors, MapPin, Star, Clock, Phone, Mail, Award, Users, 
   Calendar, ChevronRight, ShoppingBag, Ticket, ArrowRight,
   Quote, Instagram, CheckCircle2, ShieldCheck, Zap, Building,
-  Loader2, TrendingUp, Package, DollarSign, RefreshCw
+  Loader2, TrendingUp, Package, DollarSign, RefreshCw,
+  Crown, Gem, Shield, Sparkles, Check, UserCheck
 } from "lucide-react";
 import { Header } from "@/components/shared/Header";
 import Link from "next/link";
@@ -28,7 +29,9 @@ import {
   orderBy, 
   limit,
   DocumentData,
-  QueryDocumentSnapshot
+  QueryDocumentSnapshot,
+  where,
+  Timestamp
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
@@ -94,17 +97,61 @@ interface Branch {
   status: string;
 }
 
+// New Offer Interface
+interface Offer {
+  id: string;
+  title: string;
+  description: string;
+  discountType: 'percentage' | 'fixed';
+  discountValue: number;
+  imageUrl: string;
+  offerType: 'service' | 'product' | 'both';
+  applicableProducts: string[];
+  applicableServices: string[];
+  branchNames: string[];
+  branches: string[];
+  status: 'active' | 'inactive' | 'expired';
+  usageLimit: number | null;
+  usedCount: number;
+  validFrom: Date;
+  validTo: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// New Membership Interface
+interface Membership {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  duration: number;
+  tier: 'basic' | 'premium' | 'vip' | 'exclusive';
+  benefits: string[];
+  branchNames: string[];
+  branches: string[];
+  status: 'active' | 'inactive';
+  revenue: number;
+  totalSubscriptions: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 interface HomeStore {
   // Data
   services: Service[];
   products: Product[];
   staff: StaffMember[];
   branches: Branch[];
+  offers: Offer[];
+  memberships: Membership[];
   stats: {
     totalStaff: number;
     totalServices: number;
     totalProducts: number;
     totalBranches: number;
+    totalOffers: number;
+    totalMemberships: number;
   };
   
   // Loading states
@@ -117,6 +164,8 @@ interface HomeStore {
   fetchProducts: () => Promise<void>;
   fetchStaff: () => Promise<void>;
   fetchBranches: () => Promise<void>;
+  fetchOffers: () => Promise<void>;
+  fetchMemberships: () => Promise<void>;
   calculateStats: () => void;
 }
 
@@ -126,11 +175,15 @@ const useHomeStore = create<HomeStore>((set, get) => ({
   products: [],
   staff: [],
   branches: [],
+  offers: [],
+  memberships: [],
   stats: {
     totalStaff: 0,
     totalServices: 0,
     totalProducts: 0,
-    totalBranches: 0
+    totalBranches: 0,
+    totalOffers: 0,
+    totalMemberships: 0,
   },
   isLoading: false,
   error: null,
@@ -143,7 +196,9 @@ const useHomeStore = create<HomeStore>((set, get) => ({
         get().fetchServices(),
         get().fetchProducts(),
         get().fetchStaff(),
-        get().fetchBranches()
+        get().fetchBranches(),
+        get().fetchOffers(),
+        get().fetchMemberships()
       ]);
       get().calculateStats();
       set({ isLoading: false });
@@ -285,6 +340,123 @@ const useHomeStore = create<HomeStore>((set, get) => ({
     }
   },
 
+  // Fetch offers from Firebase - FIXED VERSION (No index error)
+  fetchOffers: async () => {
+    try {
+      const offersRef = collection(db, 'offers');
+      
+      // SIMPLE QUERY - No complex where clause to avoid index error
+      const q = query(
+        offersRef, 
+        orderBy('createdAt', 'desc'), 
+        limit(12) // Get extra for client-side filtering
+      );
+      
+      const querySnapshot = await getDocs(q);
+      
+      const offersData: Offer[] = [];
+      const now = new Date();
+      
+      querySnapshot.forEach((doc: QueryDocumentSnapshot<DocumentData>) => {
+        const data = doc.data();
+        
+        // Convert Firestore timestamps to Date objects
+        const validFrom = data.validFrom?.toDate() || new Date();
+        const validTo = data.validTo?.toDate() || new Date();
+        const createdAt = data.createdAt?.toDate() || new Date();
+        const updatedAt = data.updatedAt?.toDate() || new Date();
+        
+        // Client-side filtering for ACTIVE and NOT EXPIRED offers
+        const isActive = data.status === 'active';
+        const isNotExpired = now <= validTo;
+        
+        if (isActive && isNotExpired) {
+          offersData.push({
+            id: doc.id,
+            title: data.title || 'Special Offer',
+            description: data.description || 'Limited time offer',
+            discountType: data.discountType || 'percentage',
+            discountValue: Number(data.discountValue) || 0,
+            imageUrl: data.imageUrl || 'https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?q=80&w=2070&auto=format&fit=crop',
+            offerType: data.offerType || 'service',
+            applicableProducts: Array.isArray(data.applicableProducts) ? data.applicableProducts : [],
+            applicableServices: Array.isArray(data.applicableServices) ? data.applicableServices : [],
+            branchNames: Array.isArray(data.branchNames) ? data.branchNames : [],
+            branches: Array.isArray(data.branches) ? data.branches : [],
+            status: data.status || 'active',
+            usageLimit: data.usageLimit || null,
+            usedCount: Number(data.usedCount) || 0,
+            validFrom,
+            validTo,
+            createdAt,
+            updatedAt
+          });
+        }
+      });
+      
+      // Take only first 8 active offers
+      const finalOffers = offersData.slice(0, 8);
+      
+      set({ offers: finalOffers });
+    } catch (error) {
+      console.error('Error fetching offers:', error);
+      set({ offers: [] });
+    }
+  },
+
+  // Fetch memberships from Firebase
+  fetchMemberships: async () => {
+    try {
+      const membershipsRef = collection(db, 'memberships');
+      
+      // Simple query to avoid index error
+      const q = query(
+        membershipsRef, 
+        orderBy('createdAt', 'desc'), 
+        limit(8)
+      );
+      
+      const querySnapshot = await getDocs(q);
+      
+      const membershipsData: Membership[] = [];
+      
+      querySnapshot.forEach((doc: QueryDocumentSnapshot<DocumentData>) => {
+        const data = doc.data();
+        
+        // Convert Firestore timestamps to Date objects
+        const createdAt = data.createdAt?.toDate() || new Date();
+        const updatedAt = data.updatedAt?.toDate() || new Date();
+        
+        // Client-side filtering for ACTIVE memberships
+        const isActive = data.status === 'active';
+        
+        if (isActive) {
+          membershipsData.push({
+            id: doc.id,
+            name: data.name || 'Membership',
+            description: data.description || 'Premium membership plan',
+            price: Number(data.price) || 0,
+            duration: Number(data.duration) || 30,
+            tier: data.tier || 'premium',
+            benefits: Array.isArray(data.benefits) ? data.benefits : [],
+            branchNames: Array.isArray(data.branchNames) ? data.branchNames : [],
+            branches: Array.isArray(data.branches) ? data.branches : [],
+            status: data.status || 'active',
+            revenue: Number(data.revenue) || 0,
+            totalSubscriptions: Number(data.totalSubscriptions) || 0,
+            createdAt,
+            updatedAt
+          });
+        }
+      });
+      
+      set({ memberships: membershipsData });
+    } catch (error) {
+      console.error('Error fetching memberships:', error);
+      set({ memberships: [] });
+    }
+  },
+
   // Calculate statistics
   calculateStats: () => {
     const state = get();
@@ -293,7 +465,9 @@ const useHomeStore = create<HomeStore>((set, get) => ({
         totalStaff: state.staff.length,
         totalServices: state.services.length,
         totalProducts: state.products.length,
-        totalBranches: state.branches.length
+        totalBranches: state.branches.length,
+        totalOffers: state.offers.length,
+        totalMemberships: state.memberships.length
       }
     });
   },
@@ -306,6 +480,8 @@ export default function Home() {
     products, 
     staff, 
     branches, 
+    offers,
+    memberships,
     stats,
     isLoading, 
     error, 
@@ -321,18 +497,107 @@ export default function Home() {
   const totalActiveProducts = products.filter(p => p.status === 'active').length;
   const totalActiveStaff = staff.filter(s => s.status === 'active').length;
   const totalActiveBranches = branches.filter(b => b.status === 'active').length;
+  const totalActiveOffers = offers.length;
+  const totalActiveMemberships = memberships.length;
 
   // Calculate total revenue
   const totalServicesRevenue = services.reduce((sum, service) => sum + service.revenue, 0);
   const totalProductsRevenue = products.reduce((sum, product) => sum + product.revenue, 0);
   const totalRevenue = totalServicesRevenue + totalProductsRevenue;
 
-  const coupons = [
-    { code: "WELCOME20", discount: "20% OFF", description: "On your first visit", color: "bg-secondary" },
-    { code: "LUXURY50", discount: "$50 OFF", description: "On Premium Packages", color: "bg-primary" },
-    { code: "STYLE10", discount: "10% OFF", description: "On all hair products", color: "bg-accent" },
-    { code: "GROOMED", discount: "FREE SHAVE", description: "With any signature cut", color: "bg-secondary" },
-  ];
+  // Function to get offer badge color based on type
+  const getOfferBadgeColor = (offerType: string) => {
+    switch (offerType) {
+      case 'service': return 'bg-blue-500 text-white';
+      case 'product': return 'bg-green-500 text-white';
+      case 'both': return 'bg-purple-500 text-white';
+      default: return 'bg-secondary text-primary';
+    }
+  };
+
+  // Function to format discount display
+  const formatDiscount = (offer: Offer) => {
+    if (offer.discountType === 'percentage') {
+      return `${offer.discountValue}% OFF`;
+    } else {
+      return `$${offer.discountValue} OFF`;
+    }
+  };
+
+  // Function to get offer background color
+  const getOfferBgColor = (offerType: string) => {
+    switch (offerType) {
+      case 'service': return 'bg-blue-600';
+      case 'product': return 'bg-green-600';
+      case 'both': return 'bg-purple-600';
+      default: return 'bg-secondary';
+    }
+  };
+
+  // Function to get membership tier color
+  const getMembershipTierColor = (tier: string) => {
+    switch (tier) {
+      case 'basic': return 'bg-gray-600';
+      case 'premium': return 'bg-secondary';
+      case 'vip': return 'bg-purple-600';
+      case 'exclusive': return 'bg-gradient-to-r from-yellow-600 to-orange-600';
+      default: return 'bg-gray-600';
+    }
+  };
+
+  // Function to get membership tier icon
+  const getMembershipTierIcon = (tier: string) => {
+    switch (tier) {
+      case 'basic': return Shield;
+      case 'premium': return Gem;
+      case 'vip': return Crown;
+      case 'exclusive': return Sparkles;
+      default: return Shield;
+    }
+  };
+
+  // Function to format duration
+  const formatDuration = (days: number) => {
+    if (days >= 365) {
+      const years = Math.floor(days / 365);
+      return `${years} year${years > 1 ? 's' : ''}`;
+    } else if (days >= 30) {
+      const months = Math.floor(days / 30);
+      return `${months} month${months > 1 ? 's' : ''}`;
+    } else {
+      return `${days} day${days > 1 ? 's' : ''}`;
+    }
+  };
+
+  // Function to get first branch name for membership
+  const getFirstBranchName = (membership: Membership) => {
+    // If membership has branchNames array and it's not empty, use first branch name
+    if (membership.branchNames && membership.branchNames.length > 0) {
+      return membership.branchNames[0];
+    }
+    
+    // If no branchNames but has branches array, try to find branch name from branches collection
+    if (membership.branches && membership.branches.length > 0) {
+      const branchId = membership.branches[0];
+      const branch = branches.find(b => b.id === branchId);
+      return branch?.name || 'Multiple Branches';
+    }
+    
+    return 'All Branches';
+  };
+
+  // Function to get branch count text
+  const getBranchCountText = (membership: Membership) => {
+    if (membership.branches && membership.branches.length > 0) {
+      return `${membership.branches.length} ${membership.branches.length === 1 ? 'Branch' : 'Branches'}`;
+    }
+    
+    if (membership.branchNames && membership.branchNames.length > 0) {
+      return `${membership.branchNames.length} ${membership.branchNames.length === 1 ? 'Branch' : 'Branches'}`;
+    }
+    
+    return 'All Branches';
+  };
 
   if (isLoading) {
     return (
@@ -340,7 +605,6 @@ export default function Home() {
         <div className="text-center space-y-4">
           <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto" />
           <p className="text-lg font-semibold text-primary">Loading premium experience...</p>
-         
         </div>
       </div>
     );
@@ -491,7 +755,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Coupon Slider Section */}
+      {/* ==================== MEMBER REWARDS SECTION ==================== */}
       <section className="py-20 px-4 bg-gray-50/50 relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-[0.03] pointer-events-none"></div>
         <div className="max-w-7xl mx-auto relative z-10">
@@ -501,50 +765,271 @@ export default function Home() {
                 <span className="text-secondary font-bold tracking-[0.2em] uppercase text-[10px]">Exclusive Privileges</span>
               </div>
               <h2 className="text-4xl md:text-5xl font-serif font-bold text-primary">Member Rewards</h2>
+              <Badge variant="outline" className="border-secondary/30 text-secondary mt-2">
+                {totalActiveOffers} Active Offers Available
+              </Badge>
             </div>
             <p className="text-muted-foreground max-w-md text-sm font-light">
               Unlock premium benefits and exclusive savings designed for our most loyal patrons.
             </p>
           </div>
           
-          <Carousel opts={{ align: "start", loop: true }} className="w-full">
-            <CarouselContent className="-ml-6">
-              {coupons.map((coupon, i) => (
-                <CarouselItem key={i} className="pl-6 md:basis-1/2 lg:basis-1/4">
-                  <div className={cn(
-                    "p-8 rounded-3xl text-white relative overflow-hidden group cursor-pointer transition-all duration-500 hover:shadow-[0_20px_40px_rgba(0,0,0,0.1)] hover:-translate-y-2",
-                    coupon.color
-                  )}>
-                    <div className="absolute -right-6 -top-6 opacity-10 group-hover:scale-125 group-hover:rotate-45 transition-all duration-700">
-                      <Ticket className="w-32 h-32 rotate-12" />
-                    </div>
-                    <div className="relative z-10 space-y-6">
-                      <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm">
-                        <Zap className="w-5 h-5 text-white" />
-                      </div>
-                      <div>
-                        <span className="text-xs font-bold tracking-widest opacity-70 uppercase block mb-1">{coupon.description}</span>
-                        <h4 className="text-4xl font-serif font-bold">{coupon.discount}</h4>
-                      </div>
-                      <div className="pt-4 flex items-center justify-between border-t border-white/20">
-                        <div className="space-y-1">
-                          <span className="text-[10px] uppercase tracking-widest opacity-60">Use Code</span>
-                          <code className="bg-white/20 px-3 py-1 rounded-lg text-sm font-mono font-bold tracking-wider block">{coupon.code}</code>
-                        </div>
-                        <Button variant="ghost" size="icon" className="rounded-full bg-white/10 hover:bg-white/20 text-white">
-                          <ArrowRight className="w-5 h-5" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </CarouselItem>
-              ))}
-            </CarouselContent>
-            <div className="hidden md:flex justify-end gap-3 mt-8">
-              <CarouselPrevious className="static translate-y-0 border-primary/10 hover:bg-primary hover:text-white transition-all" />
-              <CarouselNext className="static translate-y-0 border-primary/10 hover:bg-primary hover:text-white transition-all" />
+          {offers.length === 0 ? (
+            <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-gray-200">
+              <Ticket className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-2xl font-serif font-bold text-gray-400 mb-2">No Offers Available</h3>
+              <p className="text-gray-400 font-light">Add active offers to Firebase to see them here</p>
+              <Button 
+                onClick={fetchHomeData} 
+                className="mt-4 bg-secondary hover:bg-secondary/90 text-primary"
+              >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Refresh
+              </Button>
             </div>
-          </Carousel>
+          ) : (
+            <Carousel opts={{ align: "start", loop: true }} className="w-full">
+              <CarouselContent className="-ml-6">
+                {offers.map((offer) => {
+                  const discountText = formatDiscount(offer);
+                  const offerBgColor = getOfferBgColor(offer.offerType);
+                  
+                  return (
+                    <CarouselItem key={offer.id} className="pl-6 md:basis-1/2 lg:basis-1/4">
+                      <div className={cn(
+                        "p-8 rounded-3xl text-white relative overflow-hidden group cursor-pointer transition-all duration-500 hover:shadow-[0_20px_40px_rgba(0,0,0,0.1)] hover:-translate-y-2",
+                        offerBgColor
+                      )}>
+                        {/* Usage limit badge */}
+                        {offer.usageLimit && (
+                          <div className="absolute top-4 left-4 bg-black/30 backdrop-blur-sm text-white text-[10px] font-bold px-3 py-1 rounded-full z-20">
+                            {offer.usedCount}/{offer.usageLimit} USED
+                          </div>
+                        )}
+                        
+                        <div className="absolute -right-6 -top-6 opacity-10 group-hover:scale-125 group-hover:rotate-45 transition-all duration-700">
+                          <Ticket className="w-32 h-32 rotate-12" />
+                        </div>
+                        
+                        {/* Offer Image Background */}
+                        {offer.imageUrl && (
+                          <div className="absolute inset-0 opacity-20">
+                            <img 
+                              src={offer.imageUrl} 
+                              alt={offer.title}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                              }}
+                            />
+                          </div>
+                        )}
+                        
+                        <div className="relative z-10 space-y-6">
+                          <div className="flex items-start justify-between">
+                            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm">
+                              <Zap className="w-5 h-5 text-white" />
+                            </div>
+                            <Badge className={cn(
+                              "text-[9px] font-black uppercase tracking-wider border-0",
+                              getOfferBadgeColor(offer.offerType)
+                            )}>
+                              {offer.offerType.toUpperCase()}
+                            </Badge>
+                          </div>
+                          
+                          <div>
+                            <span className="text-xs font-bold tracking-widest opacity-70 uppercase block mb-1">
+                              {offer.branchNames?.length > 0 
+                                ? `${offer.branchNames[0]}${offer.branchNames.length > 1 ? ` +${offer.branchNames.length - 1} more` : ''}`
+                                : 'All Branches'}
+                            </span>
+                            <h4 className="text-4xl font-serif font-bold">{discountText}</h4>
+                            <h5 className="text-xl font-semibold mt-2">{offer.title}</h5>
+                          </div>
+                          
+                          <p className="text-sm opacity-90 line-clamp-2">
+                            {offer.description}
+                          </p>
+                          
+                          <div className="pt-4 flex items-center justify-between border-t border-white/20">
+                            <div className="space-y-1">
+                              <span className="text-[10px] uppercase tracking-widest opacity-60">Valid Until</span>
+                              <div className="flex items-center gap-1">
+                                <Calendar className="w-3 h-3" />
+                                <span className="text-xs font-semibold">
+                                  {offer.validTo.toLocaleDateString('en-US', { 
+                                    month: 'short', 
+                                    day: 'numeric',
+                                    year: 'numeric'
+                                  })}
+                                </span>
+                              </div>
+                            </div>
+                            
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="rounded-full bg-white/10 hover:bg-white/20 text-white"
+                            >
+                              <ArrowRight className="w-5 h-5" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </CarouselItem>
+                  );
+                })}
+              </CarouselContent>
+              <div className="hidden md:flex justify-end gap-3 mt-8">
+                <CarouselPrevious className="static translate-y-0 border-primary/10 hover:bg-primary hover:text-white transition-all" />
+                <CarouselNext className="static translate-y-0 border-primary/10 hover:bg-primary hover:text-white transition-all" />
+              </div>
+            </Carousel>
+          )}
+        </div>
+      </section>
+
+      {/* ==================== EXCLUSIVE MEMBERSHIPS SECTION ==================== */}
+      <section className="py-20 px-4 bg-white relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/diamond.png')] opacity-[0.02] pointer-events-none"></div>
+        <div className="max-w-7xl mx-auto relative z-10">
+          <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-4">
+            <div className="space-y-2">
+              <div className="inline-block bg-secondary/10 px-3 py-1 rounded-full">
+                <span className="text-secondary font-bold tracking-[0.2em] uppercase text-[10px]">Elite Access</span>
+              </div>
+              <h2 className="text-4xl md:text-5xl font-serif font-bold text-primary">Exclusive Memberships</h2>
+              <Badge variant="outline" className="border-secondary/30 text-secondary mt-2">
+                {totalActiveMemberships} Premium Plans Available
+              </Badge>
+            </div>
+            <p className="text-muted-foreground max-w-md text-sm font-light">
+              Join our elite community and unlock unprecedented benefits, priority access, and exclusive privileges.
+            </p>
+          </div>
+          
+          {memberships.length === 0 ? (
+            <div className="text-center py-20 bg-gray-50/50 rounded-3xl border border-dashed border-gray-200">
+              <Crown className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-2xl font-serif font-bold text-gray-400 mb-2">No Memberships Available</h3>
+              <p className="text-gray-400 font-light">Add membership plans to Firebase to see them here</p>
+              <Button 
+                onClick={fetchHomeData} 
+                className="mt-4 bg-secondary hover:bg-secondary/90 text-primary"
+              >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Refresh
+              </Button>
+            </div>
+          ) : (
+            <Carousel opts={{ align: "start", loop: true }} className="w-full">
+              <CarouselContent className="-ml-6">
+                {memberships.map((membership) => {
+                  const TierIcon = getMembershipTierIcon(membership.tier);
+                  const membershipBgColor = getMembershipTierColor(membership.tier);
+                  const durationText = formatDuration(membership.duration);
+                  const branchName = getFirstBranchName(membership);
+                  const branchCountText = getBranchCountText(membership);
+                  
+                  return (
+                    <CarouselItem key={membership.id} className="pl-6 md:basis-1/2 lg:basis-1/4">
+                      <div className={cn(
+                        "p-8 rounded-3xl text-white relative overflow-hidden group cursor-pointer transition-all duration-500 hover:shadow-[0_20px_40px_rgba(0,0,0,0.1)] hover:-translate-y-2",
+                        membershipBgColor
+                      )}>
+                        {/* Popular badge */}
+                        {membership.totalSubscriptions > 10 && (
+                          <div className="absolute top-4 left-4 bg-white/20 backdrop-blur-sm text-white text-[10px] font-bold px-3 py-1 rounded-full z-20">
+                            POPULAR
+                          </div>
+                        )}
+                        
+                        <div className="absolute -right-6 -top-6 opacity-10 group-hover:scale-125 group-hover:rotate-45 transition-all duration-700">
+                          <Crown className="w-32 h-32 rotate-12" />
+                        </div>
+                        
+                        <div className="relative z-10 space-y-6">
+                          <div className="flex items-start justify-between">
+                            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm">
+                              <TierIcon className="w-5 h-5 text-white" />
+                            </div>
+                            <Badge className={cn(
+                              "text-[9px] font-black uppercase tracking-wider border-0",
+                              membership.tier === 'exclusive' 
+                                ? 'bg-gradient-to-r from-yellow-400 to-orange-400 text-black'
+                                : 'bg-white/20 text-white'
+                            )}>
+                              {membership.tier.toUpperCase()}
+                            </Badge>
+                          </div>
+                          
+                          <div>
+                            <span className="text-xs font-bold tracking-widest opacity-70 uppercase block mb-1">
+                              {durationText} • {branchName}
+                            </span>
+                            <h4 className="text-4xl font-serif font-bold">${membership.price}</h4>
+                            <h5 className="text-xl font-semibold mt-2">{membership.name}</h5>
+                          </div>
+                          
+                          <p className="text-sm opacity-90 line-clamp-2">
+                            {membership.description}
+                          </p>
+                          
+                          {/* Benefits List */}
+                          <div className="space-y-2">
+                            <span className="text-[10px] uppercase tracking-widest opacity-60 block">Key Benefits</span>
+                            <div className="space-y-1.5">
+                              {membership.benefits.slice(0, 3).map((benefit, index) => (
+                                <div key={index} className="flex items-center gap-2">
+                                  <Check className="w-3 h-3 text-green-300" />
+                                  <span className="text-xs opacity-90">{benefit}</span>
+                                </div>
+                              ))}
+                              {membership.benefits.length > 3 && (
+                                <div className="flex items-center gap-2">
+                                  <div className="w-3 h-3 flex items-center justify-center">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-white/50"></div>
+                                  </div>
+                                  <span className="text-xs opacity-70">
+                                    +{membership.benefits.length - 3} more benefits
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          
+                          <div className="pt-4 flex items-center justify-between border-t border-white/20">
+                            <div className="space-y-1">
+                              <span className="text-[10px] uppercase tracking-widest opacity-60">Available At</span>
+                              <div className="flex items-center gap-1">
+                                <MapPin className="w-3 h-3" />
+                                <span className="text-xs font-semibold">
+                                  {branchCountText}
+                                </span>
+                              </div>
+                            </div>
+                            
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="rounded-full bg-white/10 hover:bg-white/20 text-white"
+                            >
+                              <ArrowRight className="w-5 h-5" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </CarouselItem>
+                  );
+                })}
+              </CarouselContent>
+              <div className="hidden md:flex justify-end gap-3 mt-8">
+                <CarouselPrevious className="static translate-y-0 border-primary/10 hover:bg-primary hover:text-white transition-all" />
+                <CarouselNext className="static translate-y-0 border-primary/10 hover:bg-primary hover:text-white transition-all" />
+              </div>
+            </Carousel>
+          )}
         </div>
       </section>
 

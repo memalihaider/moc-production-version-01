@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar, Clock, User, Search, Filter, CheckCircle, XCircle, AlertCircle, Building, Phone, Mail, DollarSign, Loader2, RefreshCw, ChevronDown, MapPin, Shield, Check, X } from "lucide-react";
+import { Calendar, Clock, User, Search, Filter, CheckCircle, XCircle, AlertCircle, Building, Phone, Mail, DollarSign, Loader2, RefreshCw, ChevronDown, MapPin, Shield, Check, X, Scissors } from "lucide-react";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { AdminSidebar, AdminMobileSidebar } from "@/components/admin/AdminSidebar";
 import { useAuth } from "@/contexts/AuthContext";
@@ -49,20 +49,46 @@ interface Appointment {
   customerId: string;
   customerName: string;
   customerEmail: string;
+  customerPhone: string;
   serviceId: string;
   serviceName: string;
   servicePrice: number;
+  serviceDuration: number;
   date: string;
   time: string;
+  timeSlot: string;
   totalAmount: number;
   status: 'pending' | 'confirmed' | 'in-progress' | 'completed' | 'cancelled' | 'no-show';
   notes: string;
   createdAt: Timestamp;
-  branch?: string;
-  barber?: string;
-  duration?: number;
-  phone?: string;
-  customerPhone?: string;
+  
+  // Firebase Fields - Correct names according to your data
+  branchNames: string[]; // Array of branch names
+  branches: string[]; // Array of branch IDs
+  
+  serviceBranchNames: string[];
+  serviceBranches: string[];
+  
+  staffName: string;
+  staffId: string;
+  staffBranch: string;
+  staffRole: string;
+  
+  serviceCategory: string;
+  serviceCategoryId: string;
+  serviceImageUrl: string;
+  servicePopularity: string;
+  serviceRevenue: number;
+  serviceTotalBookings: number;
+  serviceStatus: string;
+  
+  pointsAwarded: boolean;
+  
+  // For UI convenience
+  branch: string; // First branch name for display
+  barber: string; // Alias for staffName
+  duration: number; // Alias for serviceDuration
+  phone: string; // Alias for customerPhone
 }
 
 interface CustomerMap {
@@ -116,7 +142,7 @@ const useAppointmentsStore = create<AppointmentsStore>((set, get) => ({
     activeCustomers: 0
   },
 
-  // Fetch all appointments with branch filtering
+  // Fetch all appointments with branch filtering - FIXED FOR YOUR FIREBASE STRUCTURE
   fetchAppointments: async (userBranch?: string) => {
     set({ isLoading: true, error: null });
     try {
@@ -126,13 +152,13 @@ const useAppointmentsStore = create<AppointmentsStore>((set, get) => ({
       let q;
       if (userBranch) {
         // Branch admin - sirf apni branch ke appointments
-        // TEMPORARY FIX: Remove orderBy to avoid index requirement
+        // Use array-contains for branchNames array
         q = query(
           appointmentsRef, 
-          where('branch', '==', userBranch)
-          // orderBy('createdAt', 'desc') // Removed temporarily
+          where('branchNames', 'array-contains', userBranch)
+          // Note: Can't use orderBy with array-contains, so we'll sort manually
         );
-        console.log(`🏢 Branch Admin (${userBranch}): Filtering appointments`);
+        console.log(`🏢 Branch Admin (${userBranch}): Filtering appointments by branchNames array`);
       } else {
         // Super admin - sab appointments
         q = query(appointmentsRef, orderBy('createdAt', 'desc'));
@@ -144,34 +170,74 @@ const useAppointmentsStore = create<AppointmentsStore>((set, get) => ({
       const appointmentsData: Appointment[] = [];
       querySnapshot.forEach((doc: QueryDocumentSnapshot<DocumentData>) => {
         const data = doc.data();
+        
+        // Extract first branch name for display
+        const firstBranchName = data.branchNames && data.branchNames.length > 0 
+          ? data.branchNames[0] 
+          : data.staffBranch || 'Main Branch';
+        
         appointmentsData.push({
           id: doc.id,
           customerId: data.customerId || '',
           customerName: data.customerName || 'Unknown Customer',
           customerEmail: data.customerEmail || 'No Email',
+          customerPhone: data.customerPhone || data.phone || '',
           serviceId: data.serviceId || '',
           serviceName: data.serviceName || 'Unknown Service',
           servicePrice: Number(data.servicePrice) || 0,
+          serviceDuration: Number(data.serviceDuration) || 30,
           date: data.date || 'N/A',
           time: data.time || 'N/A',
+          timeSlot: data.timeSlot || data.time || 'N/A',
           totalAmount: Number(data.totalAmount) || 0,
           status: (data.status as Appointment['status']) || 'pending',
           notes: data.notes || 'No notes',
           createdAt: data.createdAt || Timestamp.now(),
-          branch: data.branch || 'Main Branch',
-          barber: data.barber || 'Not Assigned',
-          duration: Number(data.duration) || 30,
-          phone: data.phone || data.customerPhone || null
+          
+          // Firebase original fields
+          branchNames: data.branchNames || [],
+          branches: data.branches || [],
+          serviceBranchNames: data.serviceBranchNames || [],
+          serviceBranches: data.serviceBranches || [],
+          staffName: data.staffName || 'Not Assigned',
+          staffId: data.staffId || '',
+          staffBranch: data.staffBranch || '',
+          staffRole: data.staffRole || '',
+          serviceCategory: data.serviceCategory || '',
+          serviceCategoryId: data.serviceCategoryId || '',
+          serviceImageUrl: data.serviceImageUrl || '',
+          servicePopularity: data.servicePopularity || 'medium',
+          serviceRevenue: Number(data.serviceRevenue) || 0,
+          serviceTotalBookings: Number(data.serviceTotalBookings) || 0,
+          serviceStatus: data.serviceStatus || 'active',
+          pointsAwarded: data.pointsAwarded || false,
+          
+          // For UI convenience
+          branch: firstBranchName,
+          barber: data.staffName || 'Not Assigned',
+          duration: Number(data.serviceDuration) || 30,
+          phone: data.customerPhone || data.phone || ''
         });
       });
       
-      // Manual sorting for branch admin
-      if (userBranch) {
-        appointmentsData.sort((a, b) => 
-          b.createdAt?.seconds - a.createdAt?.seconds || 
-          b.createdAt?.nanoseconds - a.createdAt?.nanoseconds
-        );
-      }
+      // Manual sorting for all cases
+      appointmentsData.sort((a, b) => {
+        // First by date (descending)
+        const dateA = new Date(a.date);
+        const dateB = new Date(b.date);
+        if (dateB > dateA) return 1;
+        if (dateB < dateA) return -1;
+        
+        // Then by time (descending)
+        const timeA = a.timeSlot || a.time;
+        const timeB = b.timeSlot || b.time;
+        if (timeB > timeA) return 1;
+        if (timeB < timeA) return -1;
+        
+        // Finally by createdAt (descending)
+        return b.createdAt?.seconds - a.createdAt?.seconds || 
+               b.createdAt?.nanoseconds - a.createdAt?.nanoseconds;
+      });
       
       set({ appointments: appointmentsData, isLoading: false });
       get().calculateStats(userBranch);
@@ -288,14 +354,16 @@ const useAppointmentsStore = create<AppointmentsStore>((set, get) => ({
     }
   },
 
-  // Calculate statistics with branch filtering
+  // Calculate statistics with branch filtering - FIXED
   calculateStats: (userBranch?: string) => {
     const state = get();
     let appointments = state.appointments;
     
     // Filter appointments by branch if specified
     if (userBranch) {
-      appointments = appointments.filter(a => a.branch === userBranch);
+      appointments = appointments.filter(a => 
+        a.branchNames && a.branchNames.includes(userBranch)
+      );
     }
     
     const total = appointments.length;
@@ -305,9 +373,8 @@ const useAppointmentsStore = create<AppointmentsStore>((set, get) => ({
     const completed = appointments.filter(a => a.status === 'completed').length;
     const cancelled = appointments.filter(a => a.status === 'cancelled').length;
     const noShow = appointments.filter(a => a.status === 'no-show').length;
-    const totalRevenue = appointments
-      .filter(a => a.status === 'completed')
-      .reduce((sum, apt) => sum + apt.totalAmount, 0);
+   const totalRevenue = appointments
+  .reduce((sum, apt) => sum + apt.totalAmount, 0);
     
     // Calculate today's appointments
     const today = new Date().toISOString().split('T')[0];
@@ -335,7 +402,7 @@ const useAppointmentsStore = create<AppointmentsStore>((set, get) => ({
     });
   },
 
-  // Setup real-time updates with branch filtering
+  // Setup real-time updates with branch filtering - FIXED
   setupRealtimeUpdates: (userBranch?: string) => {
     try {
       const appointmentsRef = collection(db, 'bookings');
@@ -344,11 +411,9 @@ const useAppointmentsStore = create<AppointmentsStore>((set, get) => ({
       let q;
       if (userBranch) {
         // Branch admin - sirf apni branch ke appointments
-        // Remove orderBy to avoid index error in real-time listener too
         q = query(
           appointmentsRef, 
-          where('branch', '==', userBranch)
-          // orderBy('createdAt', 'desc') // Removed
+          where('branchNames', 'array-contains', userBranch)
         );
       } else {
         // Super admin - sab appointments
@@ -359,34 +424,71 @@ const useAppointmentsStore = create<AppointmentsStore>((set, get) => ({
         const appointmentsData: Appointment[] = [];
         querySnapshot.forEach((doc: QueryDocumentSnapshot<DocumentData>) => {
           const data = doc.data();
+          
+          // Extract first branch name for display
+          const firstBranchName = data.branchNames && data.branchNames.length > 0 
+            ? data.branchNames[0] 
+            : data.staffBranch || 'Main Branch';
+          
           appointmentsData.push({
             id: doc.id,
             customerId: data.customerId || '',
             customerName: data.customerName || 'Unknown Customer',
             customerEmail: data.customerEmail || 'No Email',
+            customerPhone: data.customerPhone || data.phone || '',
             serviceId: data.serviceId || '',
             serviceName: data.serviceName || 'Unknown Service',
             servicePrice: Number(data.servicePrice) || 0,
+            serviceDuration: Number(data.serviceDuration) || 30,
             date: data.date || 'N/A',
             time: data.time || 'N/A',
+            timeSlot: data.timeSlot || data.time || 'N/A',
             totalAmount: Number(data.totalAmount) || 0,
             status: (data.status as Appointment['status']) || 'pending',
             notes: data.notes || 'No notes',
             createdAt: data.createdAt || Timestamp.now(),
-            branch: data.branch || 'Main Branch',
-            barber: data.barber || 'Not Assigned',
-            duration: Number(data.duration) || 30,
-            phone: data.phone || data.customerPhone || null
+            
+            // Firebase original fields
+            branchNames: data.branchNames || [],
+            branches: data.branches || [],
+            serviceBranchNames: data.serviceBranchNames || [],
+            serviceBranches: data.serviceBranches || [],
+            staffName: data.staffName || 'Not Assigned',
+            staffId: data.staffId || '',
+            staffBranch: data.staffBranch || '',
+            staffRole: data.staffRole || '',
+            serviceCategory: data.serviceCategory || '',
+            serviceCategoryId: data.serviceCategoryId || '',
+            serviceImageUrl: data.serviceImageUrl || '',
+            servicePopularity: data.servicePopularity || 'medium',
+            serviceRevenue: Number(data.serviceRevenue) || 0,
+            serviceTotalBookings: Number(data.serviceTotalBookings) || 0,
+            serviceStatus: data.serviceStatus || 'active',
+            pointsAwarded: data.pointsAwarded || false,
+            
+            // For UI convenience
+            branch: firstBranchName,
+            barber: data.staffName || 'Not Assigned',
+            duration: Number(data.serviceDuration) || 30,
+            phone: data.customerPhone || data.phone || ''
           });
         });
         
-        // Manual sorting for branch admin in real-time updates
-        if (userBranch) {
-          appointmentsData.sort((a, b) => 
-            b.createdAt?.seconds - a.createdAt?.seconds || 
-            b.createdAt?.nanoseconds - a.createdAt?.nanoseconds
-          );
-        }
+        // Manual sorting
+        appointmentsData.sort((a, b) => {
+          const dateA = new Date(a.date);
+          const dateB = new Date(b.date);
+          if (dateB > dateA) return 1;
+          if (dateB < dateA) return -1;
+          
+          const timeA = a.timeSlot || a.time;
+          const timeB = b.timeSlot || b.time;
+          if (timeB > timeA) return 1;
+          if (timeB < timeA) return -1;
+          
+          return b.createdAt?.seconds - a.createdAt?.seconds || 
+                 b.createdAt?.nanoseconds - a.createdAt?.nanoseconds;
+        });
         
         set({ appointments: appointmentsData });
         get().calculateStats(userBranch);
@@ -409,7 +511,7 @@ const useAppointmentsStore = create<AppointmentsStore>((set, get) => ({
 export default function SuperAdminAppointments() {
   const { user, logout } = useAuth();
   const router = useRouter();
-  const [sidebarOpen, setSidebarOpen] = useState(true); // Sidebar by default open
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [statusFilter, setStatusFilter] = useState('all');
   const [branchFilter, setBranchFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -423,7 +525,6 @@ export default function SuperAdminAppointments() {
     stats,
     fetchAppointments, 
     updateAppointmentStatus,
-    fetchCustomerPhone,
     setupRealtimeUpdates
   } = useAppointmentsStore();
 
@@ -436,34 +537,47 @@ export default function SuperAdminAppointments() {
     return () => {
       if (unsubscribe) unsubscribe();
     };
-  }, [user]); // Add user dependency to re-fetch when user changes
+  }, [user]);
 
   const handleLogout = () => {
     logout();
     router.push('/login');
   };
 
-  // Get unique branches from appointments
-  const allBranches = Array.from(new Set(appointments.map(apt => apt.branch || 'Main Branch')));
+  // Get unique branches from appointments - FIXED
+  const allBranches = Array.from(
+    new Set(
+      appointments.flatMap(apt => 
+        apt.branchNames && apt.branchNames.length > 0 
+          ? apt.branchNames 
+          : [apt.branch || 'Main Branch']
+      )
+    )
+  );
   
   // For branch admin, only show their branch
   const branches = user?.role === 'admin' && user.branchName 
     ? [user.branchName]
     : allBranches;
 
-  // Filter appointments
+  // Filter appointments - FIXED for branchNames array
   const filteredAppointments = appointments.filter(appointment => {
-    const customerPhone = customers[appointment.customerId]?.phone || '';
+    const customerPhone = customers[appointment.customerId]?.phone || appointment.customerPhone;
     
     const matchesSearch = 
       appointment.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       appointment.serviceName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       appointment.customerEmail.toLowerCase().includes(searchQuery.toLowerCase()) ||
       customerPhone.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      appointment.phone?.toLowerCase().includes(searchQuery.toLowerCase());
+      appointment.staffName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      appointment.serviceCategory.toLowerCase().includes(searchQuery.toLowerCase());
     
     const matchesStatus = statusFilter === 'all' || appointment.status === statusFilter;
-    const matchesBranch = branchFilter === 'all' || appointment.branch === branchFilter;
+    
+    const matchesBranch = branchFilter === 'all' || 
+      (appointment.branchNames && appointment.branchNames.includes(branchFilter)) ||
+      appointment.branch === branchFilter;
+    
     const matchesDate = !selectedDate || appointment.date === selectedDate;
 
     return matchesSearch && matchesStatus && matchesBranch && matchesDate;
@@ -527,22 +641,17 @@ export default function SuperAdminAppointments() {
     }
   };
 
-  // Function to get phone number with fallback
+  // Function to get phone number with fallback - SIMPLIFIED
   const getCustomerPhone = (customerId: string, appointment: Appointment) => {
-    // First check customer data
+    // First check appointment data (customerPhone field)
+    if (appointment.customerPhone) {
+      return appointment.customerPhone;
+    }
+    
+    // Check customer data
     const customer = customers[customerId];
     if (customer && customer.phone) {
       return customer.phone;
-    }
-    
-    // Check appointment data
-    if (appointment.phone) {
-      return appointment.phone;
-    }
-    
-    // Check customerPhone field
-    if (appointment.customerPhone) {
-      return appointment.customerPhone;
     }
     
     return 'N/A';
@@ -760,7 +869,7 @@ export default function SuperAdminAppointments() {
                       <div className="relative">
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                         <Input
-                          placeholder="Search by customer, service, email or phone..."
+                          placeholder="Search by customer, service, email, phone or staff..."
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
                           className="pl-10"
@@ -898,12 +1007,22 @@ export default function SuperAdminAppointments() {
                             
                             {/* Customer & Service Details */}
                             <div className="border-l pl-4 flex-1">
-                              {/* Branch */}
+                              {/* Branch - Now shows all branches if multiple */}
                               <div className="flex items-center gap-2 mb-2">
                                 <Building className="w-4 h-4 text-gray-400" />
-                                <span className="text-sm font-medium text-secondary">
-                                  {appointment.branch || 'Main Branch'}
-                                </span>
+                                <div className="flex flex-wrap gap-2">
+                                  {appointment.branchNames && appointment.branchNames.length > 0 ? (
+                                    appointment.branchNames.map((branchName, index) => (
+                                      <Badge key={index} variant="outline" className="text-xs bg-blue-50">
+                                        {branchName}
+                                      </Badge>
+                                    ))
+                                  ) : (
+                                    <span className="text-sm font-medium text-secondary">
+                                      {appointment.branch || 'Main Branch'}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                               
                               {/* Customer Name with Status */}
@@ -928,11 +1047,21 @@ export default function SuperAdminAppointments() {
                                 )}
                               </div>
                               
-                              {/* Service Details */}
+                              {/* Service Details with Category */}
                               <p className="text-sm text-gray-600 mb-2">
-                                {appointment.serviceName} • ${appointment.servicePrice}
-                                {appointment.duration && ` • ${appointment.duration} min`}
+                                <strong>{appointment.serviceName}</strong> • ${appointment.servicePrice}
+                                {appointment.serviceDuration && ` • ${appointment.serviceDuration} min`}
+                                {appointment.serviceCategory && ` • Category: ${appointment.serviceCategory}`}
                               </p>
+                              
+                              {/* Staff Info */}
+                              <div className="flex items-center gap-2 mb-2">
+                                <Scissors className="w-4 h-4 text-gray-400" />
+                                <span className="text-sm">
+                                  <strong>Staff:</strong> {appointment.staffName} 
+                                  {appointment.staffRole && ` (${appointment.staffRole})`}
+                                </span>
+                              </div>
                               
                               {/* Contact Info */}
                               <div className="flex flex-wrap items-center gap-4 mt-2 text-sm text-gray-500">
@@ -944,12 +1073,18 @@ export default function SuperAdminAppointments() {
                                   </span>
                                 </div>
                                 
-                                {/* Phone - Always Show */}
+                                {/* Phone */}
                                 <div className="flex items-center gap-1">
                                   <Phone className="w-3 h-3" />
                                   <span className="font-medium">
                                     {customerPhone}
                                   </span>
+                                </div>
+                                
+                                {/* Time Slot */}
+                                <div className="flex items-center gap-1">
+                                  <Clock className="w-3 h-3" />
+                                  <span>Slot: {appointment.timeSlot || appointment.time}</span>
                                 </div>
                                 
                                 {/* Address if available */}
@@ -961,14 +1096,21 @@ export default function SuperAdminAppointments() {
                                     </span>
                                   </div>
                                 )}
-                                
-                                {/* Barber */}
-                                {appointment.barber && (
-                                  <div className="flex items-center gap-1">
-                                    <User className="w-3 h-3" />
-                                    <span>{appointment.barber}</span>
-                                  </div>
-                                )}
+                              </div>
+
+                              {/* Additional Service Info */}
+                              <div className="mt-2 pt-2 border-t border-gray-100 text-xs text-gray-500">
+                                <div className="flex flex-wrap gap-3">
+                                  {appointment.servicePopularity && (
+                                    <span>Popularity: {appointment.servicePopularity}</span>
+                                  )}
+                                  {appointment.serviceTotalBookings > 0 && (
+                                    <span>Total Bookings: {appointment.serviceTotalBookings}</span>
+                                  )}
+                                  {appointment.pointsAwarded !== undefined && (
+                                    <span>Points Awarded: {appointment.pointsAwarded ? 'Yes' : 'No'}</span>
+                                  )}
+                                </div>
                               </div>
 
                               {/* Customer Additional Info */}
@@ -1056,6 +1198,7 @@ export default function SuperAdminAppointments() {
                             <span>Appointment ID: <code className="bg-gray-100 px-2 py-0.5 rounded">{appointment.id.substring(0, 8)}...</code></span>
                             <span>Customer ID: <code className="bg-gray-100 px-2 py-0.5 rounded">{appointment.customerId.substring(0, 8)}...</code></span>
                             <span>Service ID: <code className="bg-gray-100 px-2 py-0.5 rounded">{appointment.serviceId.substring(0, 8)}...</code></span>
+                            <span>Staff ID: <code className="bg-gray-100 px-2 py-0.5 rounded">{appointment.staffId.substring(0, 8)}...</code></span>
                             <span>
                               Created: {appointment.createdAt?.toDate?.().toLocaleDateString() || 'N/A'}
                             </span>

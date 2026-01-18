@@ -10,6 +10,8 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Calendar,
   Users,
@@ -24,6 +26,24 @@ import {
   Package,
   Layers,
   Star,
+  CheckCircle,
+  Clock,
+  AlertCircle,
+  Plus,
+  Eye,
+  Download,
+  Filter,
+  Search,
+  Bell,
+  Home,
+  ShoppingBag,
+  Tag,
+  FileText,
+  MessageSquare,
+  Award,
+  Target,
+  PieChart,
+  Activity,
 } from "lucide-react";
 
 import { useAuth } from "@/contexts/AuthContext";
@@ -116,7 +136,6 @@ interface BranchDocument {
   name?: string;
   city?: string;
   managerName?: string;
-  // Add other branch fields as needed
   [key: string]: any;
 }
 
@@ -138,8 +157,8 @@ interface ServiceDocument {
   duration?: number;
   category?: string;
   status?: string;
-  branches?: string[];
-  branchNames?: string[];
+  branches?: string[]; // Array of branch IDs
+  branchNames?: string[]; // Array of branch names
   createdAt?: { toDate: () => Date };
   [key: string]: any;
 }
@@ -186,6 +205,7 @@ export default function SuperAdminDashboard() {
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
   const [loading, setLoading] = useState<boolean>(true);
+  const [activeTab, setActiveTab] = useState<string>("bookings");
 
   // Real-time data states
   const [overallStats, setOverallStats] = useState<OverallStats>({
@@ -204,12 +224,12 @@ export default function SuperAdminDashboard() {
     BranchPerformance[]
   >([]);
   const [recentActivities, setRecentActivities] = useState<RecentActivity[]>(
-    []
+    [],
   );
 
   // Recent items states
   const [recentCategories, setRecentCategories] = useState<RecentCategory[]>(
-    []
+    [],
   );
   const [recentProducts, setRecentProducts] = useState<RecentProduct[]>([]);
   const [recentServices, setRecentServices] = useState<RecentService[]>([]);
@@ -239,11 +259,19 @@ export default function SuperAdminDashboard() {
     } ago`;
   };
 
-  // Fetch all data from Firebase
+  // 🔥 FIXED: Fetch dashboard data with branch filtering
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
+
+        console.log("🔄 Fetching dashboard data...");
+        console.log("👤 User:", {
+          email: user?.email,
+          role: user?.role,
+          branchId: user?.branchId,
+          branchName: user?.branchName,
+        });
 
         // 1. Fetch Branches
         const branchesSnapshot = await getDocs(collection(db, "branches"));
@@ -251,155 +279,270 @@ export default function SuperAdminDashboard() {
           (doc) => ({
             id: doc.id,
             ...doc.data(),
-          })
+          }),
         );
 
-        // 2. Fetch Feedbacks for ratings
-        const feedbacksSnapshot = await getDocs(collection(db, "feedbacks"));
-        const feedbacksData: FeedbackDocument[] = feedbacksSnapshot.docs.map(
+        console.log("🏢 Total branches:", branchesData.length);
+
+        // 2. Fetch all data
+        const [
+          servicesSnapshot,
+          productsSnapshot,
+          categoriesSnapshot,
+          bookingsSnapshot,
+          feedbacksSnapshot,
+        ] = await Promise.all([
+          getDocs(collection(db, "services")),
+          getDocs(collection(db, "products")),
+          getDocs(collection(db, "categories")),
+          getDocs(collection(db, "bookings")),
+          getDocs(collection(db, "feedbacks")),
+        ]);
+
+        // Convert to arrays
+        const allServices: ServiceDocument[] = servicesSnapshot.docs.map(
           (doc) => ({
             id: doc.id,
             ...doc.data(),
-          })
+          }),
         );
 
-        // 3. Fetch Services
-        const servicesSnapshot = await getDocs(collection(db, "services"));
-        const servicesData: ServiceDocument[] = servicesSnapshot.docs.map(
+        const allProducts: ProductDocument[] = productsSnapshot.docs.map(
           (doc) => ({
             id: doc.id,
             ...doc.data(),
-          })
+          }),
         );
 
-        // 4. Fetch Products
-        const productsSnapshot = await getDocs(collection(db, "products"));
-        const productsData: ProductDocument[] = productsSnapshot.docs.map(
+        const allCategories: CategoryDocument[] = categoriesSnapshot.docs.map(
           (doc) => ({
             id: doc.id,
             ...doc.data(),
-          })
+          }),
         );
 
-        // 5. Fetch Categories
-        const categoriesSnapshot = await getDocs(collection(db, "categories"));
-        const categoriesData: CategoryDocument[] = categoriesSnapshot.docs.map(
+        const allBookings: BookingDocument[] = bookingsSnapshot.docs.map(
           (doc) => ({
             id: doc.id,
             ...doc.data(),
-          })
+          }),
         );
 
-        // 6. Fetch Bookings
-        const bookingsSnapshot = await getDocs(collection(db, "bookings"));
-        const bookingsData: BookingDocument[] = bookingsSnapshot.docs.map(
+        const allFeedbacks: FeedbackDocument[] = feedbacksSnapshot.docs.map(
           (doc) => ({
             id: doc.id,
             ...doc.data(),
-          })
+          }),
         );
 
-        // Calculate overall stats
-        const totalBranches = branchesData.length;
+        console.log("📊 Total data fetched:", {
+          services: allServices.length,
+          products: allProducts.length,
+          categories: allCategories.length,
+          bookings: allBookings.length,
+          feedbacks: allFeedbacks.length,
+        });
 
-        // Calculate total revenue from services and products
-        const totalServiceRevenue = servicesData.reduce(
-          (sum, service) => sum + (service.revenue || 0),
-          0
-        );
-        const totalProductRevenue = productsData.reduce(
-          (sum, product) => sum + (product.revenue || 0),
-          0
-        );
-        const totalRevenue = totalServiceRevenue + totalProductRevenue;
+        // 🔥 BRANCH FILTERING LOGIC
+        let filteredServices: ServiceDocument[] = [];
+        let filteredProducts: ProductDocument[] = [];
+        let filteredCategories: CategoryDocument[] = [];
+        let filteredBookings: BookingDocument[] = [];
+        let filteredFeedbacks: FeedbackDocument[] = [];
 
-        // Calculate total bookings revenue
-        const totalBookingsRevenue = bookingsData.reduce(
+        if (user?.role === "admin" && user?.branchId) {
+          // BRANCH ADMIN: Filter data for specific branch
+          const userBranchId = user.branchId;
+          const userBranchName = user.branchName;
+
+          console.log(
+            `🔍 Filtering for branch: ${userBranchName} (${userBranchId})`,
+          );
+
+          // Filter services that belong to this branch
+          filteredServices = allServices.filter((service) => {
+            // Check if service has branches array and it includes user's branchId
+            const hasBranch = service.branches?.includes(userBranchId);
+            console.log(
+              `Service "${service.name}" - branches:`,
+              service.branches,
+              "hasBranch:",
+              hasBranch,
+            );
+            return hasBranch;
+          });
+
+          // Filter products that belong to this branch
+          filteredProducts = allProducts.filter((product) =>
+            product.branches?.includes(userBranchId),
+          );
+
+          // Filter categories that belong to this branch
+          filteredCategories = allCategories.filter(
+            (category) =>
+              category.branchName === userBranchName ||
+              (category.branchName &&
+                category.branchName.includes(userBranchName || "")),
+          );
+
+          // Filter bookings for this branch
+          filteredBookings = allBookings.filter(
+            (booking) =>
+              booking.branchId === userBranchId ||
+              booking.branchName === userBranchName,
+          );
+
+          // Filter feedbacks for this branch
+          filteredFeedbacks = allFeedbacks.filter(
+            (feedback) =>
+              feedback.branchId === userBranchId ||
+              feedback.branchName === userBranchName,
+          );
+
+          console.log(`✅ Filtered data for branch ${userBranchName}:`, {
+            services: filteredServices.length,
+            products: filteredProducts.length,
+            categories: filteredCategories.length,
+            bookings: filteredBookings.length,
+            feedbacks: filteredFeedbacks.length,
+          });
+        } else if (user?.role === "super_admin") {
+          // SUPER ADMIN: Show all data
+          filteredServices = allServices;
+          filteredProducts = allProducts;
+          filteredCategories = allCategories;
+          filteredBookings = allBookings;
+          filteredFeedbacks = allFeedbacks;
+
+          console.log("👑 Super Admin: Showing all data");
+        }
+
+        // 🔥 Calculate stats based on filtered data
+        const totalRevenue = filteredBookings.reduce(
           (sum, booking) => sum + (booking.totalAmount || 0),
-          0
+          0,
         );
 
-        // Calculate average rating
-        const totalRating = feedbacksData.reduce(
+        const totalRating = filteredFeedbacks.reduce(
           (sum, feedback) => sum + (feedback.rating || 0),
-          0
+          0,
         );
         const avgRating =
-          feedbacksData.length > 0
-            ? (totalRating / feedbacksData.length).toFixed(1)
-            : "0";
+          filteredFeedbacks.length > 0
+            ? parseFloat((totalRating / filteredFeedbacks.length).toFixed(1))
+            : 0;
 
-        // Prepare branch performance data
-        const branchPerformanceData: BranchPerformance[] = branchesData.map(
-          (branch) => {
-            // Get branch-specific feedbacks
-            const branchFeedbacks = feedbacksData.filter(
-              (fb) => fb.branchId === branch.id || fb.branchName === branch.name
+        // Update overall stats
+        setOverallStats({
+          totalBranches: user?.role === "admin" ? 1 : branchesData.length,
+          totalRevenue: totalRevenue,
+          totalCustomers: filteredFeedbacks.length,
+          avgRating: avgRating,
+          monthlyGrowth: 12.5,
+          totalServices: filteredServices.length,
+          totalProducts: filteredProducts.length,
+          totalCategories: filteredCategories.length,
+          totalBookings: filteredBookings.length,
+        });
+
+        console.log("📈 Calculated stats:", {
+          totalServices: filteredServices.length,
+          totalBookings: filteredBookings.length,
+          totalRevenue: totalRevenue,
+          avgRating: avgRating,
+        });
+
+        // 🔥 Prepare branch performance data
+        const branchPerformanceData: BranchPerformance[] = [];
+
+        if (user?.role === "admin" && user?.branchId) {
+          // For branch admin, only show their branch
+          const userBranch = branchesData.find((b) => b.id === user.branchId);
+          if (userBranch) {
+            // Calculate branch-specific stats
+            const branchBookings = filteredBookings;
+            const branchFeedbacks = filteredFeedbacks;
+            const branchRevenue = branchBookings.reduce(
+              (sum, b) => sum + (b.totalAmount || 0),
+              0,
             );
-
-            // Calculate branch rating
             const branchRatingTotal = branchFeedbacks.reduce(
               (sum, fb) => sum + (fb.rating || 0),
-              0
+              0,
             );
             const branchRating =
               branchFeedbacks.length > 0
-                ? (branchRatingTotal / branchFeedbacks.length).toFixed(1)
-                : "0";
+                ? branchRatingTotal / branchFeedbacks.length
+                : 0;
 
-            // Calculate branch revenue
-            const branchServices = servicesData.filter(
-              (service) =>
-                service.branches?.includes(branch.id) ||
-                service.branchNames?.includes(branch.name as string)
-            );
-            const branchProducts = productsData.filter(
-              (product) =>
-                product.branches?.includes(branch.id) ||
-                product.branchNames?.includes(branch.name as string)
-            );
-
-            const branchServiceRevenue = branchServices.reduce(
-              (sum, s) => sum + (s.revenue || 0),
-              0
-            );
-            const branchProductRevenue = branchProducts.reduce(
-              (sum, p) => sum + (p.revenue || 0),
-              0
-            );
-            const branchRevenue = branchServiceRevenue + branchProductRevenue;
-
-            // Get branch bookings
-            const branchBookings = bookingsData.filter(
-              (booking) =>
-                booking.branchId === branch.id ||
-                booking.branchName === branch.name
-            );
-
-            // Determine status based on rating
-            let status = "average";
-            const ratingNum = parseFloat(branchRating);
-            if (ratingNum >= 4.5) status = "excellent";
-            else if (ratingNum >= 4.0) status = "good";
-            else if (ratingNum >= 3.5) status = "average";
-            else status = "needs_attention";
-
-            return {
-              id: branch.id,
-              name: branch.name || "Unnamed Branch",
+            branchPerformanceData.push({
+              id: userBranch.id,
+              name: userBranch.name || user.branchName || "Your Branch",
               revenue: branchRevenue,
               customers: branchFeedbacks.length,
-              rating: ratingNum,
-              status: status,
-              city: branch.city || "N/A",
-              manager: branch.managerName || "N/A",
+              rating: parseFloat(branchRating.toFixed(1)),
+              status:
+                branchRating >= 4.5
+                  ? "excellent"
+                  : branchRating >= 4.0
+                    ? "good"
+                    : branchRating >= 3.5
+                      ? "average"
+                      : "needs_attention",
+              city: userBranch.city || "N/A",
+              manager: userBranch.managerName || "N/A",
               bookings: branchBookings.length,
-            };
+            });
           }
-        );
+        } else {
+          // For super admin, show all branches
+          branchPerformanceData.push(
+            ...branchesData.map((branch) => {
+              const branchBookings = allBookings.filter(
+                (b) => b.branchId === branch.id || b.branchName === branch.name,
+              );
+              const branchFeedbacks = allFeedbacks.filter(
+                (f) => f.branchId === branch.id || f.branchName === branch.name,
+              );
+              const branchRevenue = branchBookings.reduce(
+                (sum, b) => sum + (b.totalAmount || 0),
+                0,
+              );
+              const branchRatingTotal = branchFeedbacks.reduce(
+                (sum, f) => sum + (f.rating || 0),
+                0,
+              );
+              const branchRating =
+                branchFeedbacks.length > 0
+                  ? branchRatingTotal / branchFeedbacks.length
+                  : 0;
 
-        // Prepare recent activities from feedbacks
-        const recentActivitiesData: RecentActivity[] = feedbacksData
+              return {
+                id: branch.id,
+                name: branch.name || "Unnamed Branch",
+                revenue: branchRevenue,
+                customers: branchFeedbacks.length,
+                rating: parseFloat(branchRating.toFixed(1)),
+                status:
+                  branchRating >= 4.5
+                    ? "excellent"
+                    : branchRating >= 4.0
+                      ? "good"
+                      : branchRating >= 3.5
+                        ? "average"
+                        : "needs_attention",
+                city: branch.city || "N/A",
+                manager: branch.managerName || "N/A",
+                bookings: branchBookings.length,
+              };
+            }),
+          );
+        }
+
+        setBranchPerformance(branchPerformanceData);
+
+        // 🔥 Prepare recent activities
+        const recentActivitiesData: RecentActivity[] = filteredFeedbacks
           .sort((a, b) => {
             const dateA = a.createdAt?.toDate()?.getTime() || 0;
             const dateB = b.createdAt?.toDate()?.getTime() || 0;
@@ -414,12 +557,12 @@ export default function SuperAdminDashboard() {
                 feedback.customerName || "Customer"
               }`,
               time: timeAgo,
-              branch: feedback.branchName || "Unknown Branch",
+              branch: feedback.branchName || user?.branchName || "Your Branch",
             };
           });
 
-        // Get recent categories (sorted by createdAt)
-        const recentCategoriesData: RecentCategory[] = categoriesData
+        // 🔥 Prepare recent categories
+        const recentCategoriesData: RecentCategory[] = filteredCategories
           .sort((a, b) => {
             const dateA = a.createdAt?.toDate()?.getTime() || 0;
             const dateB = b.createdAt?.toDate()?.getTime() || 0;
@@ -430,13 +573,13 @@ export default function SuperAdminDashboard() {
             id: category.id,
             name: category.name || "Unnamed Category",
             type: category.type || "service",
-            branch: category.branchName || "All Branches",
+            branch: category.branchName || user?.branchName || "All Branches",
             time: calculateTimeAgo(category.createdAt?.toDate()),
             isActive: category.isActive || false,
           }));
 
-        // Get recent products
-        const recentProductsData: RecentProduct[] = productsData
+        // 🔥 Prepare recent products
+        const recentProductsData: RecentProduct[] = filteredProducts
           .sort((a, b) => {
             const dateA = a.createdAt?.toDate()?.getTime() || 0;
             const dateB = b.createdAt?.toDate()?.getTime() || 0;
@@ -452,8 +595,8 @@ export default function SuperAdminDashboard() {
             status: product.status || "active",
           }));
 
-        // Get recent services
-        const recentServicesData: RecentService[] = servicesData
+        // 🔥 Prepare recent services
+        const recentServicesData: RecentService[] = filteredServices
           .sort((a, b) => {
             const dateA = a.createdAt?.toDate()?.getTime() || 0;
             const dateB = b.createdAt?.toDate()?.getTime() || 0;
@@ -470,8 +613,8 @@ export default function SuperAdminDashboard() {
             status: service.status || "active",
           }));
 
-        // Get recent bookings
-        const recentBookingsData: RecentBooking[] = bookingsData
+        // 🔥 Prepare recent bookings
+        const recentBookingsData: RecentBooking[] = filteredBookings
           .sort((a, b) => {
             const dateA = a.createdAt?.toDate()?.getTime() || 0;
             const dateB = b.createdAt?.toDate()?.getTime() || 0;
@@ -489,94 +632,92 @@ export default function SuperAdminDashboard() {
             timeAgo: calculateTimeAgo(booking.createdAt?.toDate()),
           }));
 
-        // Update state with real data
-        setOverallStats({
-          totalBranches: totalBranches,
-          totalRevenue: totalBookingsRevenue, // Use bookings revenue
-          totalCustomers: feedbacksData.length,
-          avgRating: parseFloat(avgRating),
-          monthlyGrowth: 12.5,
-          totalServices: servicesData.length,
-          totalProducts: productsData.length,
-          totalCategories: categoriesData.length,
-          totalBookings: bookingsData.length,
-        });
-
-        setBranchPerformance(branchPerformanceData);
+        // Update all states
         setRecentActivities(recentActivitiesData);
         setRecentCategories(recentCategoriesData);
         setRecentProducts(recentProductsData);
         setRecentServices(recentServicesData);
         setRecentBookings(recentBookingsData);
+
+        console.log("✅ Dashboard data loaded successfully!");
       } catch (error) {
-        console.error("Error fetching dashboard data:", error);
+        console.error("❌ Error fetching dashboard data:", error);
       } finally {
         setLoading(false);
       }
     };
 
     fetchDashboardData();
-
-    // You can add real-time listeners here if needed
-    // const unsubscribe = onSnapshot(collection(db, "branches"), () => {
-    //   fetchDashboardData();
-    // });
-
-    // return () => unsubscribe();
-  }, []);
+  }, [user]);
 
   const getStatusColor = (status: string): string => {
     switch (status) {
       case "active":
       case "completed":
       case "excellent":
-        return "bg-green-100 text-green-800";
+        return "bg-gradient-to-r from-green-100 to-green-50 text-green-800 border-green-200";
       case "good":
       case "pending":
-        return "bg-blue-100 text-blue-800";
+        return "bg-gradient-to-r from-blue-100 to-blue-50 text-blue-800 border-blue-200";
       case "average":
-        return "bg-yellow-100 text-yellow-800";
+        return "bg-gradient-to-r from-yellow-100 to-yellow-50 text-yellow-800 border-yellow-200";
       case "needs_attention":
       case "cancelled":
-        return "bg-red-100 text-red-800";
+        return "bg-gradient-to-r from-red-100 to-red-50 text-red-800 border-red-200";
       default:
-        return "bg-gray-100 text-gray-800";
+        return "bg-gradient-to-r from-gray-100 to-gray-50 text-gray-800 border-gray-200";
     }
   };
 
-  const getStatusBadge = (status: string): string => {
+  const getStatusIcon = (status: string) => {
     switch (status) {
       case "active":
-        return "Active";
-      case "pending":
-        return "Pending";
       case "completed":
-        return "Completed";
+      case "excellent":
+        return <CheckCircle className="h-4 w-4 text-green-600" />;
+      case "pending":
+        return <Clock className="h-4 w-4 text-blue-600" />;
       case "cancelled":
-        return "Cancelled";
+        return <AlertCircle className="h-4 w-4 text-red-600" />;
       default:
-        return status;
+        return null;
     }
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-lg text-muted-foreground">
-            Loading Dashboard Data...
-          </p>
+      <div className="flex items-center justify-center h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+        <div className="text-center space-y-6">
+          <div className="relative">
+            <div className="h-24 w-24 rounded-full border-4 border-gray-200"></div>
+            <div className="absolute top-0 left-0 h-24 w-24 rounded-full border-4 border-primary border-t-transparent animate-spin"></div>
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-xl font-bold text-gray-900 font-serif">
+              Loading Dashboard
+            </h3>
+            <p className="text-sm text-gray-500">
+              Fetching real-time data from database...
+            </p>
+          </div>
+          <div className="w-48 mx-auto">
+            <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-primary rounded-full animate-pulse"
+                style={{ width: '75%' }}
+              />
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen bg-[#f8f9fa]">
-      {/* Sidebar - Now visible by default */}
+    <div className="flex h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50/30">
+      {/* Sidebar */}
       <AdminSidebar
-        role="branch_admin"
+        role={user?.role === "super_admin" ? "super_admin" : "branch_admin"}
         onLogout={handleLogout}
         isOpen={sidebarOpen}
         onToggle={() => setSidebarOpen(!sidebarOpen)}
@@ -585,735 +726,793 @@ export default function SuperAdminDashboard() {
       {/* Main Content */}
       <div
         className={cn(
-          "flex-1 flex flex-col transition-all duration-300 ease-in-out min-h-0",
-          sidebarOpen ? "lg:ml-0" : "lg:ml-0" // Adjusted margin for sidebar
+          "flex-1 flex flex-col transition-all duration-300 ease-in-out min-h-0 overflow-hidden",
+          sidebarOpen ? "lg:ml-0" : "lg:ml-0",
         )}
       >
-        {/* Header */}
-        <header className="bg-white border-b border-gray-200 shrink-0">
-          <div className="flex items-center justify-between px-4 py-4 lg:px-8">
+        {/* Modern Header */}
+        <header className="bg-gradient-to-r from-primary via-primary/95 to-primary/90 shadow-lg shadow-primary/10 border-b border-primary/20">
+          <div className="flex items-center justify-between px-1 py-1">
             <div className="flex items-center gap-4">
               <AdminMobileSidebar
-                role="branch_admin"
+                role={
+                  user?.role === "super_admin" ? "super_admin" : "branch_admin"
+                }
                 onLogout={handleLogout}
                 isOpen={sidebarOpen}
                 onToggle={() => setSidebarOpen(!sidebarOpen)}
               />
-              <div>
-                <h1 className="text-2xl font-serif font-bold text-primary">
-                  Super Admin Dashboard
-                </h1>
-                <p className="text-sm text-muted-foreground">
-                  Multi-Branch Management System
-                </p>
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm">
+                  <Building className="h-7 w-7 text-white" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-3">
+                    <h1 className="text-2xl font-bold text-white font-serif">
+                      {user?.role === "admin"
+                        ? "Branch Dashboard"
+                        : "Super Admin Dashboard"}
+                    </h1>
+                    {user?.role === "admin" && user?.branchName && (
+                      <Badge className="bg-white/20 text-white border-0 px-3 py-1 rounded-full backdrop-blur-sm hover:bg-white/30 transition-colors">
+                        🏢 {user.branchName}
+                      </Badge>
+                    )}
+                    {user?.role === "super_admin" && (
+                      <Badge className="bg-gradient-to-r from-amber-500 to-amber-600 text-white border-0 px-3 py-1 rounded-full">
+                        👑 Super Admin
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-sm text-white/90 mt-1 flex items-center gap-2">
+                    <Activity className="h-3 w-3 animate-pulse" />
+                    {user?.role === "admin"
+                      ? `Managing ${user?.branchName || "your branch"}`
+                      : "Multi-Branch Management System"}
+                  </p>
+                </div>
               </div>
             </div>
+
             <div className="flex items-center gap-4">
-              <span className="text-sm text-muted-foreground hidden sm:block">
-                Welcome, {user?.email}
-              </span>
+              {/* Notifications */}
               <Button
-                variant="outline"
-                onClick={handleLogout}
-                className="hidden sm:flex border-primary/10 text-primary hover:bg-primary/5"
+                variant="ghost"
+                size="icon"
+                className="relative rounded-xl bg-white/10 hover:bg-white/20 text-white"
               >
-                <LogOut className="w-4 h-4 mr-2" />
+                <Bell className="h-5 w-5" />
+                <span className="absolute -top-1 -right-1 h-5 w-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                  3
+                </span>
+              </Button>
+
+              {/* User Profile */}
+              <div className="flex items-center gap-3 bg-white/10 px-4 py-2.5 rounded-2xl backdrop-blur-sm hover:bg-white/20 transition-colors cursor-pointer">
+                <Avatar className="h-10 w-10 border-2 border-white/30">
+                  <AvatarFallback className="bg-gradient-to-r from-primary to-secondary text-white font-bold">
+                    {user?.email?.charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="text-white">
+                  <p className="text-sm font-semibold">{user?.email}</p>
+                  <p className="text-xs opacity-90 capitalize">
+                    {user?.role?.replace("_", " ")}
+                  </p>
+                </div>
+              </div>
+
+              {/* Logout Button */}
+              <Button
+                onClick={handleLogout}
+                className="bg-white text-primary hover:bg-gray-100 shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-4"
+              >
+                <LogOut className="h-4 w-4 mr-2" />
                 Logout
               </Button>
             </div>
           </div>
         </header>
 
-        {/* Content */}
-        <div className="flex-1 overflow-auto min-h-0 bg-[#f8f9fa]">
-          <div className="h-full p-4 lg:p-8">
-            {/* Overall Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              {/* Total Branches Card */}
-              <Card className="border-none shadow-sm hover:shadow-md transition-shadow">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                    Total Branches
-                  </CardTitle>
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <Building className="h-4 w-4 text-blue-600" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-primary">
-                    {overallStats.totalBranches}
-                  </div>
-                  <p className="text-xs text-green-600 font-medium mt-1">
-                    All locations active
+        {/* Content Area */}
+        <div className="flex-1 overflow-auto min-h-0">
+          <div className="h-full p-4 lg:p-6">
+            {/* Dashboard Stats Section */}
+            <div className="mb-8">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900 font-serif">
+                    Dashboard Overview
+                  </h2>
+                  <p className="text-gray-600">
+                    Real-time statistics and performance metrics
                   </p>
-                </CardContent>
-              </Card>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Button
+                    variant="outline"
+                    className="border-gray-200 hover:border-primary/30 rounded-xl"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Export Report
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="border-gray-200 hover:border-primary/30 rounded-xl"
+                  >
+                    <Filter className="h-4 w-4 mr-2" />
+                    Filter
+                  </Button>
+                  <Button className="bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 rounded-xl shadow-md hover:shadow-lg transition-shadow">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add New
+                  </Button>
+                </div>
+              </div>
 
-              {/* Total Revenue Card */}
-              <Card className="border-none shadow-sm hover:shadow-md transition-shadow">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                    Total Revenue
-                  </CardTitle>
-                  <div className="p-2 bg-green-100 rounded-lg">
-                    <DollarSign className="h-4 w-4 text-green-600" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-primary">
-                    ${overallStats.totalRevenue.toLocaleString()}
-                  </div>
-                  <p className="text-xs text-green-600 font-medium mt-1">
-                    +{overallStats.monthlyGrowth}% from last month
-                  </p>
-                </CardContent>
-              </Card>
-
-              {/* Total Customers Card */}
-              <Card className="border-none shadow-sm hover:shadow-md transition-shadow">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                    Total Customers
-                  </CardTitle>
-                  <div className="p-2 bg-purple-100 rounded-lg">
-                    <Users className="h-4 w-4 text-purple-600" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-primary">
-                    {overallStats.totalCustomers.toLocaleString()}
-                  </div>
-                  <p className="text-xs text-green-600 font-medium mt-1">
-                    +8% from last month
-                  </p>
-                </CardContent>
-              </Card>
-
-              {/* Average Rating Card */}
-              <Card className="border-none shadow-sm hover:shadow-md transition-shadow">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                    Average Rating
-                  </CardTitle>
-                  <div className="p-2 bg-amber-100 rounded-lg">
-                    <Star className="h-4 w-4 text-amber-600" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-primary">
-                    {overallStats.avgRating}
-                  </div>
-                  <p className="text-xs text-green-600 font-medium mt-1">
-                    Based on {overallStats.totalCustomers} reviews
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Additional Stats Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-              {/* Total Bookings Card */}
-              <Card className="border-none shadow-sm hover:shadow-md transition-shadow">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                    Total Bookings
-                  </CardTitle>
-                  <div className="p-2 bg-indigo-100 rounded-lg">
-                    <Calendar className="h-4 w-4 text-indigo-600" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-primary">
-                    {overallStats.totalBookings}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Appointments scheduled
-                  </p>
-                </CardContent>
-              </Card>
-
-              {/* Total Services Card */}
-              <Card className="border-none shadow-sm hover:shadow-md transition-shadow">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                    Total Services
-                  </CardTitle>
-                  <div className="p-2 bg-pink-100 rounded-lg">
-                    <Settings className="h-4 w-4 text-pink-600" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-primary">
-                    {overallStats.totalServices}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Active services
-                  </p>
-                </CardContent>
-              </Card>
-
-              {/* Total Products Card */}
-              <Card className="border-none shadow-sm hover:shadow-md transition-shadow">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                    Total Products
-                  </CardTitle>
-                  <div className="p-2 bg-cyan-100 rounded-lg">
-                    <Package className="h-4 w-4 text-cyan-600" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-primary">
-                    {overallStats.totalProducts}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Available products
-                  </p>
-                </CardContent>
-              </Card>
-
-              {/* Total Categories Card */}
-              <Card className="border-none shadow-sm hover:shadow-md transition-shadow">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                    Total Categories
-                  </CardTitle>
-                  <div className="p-2 bg-orange-100 rounded-lg">
-                    <Layers className="h-4 w-4 text-orange-600" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-primary">
-                    {overallStats.totalCategories}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Service & product categories
-                  </p>
-                </CardContent>
-              </Card>
-
-              {/* Monthly Growth Card */}
-              <Card className="border-none shadow-sm hover:shadow-md transition-shadow">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                    Growth Rate
-                  </CardTitle>
-                  <div className="p-2 bg-teal-100 rounded-lg">
-                    <TrendingUp className="h-4 w-4 text-teal-600" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-primary">
-                    +{overallStats.monthlyGrowth}%
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Monthly increase
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Recent Items Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-              {/* Recent Bookings */}
-              <Card className="border-none shadow-sm">
-                <CardHeader className="border-b border-gray-50">
-                  <CardTitle className="flex items-center gap-2 text-lg font-serif">
-                    <Calendar className="w-5 h-5 text-indigo-600" />
-                    Recent Bookings
-                  </CardTitle>
-                  <CardDescription>
-                    Latest appointments and reservations
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-6">
-                  {recentBookings.length === 0 ? (
-                    <div className="text-center py-8">
-                      <p className="text-muted-foreground">
-                        No recent bookings
-                      </p>
+              {/* Main Stats Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                {/* Total Revenue Card */}
+                <Card className="border-none shadow-xl hover:shadow-2xl transition-all duration-300 bg-gradient-to-br from-white to-green-50/50 hover-lift group overflow-hidden">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-green-200/20 rounded-full -translate-y-12 translate-x-12 group-hover:scale-110 transition-transform duration-500"></div>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 relative z-10">
+                    <CardTitle className="text-sm font-semibold text-gray-600 uppercase tracking-wider">
+                      Total Revenue
+                    </CardTitle>
+                    <div className="p-3 bg-gradient-to-r from-green-500 to-green-600 rounded-2xl shadow-lg">
+                      <DollarSign className="h-5 w-5 text-white" />
                     </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {recentBookings.map((booking) => (
-                        <div
-                          key={booking.id}
-                          className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-xl hover:border-indigo-200 hover:shadow-sm transition-all"
-                        >
-                          <div className="flex-1">
-                            <div className="flex items-center justify-between mb-2">
-                              <h3 className="font-bold text-primary">
-                                {booking.serviceName}
-                              </h3>
-                              <Badge
-                                className={cn(
-                                  "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border-none",
-                                  getStatusColor(booking.status)
-                                )}
-                              >
-                                {getStatusBadge(booking.status)}
-                              </Badge>
-                            </div>
-                            <div className="grid grid-cols-2 gap-2 text-sm">
-                              <div>
-                                <p className="text-muted-foreground text-xs">
-                                  Customer
-                                </p>
-                                <p className="font-semibold">
-                                  {booking.customerName}
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-muted-foreground text-xs">
-                                  Date & Time
-                                </p>
-                                <p className="font-semibold">
-                                  {booking.date} • {booking.time}
-                                </p>
-                              </div>
-                            </div>
-                            <div className="flex items-center justify-between mt-3">
-                              <span className="text-lg font-bold text-primary">
-                                ${booking.totalAmount}
-                              </span>
-                              <span className="text-xs text-muted-foreground">
-                                {booking.timeAgo}
-                              </span>
-                            </div>
-                          </div>
+                  </CardHeader>
+                  <CardContent className="relative z-10">
+                    <div className="flex items-end gap-2 mb-3">
+                      <div className="text-3xl font-bold text-gray-900">
+                        ${overallStats.totalRevenue.toLocaleString()}
+                      </div>
+                      <div className="text-sm text-green-600 font-semibold flex items-center mb-2 bg-green-100 px-2 py-1 rounded-full">
+                        <TrendingUp className="h-3 w-3 mr-1" />
+                        +{overallStats.monthlyGrowth}%
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-500 mb-3">This month</p>
+                    <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-gradient-to-r from-green-500 to-green-600 rounded-full"
+                        style={{ width: '75%' }}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Total Customers Card */}
+                <Card className="border-none shadow-xl hover:shadow-2xl transition-all duration-300 bg-gradient-to-br from-white to-purple-50/50 hover-lift group overflow-hidden">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-purple-200/20 rounded-full -translate-y-12 translate-x-12 group-hover:scale-110 transition-transform duration-500"></div>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 relative z-10">
+                    <CardTitle className="text-sm font-semibold text-gray-600 uppercase tracking-wider">
+                      Total Customers
+                    </CardTitle>
+                    <div className="p-3 bg-gradient-to-r from-purple-500 to-purple-600 rounded-2xl shadow-lg">
+                      <Users className="h-5 w-5 text-white" />
+                    </div>
+                  </CardHeader>
+                  <CardContent className="relative z-10">
+                    <div className="flex items-end gap-2 mb-3">
+                      <div className="text-3xl font-bold text-gray-900">
+                        {overallStats.totalCustomers}
+                      </div>
+                      <div className="text-sm text-green-600 font-semibold flex items-center mb-2 bg-purple-100 px-2 py-1 rounded-full">
+                        <TrendingUp className="h-3 w-3 mr-1" />
+                        +5.2%
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-500 mb-3">
+                      Active customers
+                    </p>
+                    <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-gradient-to-r from-purple-500 to-purple-600 rounded-full"
+                        style={{ width: '65%' }}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Total Branches Card */}
+                <Card className="border-none shadow-xl hover:shadow-2xl transition-all duration-300 bg-gradient-to-br from-white to-blue-50/50 hover-lift group overflow-hidden">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-blue-200/20 rounded-full -translate-y-12 translate-x-12 group-hover:scale-110 transition-transform duration-500"></div>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 relative z-10">
+                    <CardTitle className="text-sm font-semibold text-gray-600 uppercase tracking-wider">
+                      {user?.role === "admin" ? "Your Branch" : "Total Branches"}
+                    </CardTitle>
+                    <div className="p-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl shadow-lg">
+                      <Building className="h-5 w-5 text-white" />
+                    </div>
+                  </CardHeader>
+                  <CardContent className="relative z-10">
+                    <div className="flex items-end gap-2 mb-3">
+                      <div className="text-3xl font-bold text-gray-900">
+                        {overallStats.totalBranches}
+                      </div>
+                      <div className="text-sm text-green-600 font-semibold flex items-center mb-2 bg-blue-100 px-2 py-1 rounded-full">
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        Active
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-500 mb-3">
+                      {user?.role === "admin"
+                        ? "Your branch status"
+                        : "All locations operational"}
+                    </p>
+                    <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-full"
+                        style={{ width: '100%' }}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Average Rating Card */}
+                <Card className="border-none shadow-xl hover:shadow-2xl transition-all duration-300 bg-gradient-to-br from-white to-amber-50/50 hover-lift group overflow-hidden">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-amber-200/20 rounded-full -translate-y-12 translate-x-12 group-hover:scale-110 transition-transform duration-500"></div>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 relative z-10">
+                    <CardTitle className="text-sm font-semibold text-gray-600 uppercase tracking-wider">
+                      Average Rating
+                    </CardTitle>
+                    <div className="p-3 bg-gradient-to-r from-amber-500 to-amber-600 rounded-2xl shadow-lg">
+                      <Star className="h-5 w-5 text-white" />
+                    </div>
+                  </CardHeader>
+                  <CardContent className="relative z-10">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="text-3xl font-bold text-gray-900 flex items-center">
+                        {overallStats.avgRating}
+                        <Star className="h-5 w-5 text-amber-500 ml-1 fill-amber-500" />
+                      </div>
+                      <div className="flex flex-col">
+                        <div className="flex">
+                          {[...Array(5)].map((_, i) => (
+                            <Star
+                              key={i}
+                              className={`h-3 w-3 ${
+                                i < Math.floor(overallStats.avgRating)
+                                  ? "text-amber-500 fill-amber-500"
+                                  : "text-gray-300"
+                              }`}
+                            />
+                          ))}
                         </div>
-                      ))}
+                        <div className="text-xs text-gray-500 mt-1">
+                          Based on {overallStats.totalCustomers} reviews
+                        </div>
+                      </div>
                     </div>
-                  )}
-                </CardContent>
-              </Card>
+                    <p className="text-xs text-gray-500 mb-3">Customer satisfaction</p>
+                    <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-gradient-to-r from-amber-500 to-amber-600 rounded-full"
+                        style={{ width: `${overallStats.avgRating * 20}%` }}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
 
-              {/* Recent Services */}
-              <Card className="border-none shadow-sm">
-                <CardHeader className="border-b border-gray-50">
-                  <CardTitle className="flex items-center gap-2 text-lg font-serif">
-                    <Settings className="w-5 h-5 text-pink-600" />
-                    Recently Added Services
-                  </CardTitle>
-                  <CardDescription>
-                    New services added to branches
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-6">
-                  {recentServices.length === 0 ? (
-                    <div className="text-center py-8">
-                      <p className="text-muted-foreground">
-                        No recent services
+              {/* Secondary Stats Cards */}
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
+                <Card className="border-none shadow-md hover:shadow-lg transition-shadow bg-gradient-to-br from-white to-pink-50/30">
+                  <CardContent className="p-4 flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-medium text-gray-500 mb-1">
+                        Services
+                      </p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {overallStats.totalServices}
                       </p>
                     </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {recentServices.map((service) => (
-                        <div
-                          key={service.id}
-                          className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-xl hover:border-pink-200 hover:shadow-sm transition-all"
+                    <div className="p-2 bg-pink-100 rounded-lg">
+                      <Settings className="h-5 w-5 text-pink-600" />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-none shadow-md hover:shadow-lg transition-shadow bg-gradient-to-br from-white to-cyan-50/30">
+                  <CardContent className="p-4 flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-medium text-gray-500 mb-1">
+                        Products
+                      </p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {overallStats.totalProducts}
+                      </p>
+                    </div>
+                    <div className="p-2 bg-cyan-100 rounded-lg">
+                      <Package className="h-5 w-5 text-cyan-600" />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-none shadow-md hover:shadow-lg transition-shadow bg-gradient-to-br from-white to-orange-50/30">
+                  <CardContent className="p-4 flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-medium text-gray-500 mb-1">
+                        Categories
+                      </p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {overallStats.totalCategories}
+                      </p>
+                    </div>
+                    <div className="p-2 bg-orange-100 rounded-lg">
+                      <Layers className="h-5 w-5 text-orange-600" />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-none shadow-md hover:shadow-lg transition-shadow bg-gradient-to-br from-white to-teal-50/30">
+                  <CardContent className="p-4 flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-medium text-gray-500 mb-1">
+                        Bookings
+                      </p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {overallStats.totalBookings}
+                      </p>
+                    </div>
+                    <div className="p-2 bg-teal-100 rounded-lg">
+                      <Calendar className="h-5 w-5 text-teal-600" />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-none shadow-md hover:shadow-lg transition-shadow bg-gradient-to-br from-white to-indigo-50/30">
+                  <CardContent className="p-4 flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-medium text-gray-500 mb-1">
+                        Growth Rate
+                      </p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        +{overallStats.monthlyGrowth}%
+                      </p>
+                    </div>
+                    <div className="p-2 bg-indigo-100 rounded-lg">
+                      <TrendingUp className="h-5 w-5 text-indigo-600" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+
+            {/* Tabs Section for Recent Items - FIXED STRUCTURE */}
+            <Card className="border-none shadow-xl mb-8 overflow-hidden">
+              <Tabs
+                value={activeTab}
+                onValueChange={setActiveTab}
+                className="w-full"
+              >
+                <CardHeader className="border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+                  <div className="flex flex-col gap-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="text-lg font-bold text-gray-900 font-serif">
+                          Recent Items
+                        </CardTitle>
+                        <CardDescription>
+                          Browse through your latest additions and activities
+                        </CardDescription>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="border-gray-200 hover:border-primary/30"
                         >
-                          <div className="flex-1">
-                            <div className="flex items-center justify-between mb-2">
-                              <h3 className="font-bold text-primary">
-                                {service.name}
-                              </h3>
+                          <Eye className="h-4 w-4 mr-2" />
+                          View All
+                        </Button>
+                      </div>
+                    </div>
+                    <TabsList className="grid grid-cols-5 w-full bg-gray-100/50 p-1 rounded-xl">
+                      <TabsTrigger
+                        value="bookings"
+                        className="data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-primary rounded-lg transition-all"
+                      >
+                        <Calendar className="h-4 w-4 mr-2" />
+                        Bookings
+                        {recentBookings.length > 0 && (
+                          <Badge className="ml-2 h-5 w-5 p-0 bg-primary text-white">
+                            {recentBookings.length}
+                          </Badge>
+                        )}
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="services"
+                        className="data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-pink-600 rounded-lg transition-all"
+                      >
+                        <Settings className="h-4 w-4 mr-2" />
+                        Services
+                        {recentServices.length > 0 && (
+                          <Badge className="ml-2 h-5 w-5 p-0 bg-pink-500 text-white">
+                            {recentServices.length}
+                          </Badge>
+                        )}
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="products"
+                        className="data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-cyan-600 rounded-lg transition-all"
+                      >
+                        <Package className="h-4 w-4 mr-2" />
+                        Products
+                        {recentProducts.length > 0 && (
+                          <Badge className="ml-2 h-5 w-5 p-0 bg-cyan-500 text-white">
+                            {recentProducts.length}
+                          </Badge>
+                        )}
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="categories"
+                        className="data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-orange-600 rounded-lg transition-all"
+                      >
+                        <Layers className="h-4 w-4 mr-2" />
+                        Categories
+                        {recentCategories.length > 0 && (
+                          <Badge className="ml-2 h-5 w-5 p-0 bg-orange-500 text-white">
+                            {recentCategories.length}
+                          </Badge>
+                        )}
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="activities"
+                        className="data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-purple-600 rounded-lg transition-all"
+                      >
+                        <Activity className="h-4 w-4 mr-2" />
+                        Activities
+                        {recentActivities.length > 0 && (
+                          <Badge className="ml-2 h-5 w-5 p-0 bg-purple-500 text-white">
+                            {recentActivities.length}
+                          </Badge>
+                        )}
+                      </TabsTrigger>
+                    </TabsList>
+                  </div>
+                </CardHeader>
+
+                <CardContent className="p-6">
+                  {/* Bookings Tab */}
+                  <TabsContent value="bookings" className="mt-0">
+                    {recentBookings.length === 0 ? (
+                      <div className="text-center py-12">
+                        <div className="w-20 h-20 mx-auto bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mb-4">
+                          <Calendar className="h-10 w-10 text-gray-400" />
+                        </div>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                          No Recent Bookings
+                        </h3>
+                        <p className="text-gray-500 mb-6 max-w-sm mx-auto">
+                          Bookings will appear here once customers start booking
+                          services
+                        </p>
+                        <Link
+                          href="/admin/bookings"
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl hover:bg-primary/90 transition-colors shadow-md"
+                        >
+                          <Calendar className="h-4 w-4" />
+                          View All Bookings
+                        </Link>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {recentBookings.map((booking) => (
+                          <div
+                            key={booking.id}
+                            className="flex items-center justify-between p-5 bg-gradient-to-r from-white to-gray-50/50 border border-gray-100 rounded-2xl hover:border-primary/20 hover:shadow-lg transition-all duration-300 group"
+                          >
+                            <div className="flex items-center gap-4">
+                              <div className="p-3 bg-gradient-to-r from-blue-100 to-blue-50 rounded-xl">
+                                <Calendar className="h-6 w-6 text-blue-600" />
+                              </div>
+                              <div className="flex-1">
+                                <div className="flex items-center justify-between mb-2">
+                                  <h3 className="font-bold text-lg text-gray-900">
+                                    {booking.serviceName}
+                                  </h3>
+                                  <Badge
+                                    className={cn(
+                                      "px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider",
+                                      getStatusColor(booking.status),
+                                    )}
+                                  >
+                                    <span className="flex items-center gap-1">
+                                      {getStatusIcon(booking.status)}
+                                      {booking.status}
+                                    </span>
+                                  </Badge>
+                                </div>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                  <div>
+                                    <p className="text-xs text-gray-500">
+                                      Customer
+                                    </p>
+                                    <p className="font-semibold">
+                                      {booking.customerName}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs text-gray-500">Date</p>
+                                    <p className="font-semibold">{booking.date}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs text-gray-500">Time</p>
+                                    <p className="font-semibold">{booking.time}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs text-gray-500">Amount</p>
+                                    <p className="font-semibold text-lg text-green-600">
+                                      ${booking.totalAmount}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                            <ChevronRight className="h-5 w-5 text-gray-300 group-hover:text-primary transition-colors ml-4" />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </TabsContent>
+
+                  {/* Services Tab */}
+                  <TabsContent value="services" className="mt-0">
+                    {recentServices.length === 0 ? (
+                      <div className="text-center py-12">
+                        <div className="w-20 h-20 mx-auto bg-gradient-to-br from-pink-100 to-pink-200 rounded-full flex items-center justify-center mb-4">
+                          <Settings className="h-10 w-10 text-pink-400" />
+                        </div>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                          No Services Yet
+                        </h3>
+                        <p className="text-gray-500 mb-6 max-w-sm mx-auto">
+                          Start adding services to see them here
+                        </p>
+                        <Link
+                          href="/admin/services"
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-pink-500 text-white rounded-xl hover:bg-pink-600 transition-colors shadow-md"
+                        >
+                          <Settings className="h-4 w-4" />
+                          Add First Service
+                        </Link>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {recentServices.map((service) => (
+                          <div
+                            key={service.id}
+                            className="p-5 bg-gradient-to-br from-white to-pink-50/30 border border-gray-100 rounded-2xl hover:border-pink-200 hover:shadow-xl transition-all duration-300 group"
+                          >
+                            <div className="flex items-start justify-between mb-4">
+                              <div className="flex items-center gap-3">
+                                <div className="p-2 bg-gradient-to-r from-pink-500 to-pink-600 rounded-xl">
+                                  <Settings className="h-5 w-5 text-white" />
+                                </div>
+                                <div>
+                                  <h3 className="font-bold text-lg text-gray-900">
+                                    {service.name}
+                                  </h3>
+                                  <p className="text-sm text-gray-500">
+                                    {service.category}
+                                  </p>
+                                </div>
+                              </div>
                               <Badge
                                 className={cn(
-                                  "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border-none",
-                                  getStatusColor(service.status)
+                                  "px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider",
+                                  getStatusColor(service.status),
                                 )}
                               >
                                 {service.status}
                               </Badge>
                             </div>
-                            <div className="grid grid-cols-2 gap-2 text-sm">
+                            <div className="grid grid-cols-2 gap-4 mb-4">
                               <div>
-                                <p className="text-muted-foreground text-xs">
-                                  Category
-                                </p>
-                                <p className="font-semibold">
-                                  {service.category}
+                                <p className="text-xs text-gray-500">Price</p>
+                                <p className="text-xl font-bold text-primary">
+                                  ${service.price}
                                 </p>
                               </div>
                               <div>
-                                <p className="text-muted-foreground text-xs">
-                                  Duration
-                                </p>
-                                <p className="font-semibold">
+                                <p className="text-xs text-gray-500">Duration</p>
+                                <p className="text-lg font-semibold">
                                   {service.duration} mins
                                 </p>
                               </div>
                             </div>
-                            <div className="flex items-center justify-between mt-3">
-                              <span className="text-lg font-bold text-primary">
-                                ${service.price}
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-gray-500">
+                                Added {service.time}
                               </span>
-                              <span className="text-xs text-muted-foreground">
-                                {service.time}
-                              </span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-pink-600 hover:text-pink-700 hover:bg-pink-50"
+                              >
+                                <Eye className="h-4 w-4 mr-1" />
+                                View
+                              </Button>
                             </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
+                        ))}
+                      </div>
+                    )}
+                  </TabsContent>
 
-            {/* Another Row for Products and Categories */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-              {/* Recent Products */}
-              <Card className="border-none shadow-sm">
-                <CardHeader className="border-b border-gray-50">
-                  <CardTitle className="flex items-center gap-2 text-lg font-serif">
-                    <Package className="w-5 h-5 text-cyan-600" />
-                    Recently Added Products
-                  </CardTitle>
-                  <CardDescription>New products in inventory</CardDescription>
-                </CardHeader>
-                <CardContent className="pt-6">
-                  {recentProducts.length === 0 ? (
-                    <div className="text-center py-8">
-                      <p className="text-muted-foreground">
-                        No recent products
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {recentProducts.map((product) => (
-                        <div
-                          key={product.id}
-                          className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-xl hover:border-cyan-200 hover:shadow-sm transition-all"
+                  {/* Products Tab */}
+                  <TabsContent value="products" className="mt-0">
+                    {recentProducts.length === 0 ? (
+                      <div className="text-center py-12">
+                        <div className="w-20 h-20 mx-auto bg-gradient-to-br from-cyan-100 to-cyan-200 rounded-full flex items-center justify-center mb-4">
+                          <Package className="h-10 w-10 text-cyan-400" />
+                        </div>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                          No Products Yet
+                        </h3>
+                        <p className="text-gray-500 mb-6 max-w-sm mx-auto">
+                          Start adding products to see them here
+                        </p>
+                        <Link
+                          href="/admin/products"
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-cyan-500 text-white rounded-xl hover:bg-cyan-600 transition-colors shadow-md"
                         >
-                          <div className="flex-1">
-                            <div className="flex items-center justify-between mb-2">
-                              <h3 className="font-bold text-primary">
-                                {product.name}
-                              </h3>
+                          <Package className="h-4 w-4" />
+                          Add First Product
+                        </Link>
+                    </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {recentProducts.map((product) => (
+                          <div
+                            key={product.id}
+                            className="p-5 bg-gradient-to-br from-white to-cyan-50/30 border border-gray-100 rounded-2xl hover:border-cyan-200 hover:shadow-xl transition-all duration-300 group"
+                          >
+                            <div className="flex items-start justify-between mb-4">
+                              <div className="flex items-center gap-3">
+                                <div className="p-2 bg-gradient-to-r from-cyan-500 to-cyan-600 rounded-xl">
+                                  <Package className="h-5 w-5 text-white" />
+                                </div>
+                                <div>
+                                  <h3 className="font-bold text-lg text-gray-900">
+                                    {product.name}
+                                  </h3>
+                                  <p className="text-sm text-gray-500">
+                                    {product.category}
+                                  </p>
+                                </div>
+                              </div>
                               <Badge
                                 className={cn(
-                                  "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border-none",
-                                  getStatusColor(product.status)
+                                  "px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider",
+                                  getStatusColor(product.status),
                                 )}
                               >
                                 {product.status}
                               </Badge>
                             </div>
-                            <div className="grid grid-cols-2 gap-2 text-sm">
-                              <div>
-                                <p className="text-muted-foreground text-xs">
-                                  Category
-                                </p>
-                                <p className="font-semibold">
-                                  {product.category}
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-muted-foreground text-xs">
-                                  Price
-                                </p>
-                                <p className="font-semibold">
-                                  ${product.price}
-                                </p>
-                              </div>
+                            <div className="mb-4">
+                              <p className="text-xs text-gray-500 mb-1">Price</p>
+                              <p className="text-2xl font-bold text-primary">
+                                ${product.price}
+                              </p>
                             </div>
-                            <div className="flex items-center justify-between mt-3">
-                              <span className="text-xs text-muted-foreground">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-gray-500">
                                 Added {product.time}
                               </span>
                               <Button
-                                variant="outline"
+                                variant="ghost"
                                 size="sm"
-                                className="text-xs"
+                                className="text-cyan-600 hover:text-cyan-700 hover:bg-cyan-50"
                               >
-                                View Details
+                                <Eye className="h-4 w-4 mr-1" />
+                                View
                               </Button>
                             </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Recent Categories */}
-              <Card className="border-none shadow-sm">
-                <CardHeader className="border-b border-gray-50">
-                  <CardTitle className="flex items-center gap-2 text-lg font-serif">
-                    <Layers className="w-5 h-5 text-orange-600" />
-                    Recently Added Categories
-                  </CardTitle>
-                  <CardDescription>
-                    New service & product categories
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-6">
-                  {recentCategories.length === 0 ? (
-                    <div className="text-center py-8">
-                      <p className="text-muted-foreground">
-                        No recent categories
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {recentCategories.map((category) => (
-                        <div
-                          key={category.id}
-                          className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-xl hover:border-orange-200 hover:shadow-sm transition-all"
-                        >
-                          <div className="flex-1">
-                            <div className="flex items-center justify-between mb-2">
-                              <h3 className="font-bold text-primary">
-                                {category.name}
-                              </h3>
-                              <div className="flex items-center gap-2">
-                                <Badge
-                                  className={cn(
-                                    "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border-none",
-                                    category.isActive
-                                      ? "bg-green-100 text-green-700"
-                                      : "bg-gray-100 text-gray-700"
-                                  )}
-                                >
-                                  {category.isActive ? "Active" : "Inactive"}
-                                </Badge>
-                                <Badge className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border-none bg-blue-100 text-blue-700">
-                                  {category.type}
-                                </Badge>
-                              </div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-2 text-sm">
-                              <div>
-                                <p className="text-muted-foreground text-xs">
-                                  Branch
-                                </p>
-                                <p className="font-semibold">
-                                  {category.branch}
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-muted-foreground text-xs">
-                                  Added
-                                </p>
-                                <p className="font-semibold">{category.time}</p>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Branch Performance and Recent Activities */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* Branch Performance */}
-              <div className="lg:col-span-2">
-                <Card className="border-none shadow-sm">
-                  <CardHeader className="border-b border-gray-50">
-                    <CardTitle className="flex items-center gap-2 text-lg font-serif">
-                      <Building className="w-5 h-5 text-secondary" />
-                      Branch Performance Overview
-                    </CardTitle>
-                    <CardDescription>
-                      Revenue, customers, and ratings across all locations
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-6">
-                    {branchPerformance.length === 0 ? (
-                      <div className="text-center py-8">
-                        <p className="text-muted-foreground">
-                          No branch data available
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        {branchPerformance.map((branch) => (
-                          <div
-                            key={branch.id}
-                            className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-xl hover:border-secondary/30 hover:shadow-sm transition-all group"
-                          >
-                            <div className="flex-1">
-                              <div className="flex items-center gap-3 mb-2">
-                                <h3 className="font-bold text-primary">
-                                  {branch.name}
-                                </h3>
-                                <span className="text-xs text-muted-foreground">
-                                  {branch.city}
-                                </span>
-                                <Badge
-                                  className={cn(
-                                    "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border-none",
-                                    branch.status === "excellent"
-                                      ? "bg-green-100 text-green-700"
-                                      : branch.status === "good"
-                                      ? "bg-blue-100 text-blue-700"
-                                      : branch.status === "average"
-                                      ? "bg-amber-100 text-amber-700"
-                                      : "bg-red-100 text-red-700"
-                                  )}
-                                >
-                                  {branch.status.replace("_", " ")}
-                                </Badge>
-                              </div>
-                              <div className="grid grid-cols-4 gap-4 text-sm">
-                                <div>
-                                  <p className="text-muted-foreground text-xs">
-                                    Revenue
-                                  </p>
-                                  <p className="font-semibold text-primary">
-                                    ${branch.revenue.toLocaleString()}
-                                  </p>
-                                </div>
-                                <div>
-                                  <p className="text-muted-foreground text-xs">
-                                    Customers
-                                  </p>
-                                  <p className="font-semibold text-primary">
-                                    {branch.customers}
-                                  </p>
-                                </div>
-                                <div>
-                                  <p className="text-muted-foreground text-xs">
-                                    Rating
-                                  </p>
-                                  <p className="font-semibold text-secondary">
-                                    ⭐ {branch.rating}
-                                  </p>
-                                </div>
-                                <div>
-                                  <p className="text-muted-foreground text-xs">
-                                    Bookings
-                                  </p>
-                                  <p className="font-semibold text-primary">
-                                    {branch.bookings}
-                                  </p>
-                                </div>
-                              </div>
-                              <div className="mt-2">
-                                <p className="text-muted-foreground text-xs">
-                                  Manager:{" "}
-                                  <span className="font-semibold">
-                                    {branch.manager}
-                                  </span>
-                                </p>
-                              </div>
-                            </div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-secondary hover:text-secondary hover:bg-secondary/5 font-bold text-xs uppercase tracking-widest"
-                            >
-                              View Details
-                            </Button>
                           </div>
                         ))}
                       </div>
                     )}
-                  </CardContent>
-                </Card>
-              </div>
+                  </TabsContent>
 
-              {/* Recent Activities & Quick Actions */}
-              <div className="space-y-6">
-                {/* Quick Actions */}
-                <Card className="border-none shadow-sm">
-                  <CardHeader className="border-b border-gray-50">
-                    <CardTitle className="text-lg font-serif">
-                      Quick Actions
-                    </CardTitle>
-                    <CardDescription>
-                      System-wide administrative tasks
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-6 space-y-3">
-                    <Link
-                      href="/admin/branches"
-                      className="flex items-center justify-between h-12 px-4 rounded-xl border border-gray-100 hover:border-secondary/30 hover:bg-secondary/5 hover:text-primary transition-all group"
-                    >
-                      <div className="flex items-center gap-3">
-                        <UserPlus className="w-4 h-4 text-secondary" />
-                        <span className="text-sm font-medium">
-                          Manage Branch
-                        </span>
+                  {/* Categories Tab */}
+                  <TabsContent value="categories" className="mt-0">
+                    {recentCategories.length === 0 ? (
+                      <div className="text-center py-12">
+                        <div className="w-20 h-20 mx-auto bg-gradient-to-br from-orange-100 to-orange-200 rounded-full flex items-center justify-center mb-4">
+                          <Layers className="h-10 w-10 text-orange-400" />
+                        </div>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                          No Categories Yet
+                        </h3>
+                        <p className="text-gray-500 mb-6 max-w-sm mx-auto">
+                          Start adding categories to organize your services and
+                          products
+                        </p>
+                        <Link
+                          href="/admin/categories"
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-colors shadow-md"
+                        >
+                          <Layers className="h-4 w-4" />
+                          Add First Category
+                        </Link>
                       </div>
-                      <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-secondary transition-colors" />
-                    </Link>
-
-                    <Link
-                      href="/admin/staff"
-                      className="flex items-center justify-between h-12 px-4 rounded-xl border border-gray-100 hover:border-secondary/30 hover:bg-secondary/5 hover:text-primary transition-all group"
-                    >
-                      <div className="flex items-center gap-3">
-                        <UserPlus className="w-4 h-4 text-secondary" />
-                        <span className="text-sm font-medium">
-                          Manage Staff
-                        </span>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {recentCategories.map((category) => (
+                          <div
+                            key={category.id}
+                            className="p-5 bg-gradient-to-br from-white to-orange-50/30 border border-gray-100 rounded-2xl hover:border-orange-200 hover:shadow-xl transition-all duration-300 group"
+                          >
+                            <div className="flex items-start justify-between mb-4">
+                              <div className="flex items-center gap-3">
+                                <div className="p-2 bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl">
+                                  <Layers className="h-5 w-5 text-white" />
+                                </div>
+                                <div>
+                                  <h3 className="font-bold text-lg text-gray-900">
+                                    {category.name}
+                                  </h3>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <Badge className="bg-blue-100 text-blue-700 px-2 py-0.5 text-xs">
+                                      {category.type}
+                                    </Badge>
+                                    <Badge
+                                      className={cn(
+                                        "px-2 py-0.5 text-xs",
+                                        category.isActive
+                                          ? "bg-green-100 text-green-700"
+                                          : "bg-gray-100 text-gray-700",
+                                      )}
+                                    >
+                                      {category.isActive ? "Active" : "Inactive"}
+                                    </Badge>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="space-y-3">
+                              <div>
+                                <p className="text-xs text-gray-500">Branch</p>
+                                <p className="font-semibold">{category.branch}</p>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm text-gray-500">
+                                  Added {category.time}
+                                </span>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                                >
+                                  <Eye className="h-4 w-4 mr-1" />
+                                  View
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                      <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-secondary transition-colors" />
-                    </Link>
+                    )}
+                  </TabsContent>
 
-                    <Link
-                      href="/admin/categories"
-                      className="flex items-center justify-between h-12 px-4 rounded-xl border border-gray-100 hover:border-secondary/30 hover:bg-secondary/5 hover:text-primary transition-all group"
-                    >
-                      <div className="flex items-center gap-3">
-                        <UserPlus className="w-4 h-4 text-secondary" />
-                        <span className="text-sm font-medium">
-                          Manage Categories
-                        </span>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-secondary transition-colors" />
-                    </Link>
-
-                    <Link
-                      href="/admin/products"
-                      className="flex items-center justify-between h-12 px-4 rounded-xl border border-gray-100 hover:border-secondary/30 hover:bg-secondary/5 hover:text-primary transition-all group"
-                    >
-                      <div className="flex items-center gap-3">
-                        <UserPlus className="w-4 h-4 text-secondary" />
-                        <span className="text-sm font-medium">
-                          Manage Products
-                        </span>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-secondary transition-colors" />
-                    </Link>
-
-                    <Link
-                      href="/admin/services"
-                      className="flex items-center justify-between h-12 px-4 rounded-xl border border-gray-100 hover:border-secondary/30 hover:bg-secondary/5 hover:text-primary transition-all group"
-                    >
-                      <div className="flex items-center gap-3">
-                        <UserPlus className="w-4 h-4 text-secondary" />
-                        <span className="text-sm font-medium">
-                          Manage Services
-                        </span>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-secondary transition-colors" />
-                    </Link>
-                  </CardContent>
-                </Card>
-
-                {/* Recent Activities */}
-                <Card className="border-none shadow-sm">
-                  <CardHeader className="border-b border-gray-50">
-                    <CardTitle className="text-lg font-serif">
-                      Recent Activities
-                    </CardTitle>
-                    <CardDescription>
-                      Latest customer feedback and updates
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-6">
+                  {/* Activities Tab */}
+                  <TabsContent value="activities" className="mt-0">
                     {recentActivities.length === 0 ? (
-                      <div className="text-center py-4">
-                        <p className="text-muted-foreground">
-                          No recent activities
+                      <div className="text-center py-12">
+                        <div className="w-20 h-20 mx-auto bg-gradient-to-br from-purple-100 to-purple-200 rounded-full flex items-center justify-center mb-4">
+                          <Activity className="h-10 w-10 text-purple-400" />
+                        </div>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                          No Recent Activities
+                        </h3>
+                        <p className="text-gray-500 mb-6 max-w-sm mx-auto">
+                          Activities will appear here as users interact with the
+                          system
                         </p>
                       </div>
                     ) : (
@@ -1321,31 +1520,269 @@ export default function SuperAdminDashboard() {
                         {recentActivities.map((activity, index) => (
                           <div
                             key={index}
-                            className="flex items-start gap-3 p-3 bg-gray-50/50 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors"
+                            className="flex items-start gap-4 p-5 bg-gradient-to-r from-white to-purple-50/30 border border-gray-100 rounded-2xl hover:border-purple-200 hover:shadow-lg transition-all duration-300 group"
                           >
-                            <div className="w-2 h-2 bg-secondary rounded-full mt-2 shrink-0"></div>
+                            <div className="p-2.5 bg-gradient-to-r from-purple-100 to-purple-200 rounded-xl">
+                              {activity.type === "customer_feedback" ? (
+                                <Star className="h-5 w-5 text-purple-600" />
+                              ) : (
+                                <Activity className="h-5 w-5 text-purple-600" />
+                              )}
+                            </div>
                             <div className="flex-1">
-                              <p className="text-sm font-bold text-primary">
+                              <p className="text-sm font-semibold text-gray-900">
                                 {activity.message}
                               </p>
-                              <div className="flex justify-between items-center mt-1">
-                                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                                  {activity.time}
-                                </p>
-                                {activity.branch && (
-                                  <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
-                                    {activity.branch}
+                              <div className="flex justify-between items-center mt-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs text-gray-500 uppercase tracking-wider font-medium">
+                                    {activity.time}
                                   </span>
-                                )}
+                                  {activity.branch && (
+                                    <Badge className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5">
+                                      {activity.branch}
+                                    </Badge>
+                                  )}
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-purple-600 hover:text-purple-700 hover:bg-purple-50 text-xs"
+                                >
+                                  View Details
+                                </Button>
                               </div>
                             </div>
                           </div>
                         ))}
                       </div>
                     )}
+                  </TabsContent>
+                </CardContent>
+              </Tabs>
+            </Card>
+
+            {/* Quick Actions & Recent Activities */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Quick Actions */}
+              <div className="lg:col-span-2">
+                <Card className="border-none shadow-xl">
+                  <CardHeader className="border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-lg font-bold text-gray-900 font-serif">
+                        Quick Actions
+                      </CardTitle>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-primary hover:text-primary/80"
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        Add More
+                      </Button>
+                    </div>
+                    <CardDescription>
+                      Manage your business with these quick actions
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-6">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      <Link
+                        href="/admin/branches"
+                        className="flex flex-col items-center justify-center p-6 rounded-2xl border-2 border-gray-100 hover:border-primary/30 hover:bg-gradient-to-br hover:from-primary/5 hover:to-white hover:shadow-xl transition-all duration-300 group"
+                      >
+                        <div className="p-4 bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl mb-4 group-hover:scale-110 transition-transform duration-300">
+                          <Building className="h-7 w-7 text-white" />
+                        </div>
+                        <span className="text-sm font-semibold text-center text-gray-900">
+                          Manage Branches
+                        </span>
+                        <span className="text-xs text-gray-500 text-center mt-1">
+                          View & manage branches
+                        </span>
+                      </Link>
+
+                      <Link
+                        href="/admin/staff"
+                        className="flex flex-col items-center justify-center p-6 rounded-2xl border-2 border-gray-100 hover:border-green-500/30 hover:bg-gradient-to-br hover:from-green-500/5 hover:to-white hover:shadow-xl transition-all duration-300 group"
+                      >
+                        <div className="p-4 bg-gradient-to-r from-green-500 to-green-600 rounded-2xl mb-4 group-hover:scale-110 transition-transform duration-300">
+                          <Users className="h-7 w-7 text-white" />
+                        </div>
+                        <span className="text-sm font-semibold text-center text-gray-900">
+                          Manage Staff
+                        </span>
+                        <span className="text-xs text-gray-500 text-center mt-1">
+                          Add/Edit staff members
+                        </span>
+                      </Link>
+
+                      <Link
+                        href="/admin/categories"
+                        className="flex flex-col items-center justify-center p-6 rounded-2xl border-2 border-gray-100 hover:border-purple-500/30 hover:bg-gradient-to-br hover:from-purple-500/5 hover:to-white hover:shadow-xl transition-all duration-300 group"
+                      >
+                        <div className="p-4 bg-gradient-to-r from-purple-500 to-purple-600 rounded-2xl mb-4 group-hover:scale-110 transition-transform duration-300">
+                          <Layers className="h-7 w-7 text-white" />
+                        </div>
+                        <span className="text-sm font-semibold text-center text-gray-900">
+                          Categories
+                        </span>
+                        <span className="text-xs text-gray-500 text-center mt-1">
+                          Organize services & products
+                        </span>
+                      </Link>
+
+                      <Link
+                        href="/admin/products"
+                        className="flex flex-col items-center justify-center p-6 rounded-2xl border-2 border-gray-100 hover:border-cyan-500/30 hover:bg-gradient-to-br hover:from-cyan-500/5 hover:to-white hover:shadow-xl transition-all duration-300 group"
+                      >
+                        <div className="p-4 bg-gradient-to-r from-cyan-500 to-cyan-600 rounded-2xl mb-4 group-hover:scale-110 transition-transform duration-300">
+                          <Package className="h-7 w-7 text-white" />
+                        </div>
+                        <span className="text-sm font-semibold text-center text-gray-900">
+                          Products
+                        </span>
+                        <span className="text-xs text-gray-500 text-center mt-1">
+                          Manage inventory
+                        </span>
+                      </Link>
+
+                      <Link
+                        href="/admin/services"
+                        className="flex flex-col items-center justify-center p-6 rounded-2xl border-2 border-gray-100 hover:border-pink-500/30 hover:bg-gradient-to-br hover:from-pink-500/5 hover:to-white hover:shadow-xl transition-all duration-300 group"
+                      >
+                        <div className="p-4 bg-gradient-to-r from-pink-500 to-pink-600 rounded-2xl mb-4 group-hover:scale-110 transition-transform duration-300">
+                          <Settings className="h-7 w-7 text-white" />
+                        </div>
+                        <span className="text-sm font-semibold text-center text-gray-900">
+                          Services
+                        </span>
+                        <span className="text-xs text-gray-500 text-center mt-1">
+                          Edit & manage services
+                        </span>
+                      </Link>
+
+                      <Link
+                        href="/admin/bookings"
+                        className="flex flex-col items-center justify-center p-6 rounded-2xl border-2 border-gray-100 hover:border-amber-500/30 hover:bg-gradient-to-br hover:from-amber-500/5 hover:to-white hover:shadow-xl transition-all duration-300 group"
+                      >
+                        <div className="p-4 bg-gradient-to-r from-amber-500 to-amber-600 rounded-2xl mb-4 group-hover:scale-110 transition-transform duration-300">
+                          <Calendar className="h-7 w-7 text-white" />
+                        </div>
+                        <span className="text-sm font-semibold text-center text-gray-900">
+                          Bookings
+                        </span>
+                        <span className="text-xs text-gray-500 text-center mt-1">
+                          View all bookings
+                        </span>
+                      </Link>
+                    </div>
                   </CardContent>
                 </Card>
               </div>
+
+              {/* Recent Activities */}
+              <Card className="border-none shadow-xl h-fit">
+                <CardHeader className="border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg font-bold text-gray-900 font-serif">
+                      Recent Activities
+                    </CardTitle>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-primary hover:text-primary/80"
+                    >
+                      <Eye className="h-4 w-4 mr-1" />
+                      View All
+                    </Button>
+                  </div>
+                  <CardDescription>
+                    Latest system activities and notifications
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-6">
+                  {recentActivities.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Activity className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                      <p className="text-gray-500">No recent activities</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {recentActivities.map((activity, index) => (
+                        <div
+                          key={index}
+                          className="flex items-start gap-3 p-4 bg-gradient-to-r from-gray-50/50 to-white border border-gray-100 rounded-xl hover:border-primary/20 hover:shadow-sm transition-all duration-200 group"
+                        >
+                          <div className="relative">
+                            <div className="w-3 h-3 bg-gradient-to-r from-primary to-secondary rounded-full mt-2"></div>
+                            <div className="absolute top-2 left-2 w-3 h-3 bg-gradient-to-r from-primary/30 to-secondary/30 rounded-full animate-ping"></div>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-gray-900 truncate">
+                              {activity.message}
+                            </p>
+                            <div className="flex items-center justify-between mt-1">
+                              <span className="text-xs text-gray-500">
+                                {activity.time}
+                              </span>
+                              {activity.branch && (
+                                <Badge className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                                  {activity.branch}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* System Status */}
+                  <div className="mt-8 pt-6 border-t border-gray-100">
+                    <h4 className="text-sm font-semibold text-gray-900 mb-3">
+                      System Status
+                    </h4>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">
+                          Database Connection
+                        </span>
+                        <Badge className="bg-green-100 text-green-700">
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Active
+                        </Badge>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">
+                          Firebase Services
+                        </span>
+                        <Badge className="bg-green-100 text-green-700">
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Running
+                        </Badge>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">
+                          API Response Time
+                        </span>
+                        <Badge className="bg-blue-100 text-blue-700">
+                          <Clock className="h-3 w-3 mr-1" />
+                          124ms
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Footer Note */}
+            <div className="mt-8 text-center">
+              <p className="text-sm text-gray-500">
+                Dashboard updated in real-time • Last refresh: Just now • All
+                times are in your local timezone
+              </p>
             </div>
           </div>
         </div>

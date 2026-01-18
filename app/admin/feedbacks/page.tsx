@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -29,7 +29,16 @@ import {
   Eye,
   Reply,
   MoreVertical,
-  Loader2
+  Loader2,
+  Package,
+  Hash,
+  DollarSign,
+  Box,
+  ShoppingBag,
+  Tag,
+  Building,
+  MapPin,
+  GitBranch
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -39,7 +48,7 @@ import { useRouter } from "next/navigation";
 import { db } from '@/lib/firebase';
 import { collection, query, getDocs, updateDoc, doc, where, orderBy, Timestamp } from 'firebase/firestore';
 
-// Firebase Feedback Interface
+// Firebase Feedback Interface - UPDATED WITH ALL FIELDS
 interface Feedback {
   id: string;
   comment: string;
@@ -52,12 +61,35 @@ interface Feedback {
   status: 'pending' | 'approved' | 'rejected';
   type: 'service' | 'product';
   adminReply?: string;
+  
+  // New fields from your data structure
+  pointsAwarded?: boolean;
+  productBranchNames?: string[];
+  productBranches?: string[];
+  productCategory?: string;
+  productCategoryId?: string;
+  productCost?: number;
+  productCreatedAt?: any;
+  productDescription?: string;
+  productId?: string;
+  productImageUrl?: string;
+  productName?: string;
+  productPrice?: number;
+  productRating?: number;
+  productRevenue?: number;
+  productReviews?: number;
+  productSku?: string;
+  productStatus?: string;
+  productTotalSold?: number;
+  productTotalStock?: number;
+  productUpdatedAt?: any;
 }
 
 export default function AdminFeedbackPage() {
   const { user, logout } = useAuth();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [allFeedbacks, setAllFeedbacks] = useState<Feedback[]>([]);
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -77,7 +109,10 @@ export default function AdminFeedbackPage() {
     rejected: 0,
     averageRating: 0,
     services: 0,
-    products: 0
+    products: 0,
+    totalProducts: 0,
+    totalRevenue: 0,
+    totalSold: 0
   });
 
   const handleLogout = () => {
@@ -85,44 +120,100 @@ export default function AdminFeedbackPage() {
     router.push('/login');
   };
 
-  // Fetch feedbacks from Firebase
-  useEffect(() => {
-    fetchFeedbacks();
-  }, []);
+  // Get user dependencies for useEffect
+  const userDependencies = useMemo(() => {
+    if (!user) return [null, null, null];
+    return [user?.role, user?.branchId, user?.branchName];
+  }, [user]);
 
-  const fetchFeedbacks = async () => {
-    try {
-      setLoading(true);
-      const feedbacksRef = collection(db, 'feedbacks');
-      const q = query(feedbacksRef, orderBy('createdAt', 'desc'));
-      const querySnapshot = await getDocs(q);
-      
-      const feedbacksData: Feedback[] = [];
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        feedbacksData.push({
-          id: doc.id,
-          comment: data.comment || '',
-          createdAt: data.createdAt,
-          customerEmail: data.customerEmail || '',
-          customerId: data.customerId || '',
-          customerName: data.customerName || '',
-          rating: data.rating || 0,
-          serviceOrProduct: data.serviceOrProduct || '',
-          status: data.status || 'pending',
-          type: data.type || 'service',
-          adminReply: data.adminReply || ''
+  // Fetch all feedbacks from Firebase
+  useEffect(() => {
+    const fetchAllFeedbacks = async () => {
+      try {
+        setLoading(true);
+        const feedbacksRef = collection(db, 'feedbacks');
+        
+        // Sab feedbacks fetch karein sorted by createdAt
+        const q = query(feedbacksRef, orderBy('createdAt', 'desc'));
+        const querySnapshot = await getDocs(q);
+        
+        const feedbacksData: Feedback[] = [];
+        
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          const feedback: Feedback = {
+            id: doc.id,
+            comment: data.comment || '',
+            createdAt: data.createdAt,
+            customerEmail: data.customerEmail || '',
+            customerId: data.customerId || '',
+            customerName: data.customerName || '',
+            rating: data.rating || 0,
+            serviceOrProduct: data.serviceOrProduct || '',
+            status: data.status || 'pending',
+            type: data.type || 'service',
+            adminReply: data.adminReply || '',
+            
+            // NEW FIELDS ADDED
+            pointsAwarded: data.pointsAwarded || false,
+            productBranchNames: data.productBranchNames || [],
+            productBranches: data.productBranches || [],
+            productCategory: data.productCategory || '',
+            productCategoryId: data.productCategoryId || '',
+            productCost: data.productCost || 0,
+            productCreatedAt: data.productCreatedAt || null,
+            productDescription: data.productDescription || '',
+            productId: data.productId || '',
+            productImageUrl: data.productImageUrl || '',
+            productName: data.productName || '',
+            productPrice: data.productPrice || 0,
+            productRating: data.productRating || 0,
+            productRevenue: data.productRevenue || 0,
+            productReviews: data.productReviews || 0,
+            productSku: data.productSku || '',
+            productStatus: data.productStatus || '',
+            productTotalSold: data.productTotalSold || 0,
+            productTotalStock: data.productTotalStock || 0,
+            productUpdatedAt: data.productUpdatedAt || null
+          };
+          
+          feedbacksData.push(feedback);
         });
-      });
-      
-      setFeedbacks(feedbacksData);
-      updateStats(feedbacksData);
-    } catch (error) {
-      console.error('Error fetching feedbacks:', error);
-    } finally {
-      setLoading(false);
+        
+        setAllFeedbacks(feedbacksData);
+        
+      } catch (error) {
+        console.error('Error fetching feedbacks:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (user) {
+      fetchAllFeedbacks();
     }
-  };
+  }, userDependencies);
+
+  // Apply branch filtering when allFeedbacks or user changes
+  useEffect(() => {
+    if (allFeedbacks.length === 0) return;
+
+    let filteredData = [...allFeedbacks];
+    
+    // 🔥 CLIENT-SIDE BRANCH FILTERING FOR BRANCH ADMIN
+    if (user?.role === 'admin' && user?.branchId) {
+      filteredData = allFeedbacks.filter(feedback => 
+        feedback.productBranches?.includes(user.branchId)
+      );
+      console.log(`🏢 Branch Admin Client Filter: ${allFeedbacks.length} → ${filteredData.length} feedbacks`);
+    } else if (user?.role === 'super_admin') {
+      console.log('👑 Super Admin: All feedbacks');
+    }
+    
+    setFeedbacks(filteredData);
+    updateStats(filteredData);
+    
+  }, [allFeedbacks, user]);
 
   const updateStats = (data: Feedback[]) => {
     const total = data.length;
@@ -131,6 +222,19 @@ export default function AdminFeedbackPage() {
     const rejected = data.filter(f => f.status === 'rejected').length;
     const services = data.filter(f => f.type === 'service').length;
     const products = data.filter(f => f.type === 'product').length;
+    
+    let totalProducts = 0;
+    let totalRevenue = 0;
+    let totalSold = 0;
+    
+    data.forEach(feedback => {
+      if (feedback.type === 'product') {
+        totalProducts++;
+        totalRevenue += feedback.productRevenue || 0;
+        totalSold += feedback.productTotalSold || 0;
+      }
+    });
+    
     const totalRating = data.reduce((sum, f) => sum + f.rating, 0);
     const averageRating = total > 0 ? totalRating / total : 0;
     
@@ -141,7 +245,10 @@ export default function AdminFeedbackPage() {
       rejected,
       averageRating: parseFloat(averageRating.toFixed(2)),
       services,
-      products
+      products,
+      totalProducts,
+      totalRevenue,
+      totalSold
     });
   };
 
@@ -154,13 +261,13 @@ export default function AdminFeedbackPage() {
         updatedAt: Timestamp.now()
       });
       
-      setFeedbacks(feedbacks.map(f => 
+      // Update local state
+      const updatedFeedbacks = feedbacks.map(f => 
         f.id === id ? { ...f, status } : f
-      ));
+      );
+      setFeedbacks(updatedFeedbacks);
+      updateStats(updatedFeedbacks);
       
-      updateStats(feedbacks.map(f => 
-        f.id === id ? { ...f, status } : f
-      ));
     } catch (error) {
       console.error('Error updating status:', error);
     } finally {
@@ -179,9 +286,11 @@ export default function AdminFeedbackPage() {
         updatedAt: Timestamp.now()
       });
       
-      setFeedbacks(feedbacks.map(f => 
+      // Update local state
+      const updatedFeedbacks = feedbacks.map(f => 
         f.id === id ? { ...f, adminReply } : f
-      ));
+      );
+      setFeedbacks(updatedFeedbacks);
       
       setAdminReply('');
       setReplyingTo(null);
@@ -189,6 +298,65 @@ export default function AdminFeedbackPage() {
       console.error('Error adding reply:', error);
     } finally {
       setUpdatingId(null);
+    }
+  };
+
+  const refreshFeedbacks = async () => {
+    try {
+      setLoading(true);
+      const feedbacksRef = collection(db, 'feedbacks');
+      const q = query(feedbacksRef, orderBy('createdAt', 'desc'));
+      const querySnapshot = await getDocs(q);
+      
+      const feedbacksData: Feedback[] = [];
+      
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        const feedback: Feedback = {
+          id: doc.id,
+          comment: data.comment || '',
+          createdAt: data.createdAt,
+          customerEmail: data.customerEmail || '',
+          customerId: data.customerId || '',
+          customerName: data.customerName || '',
+          rating: data.rating || 0,
+          serviceOrProduct: data.serviceOrProduct || '',
+          status: data.status || 'pending',
+          type: data.type || 'service',
+          adminReply: data.adminReply || '',
+          
+          // All other fields
+          pointsAwarded: data.pointsAwarded || false,
+          productBranchNames: data.productBranchNames || [],
+          productBranches: data.productBranches || [],
+          productCategory: data.productCategory || '',
+          productCategoryId: data.productCategoryId || '',
+          productCost: data.productCost || 0,
+          productCreatedAt: data.productCreatedAt || null,
+          productDescription: data.productDescription || '',
+          productId: data.productId || '',
+          productImageUrl: data.productImageUrl || '',
+          productName: data.productName || '',
+          productPrice: data.productPrice || 0,
+          productRating: data.productRating || 0,
+          productRevenue: data.productRevenue || 0,
+          productReviews: data.productReviews || 0,
+          productSku: data.productSku || '',
+          productStatus: data.productStatus || '',
+          productTotalSold: data.productTotalSold || 0,
+          productTotalStock: data.productTotalStock || 0,
+          productUpdatedAt: data.productUpdatedAt || null
+        };
+        
+        feedbacksData.push(feedback);
+      });
+      
+      setAllFeedbacks(feedbacksData);
+      
+    } catch (error) {
+      console.error('Error refreshing feedbacks:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -250,12 +418,28 @@ export default function AdminFeedbackPage() {
     }
   };
 
-  // Filter feedbacks
+  const getBranchColor = (index: number) => {
+    const colors = [
+      'bg-blue-100 text-blue-700 border-blue-200',
+      'bg-green-100 text-green-700 border-green-200',
+      'bg-purple-100 text-purple-700 border-purple-200',
+      'bg-yellow-100 text-yellow-700 border-yellow-200',
+      'bg-pink-100 text-pink-700 border-pink-200'
+    ];
+    return colors[index % colors.length];
+  };
+
+  // Filter feedbacks (client-side for search, etc.)
   const filteredFeedbacks = feedbacks.filter(feedback => {
     const matchesSearch = 
       feedback.comment.toLowerCase().includes(searchQuery.toLowerCase()) ||
       feedback.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      feedback.serviceOrProduct.toLowerCase().includes(searchQuery.toLowerCase());
+      feedback.serviceOrProduct.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      feedback.productName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      feedback.productSku?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      feedback.productBranchNames?.some(branch => 
+        branch.toLowerCase().includes(searchQuery.toLowerCase())
+      );
     
     const matchesStatus = filterStatus === 'all' || feedback.status === filterStatus;
     const matchesType = filterType === 'all' || feedback.type === filterType;
@@ -270,10 +454,11 @@ export default function AdminFeedbackPage() {
   });
 
   const downloadCSV = () => {
-    let csv = 'ID,Customer Name,Customer Email,Rating,Type,Service/Product,Comment,Status,Created At,Admin Reply\n';
+    let csv = 'ID,Customer Name,Customer Email,Rating,Type,Service/Product,Product Name,Product SKU,Product Category,Product Price,Product Stock,Product Sold,Product Status,Branch Names,Comment,Status,Created At,Admin Reply,Points Awarded\n';
     
     filteredFeedbacks.forEach(feedback => {
-      csv += `"${feedback.id}","${feedback.customerName}","${feedback.customerEmail}",${feedback.rating},${feedback.type},"${feedback.serviceOrProduct}","${feedback.comment.replace(/"/g, '""')}",${feedback.status},"${formatDate(feedback.createdAt)}","${feedback.adminReply || ''}"\n`;
+      const branchNames = feedback.productBranchNames?.join(', ') || '';
+      csv += `"${feedback.id}","${feedback.customerName}","${feedback.customerEmail}",${feedback.rating},${feedback.type},"${feedback.serviceOrProduct}","${feedback.productName || ''}","${feedback.productSku || ''}","${feedback.productCategory || ''}",${feedback.productPrice || 0},${feedback.productTotalStock || 0},${feedback.productTotalSold || 0},"${feedback.productStatus || ''}","${branchNames}","${feedback.comment.replace(/"/g, '""')}",${feedback.status},"${formatDate(feedback.createdAt)}","${feedback.adminReply || ''}","${feedback.pointsAwarded ? 'Yes' : 'No'}"\n`;
     });
     
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -311,8 +496,31 @@ export default function AdminFeedbackPage() {
                   onToggle={() => setSidebarOpen(!sidebarOpen)}
                 />
                 <div>
-                  <h1 className="text-2xl font-serif font-bold text-primary">Customer Feedback Management</h1>
-                  <p className="text-sm text-muted-foreground">Manage and respond to customer reviews and feedback</p>
+                  <h1 className="text-2xl font-serif font-bold text-primary">
+                    {user?.role === 'admin' 
+                      ? `Branch Feedback Management` 
+                      : 'Customer Feedback Management'
+                    }
+                  </h1>
+                  <p className="text-sm text-muted-foreground">
+                    {user?.role === 'admin' && user?.branchName
+                      ? `Managing feedbacks for ${user.branchName} branch`
+                      : 'Manage and respond to customer reviews and feedback'
+                    }
+                  </p>
+                  {user?.role === 'admin' && user?.branchName && (
+                    <div className="flex items-center gap-1 mt-1">
+                      <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                        <Building className="w-3 h-3 mr-1" />
+                        Branch: {user.branchName}
+                      </Badge>
+                    </div>
+                  )}
+                  {user?.role === 'admin' && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Showing only feedbacks for your branch
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -324,7 +532,12 @@ export default function AdminFeedbackPage() {
               <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
                 <TabsList className="grid w-full grid-cols-2 rounded-lg">
                   <TabsTrigger value="overview">Overview</TabsTrigger>
-                  <TabsTrigger value="feedbacks">All Feedback ({feedbacks.length})</TabsTrigger>
+                  <TabsTrigger value="feedbacks">
+                    {user?.role === 'admin' 
+                      ? `Branch Feedbacks (${feedbacks.length})`
+                      : `All Feedback (${feedbacks.length})`
+                    }
+                  </TabsTrigger>
                 </TabsList>
 
                 {/* Overview Tab */}
@@ -335,9 +548,13 @@ export default function AdminFeedbackPage() {
                       <CardContent className="pt-6">
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Total Feedback</p>
+                            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">
+                              {user?.role === 'admin' ? 'Branch Feedback' : 'Total Feedback'}
+                            </p>
                             <p className="text-3xl font-serif font-bold text-primary">{stats.total}</p>
-                            <p className="text-sm text-muted-foreground mt-1">All time reviews</p>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {user?.role === 'admin' ? 'For your branch' : 'All time reviews'}
+                            </p>
                           </div>
                           <MessageSquare className="w-12 h-12 text-secondary/20" />
                         </div>
@@ -398,6 +615,48 @@ export default function AdminFeedbackPage() {
                             </p>
                           </div>
                           <ThumbsUp className="w-12 h-12 text-green-500/20" />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Product Stats Cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                    <Card className="border-none shadow-sm rounded-xl">
+                      <CardContent className="pt-6">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Total Products</p>
+                            <p className="text-3xl font-serif font-bold text-purple-600">{stats.totalProducts}</p>
+                            <p className="text-sm text-muted-foreground mt-1">Product feedbacks</p>
+                          </div>
+                          <Package className="w-12 h-12 text-purple-500/20" />
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="border-none shadow-sm rounded-xl">
+                      <CardContent className="pt-6">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Total Sold</p>
+                            <p className="text-3xl font-serif font-bold text-blue-600">{stats.totalSold}</p>
+                            <p className="text-sm text-muted-foreground mt-1">Units sold</p>
+                          </div>
+                          <ShoppingBag className="w-12 h-12 text-blue-500/20" />
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="border-none shadow-sm rounded-xl">
+                      <CardContent className="pt-6">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Product Revenue</p>
+                            <p className="text-3xl font-serif font-bold text-green-600">${stats.totalRevenue.toFixed(2)}</p>
+                            <p className="text-sm text-muted-foreground mt-1">From reviewed products</p>
+                          </div>
+                          <DollarSign className="w-12 h-12 text-green-500/20" />
                         </div>
                       </CardContent>
                     </Card>
@@ -525,7 +784,7 @@ export default function AdminFeedbackPage() {
                       <div className="relative flex-1">
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                         <Input
-                          placeholder="Search feedback by customer, service, or comment..."
+                          placeholder="Search by customer, product, SKU, branch, or comment..."
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
                           className="pl-10 rounded-lg border-gray-200"
@@ -575,7 +834,7 @@ export default function AdminFeedbackPage() {
 
                     <div className="flex gap-2">
                       <Button
-                        onClick={fetchFeedbacks}
+                        onClick={refreshFeedbacks}
                         variant="outline"
                         className="border-gray-200 rounded-lg flex items-center gap-2"
                       >
@@ -586,7 +845,7 @@ export default function AdminFeedbackPage() {
                         variant="outline"
                         className="border-gray-200 rounded-lg flex items-center gap-2"
                       >
-                        <Download className="w-4 h-4" /> Export
+                        <Download className="w-4 h-4" /> Export CSV
                       </Button>
                     </div>
                   </div>
@@ -602,7 +861,12 @@ export default function AdminFeedbackPage() {
                       <CardContent className="py-12 text-center">
                         <MessageSquare className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                         <h3 className="text-lg font-semibold text-gray-700 mb-2">No feedbacks found</h3>
-                        <p className="text-gray-500">Try adjusting your filters or search query</p>
+                        <p className="text-gray-500">
+                          {user?.role === 'admin' 
+                            ? `No feedbacks found for ${user.branchName} branch`
+                            : 'Try adjusting your filters or search query'
+                          }
+                        </p>
                       </CardContent>
                     </Card>
                   ) : (
@@ -630,6 +894,14 @@ export default function AdminFeedbackPage() {
                                   <div className="text-xs text-gray-400">
                                     {getTimeAgo(feedback.createdAt)}
                                   </div>
+                                  
+                                  {/* Points Awarded */}
+                                  {feedback.pointsAwarded && (
+                                    <Badge className="bg-green-100 text-green-700 border-green-200 rounded-full">
+                                      ✓ Points Awarded
+                                    </Badge>
+                                  )}
+                                
                                 </div>
 
                                 {/* Rating */}
@@ -672,6 +944,86 @@ export default function AdminFeedbackPage() {
                                   <h3 className="font-serif font-bold text-lg text-primary mb-2">
                                     {feedback.serviceOrProduct}
                                   </h3>
+                                  
+                                  {/* Branch Names Section - NEW */}
+                                  {feedback.productBranchNames && feedback.productBranchNames.length > 0 && (
+                                    <div className="mb-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                                      <div className="flex items-center gap-2 mb-3">
+                                        <GitBranch className="w-5 h-5 text-blue-600" />
+                                        <h4 className="font-semibold text-blue-800">Available Branches:</h4>
+                                      </div>
+                                      <div className="flex flex-wrap gap-2">
+                                        {feedback.productBranchNames.map((branchName, index) => (
+                                          <Badge 
+                                            key={index} 
+                                            className={cn("rounded-full flex items-center gap-1", getBranchColor(index))}
+                                          >
+                                            <Building className="w-3 h-3" />
+                                            {branchName}
+                                          </Badge>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                  
+                                  {/* Product Details */}
+                                  {feedback.type === 'product' && (
+                                    <div className="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                                      <div className="grid grid-cols-2 gap-3 text-sm mb-3">
+                                        <div className="flex items-center gap-2">
+                                          <Hash className="w-4 h-4 text-gray-500" />
+                                          <div>
+                                            <span className="font-semibold text-gray-600">SKU:</span>
+                                            <span className="ml-2">{feedback.productSku || 'N/A'}</span>
+                                          </div>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                          <Tag className="w-4 h-4 text-gray-500" />
+                                          <div>
+                                            <span className="font-semibold text-gray-600">Category:</span>
+                                            <span className="ml-2">{feedback.productCategory || 'N/A'}</span>
+                                          </div>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                          <DollarSign className="w-4 h-4 text-gray-500" />
+                                          <div>
+                                            <span className="font-semibold text-gray-600">Price:</span>
+                                            <span className="ml-2">${feedback.productPrice?.toFixed(2) || '0.00'}</span>
+                                          </div>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                          <div>
+                                            <span className="font-semibold text-gray-600">Status:</span>
+                                            <Badge className={`ml-2 ${
+                                              feedback.productStatus === 'active' 
+                                                ? 'bg-green-100 text-green-700' 
+                                                : feedback.productStatus === 'inactive'
+                                                ? 'bg-gray-100 text-gray-700'
+                                                : 'bg-red-100 text-red-700'
+                                            }`}>
+                                              {feedback.productStatus || 'N/A'}
+                                            </Badge>
+                                          </div>
+                                        </div>
+                                      </div>
+                                      
+                                      {/* Product Image */}
+                                      {feedback.productImageUrl && (
+                                        <div className="mt-3">
+                                          <p className="text-sm font-semibold text-gray-600 mb-2">Product Image:</p>
+                                          <img 
+                                            src={feedback.productImageUrl} 
+                                            alt={feedback.productName || 'Product'}
+                                            className="w-32 h-32 object-cover rounded-lg border shadow-sm"
+                                            onError={(e) => {
+                                              const target = e.target as HTMLImageElement;
+                                              target.style.display = 'none';
+                                            }}
+                                          />
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
                                   
                                   {/* Comment */}
                                   <div className="bg-gray-50 rounded-lg p-4">
@@ -735,15 +1087,6 @@ export default function AdminFeedbackPage() {
                                       Reply to Customer
                                     </Button>
                                   )}
-
-                                  {/* View Details */}
-                                  <Button
-                                    variant="ghost"
-                                    className="w-full text-secondary hover:bg-secondary/10 rounded-lg flex items-center gap-2"
-                                  >
-                                    <Eye className="w-4 h-4" />
-                                    View Details
-                                  </Button>
                                 </div>
 
                                 {/* Quick Reply Form */}
@@ -796,7 +1139,9 @@ export default function AdminFeedbackPage() {
                           <div className="text-center">
                             <p className="text-sm text-muted-foreground mb-1">Showing</p>
                             <p className="text-2xl font-bold text-primary">{filteredFeedbacks.length}</p>
-                            <p className="text-xs text-muted-foreground">feedbacks</p>
+                            <p className="text-xs text-muted-foreground">
+                              {user?.role === 'admin' ? 'branch feedbacks' : 'feedbacks'}
+                            </p>
                           </div>
                           <div className="text-center">
                             <p className="text-sm text-muted-foreground mb-1">Avg Rating</p>

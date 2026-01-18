@@ -615,19 +615,7 @@ export default function ClientsManagement({
             <option value="gold">Gold</option>
             <option value="platinum">Platinum</option>
           </select>
-          <select
-            value={filterBranch}
-            onChange={(e) => setFilterBranch(e.target.value)}
-            className="w-40 px-3 py-2 border border-gray-200 rounded-lg text-sm disabled:opacity-50"
-            disabled={loading || loadingBranches}
-          >
-            <option value="all">All Branches</option>
-            {branches.map((branch) => (
-              <option key={branch.id} value={branch.id}>
-                {branch.name}
-              </option>
-            ))}
-          </select>
+          
         </div>
 
         <div className="flex gap-2">
@@ -730,34 +718,7 @@ export default function ClientsManagement({
                     disabled={isAdding}
                   />
                 </div>
-                <div>
-                  <Label className="text-xs font-bold uppercase">
-                    Select Branch
-                  </Label>
-                  <select
-                    value={newClient.branch}
-                    onChange={(e) =>
-                      setNewClient({
-                        ...newClient,
-                        branch: e.target.value,
-                      })
-                    }
-                    className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm"
-                    disabled={isAdding || loadingBranches}
-                  >
-                    <option value="">Select a branch</option>
-                    {branches.map((branch) => (
-                      <option key={branch.id} value={branch.id}>
-                        {branch.name}
-                      </option>
-                    ))}
-                  </select>
-                  {loadingBranches && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      Loading branches...
-                    </p>
-                  )}
-                </div>
+                
                 <div>
                   <Label className="text-xs font-bold uppercase">
                     Membership Tier
@@ -868,9 +829,7 @@ export default function ClientsManagement({
                     <th className="px-6 py-3 text-left text-xs font-bold uppercase tracking-widest text-gray-600">
                       Contact
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-bold uppercase tracking-widest text-gray-600">
-                      Branch
-                    </th>
+                   
                     <th className="px-6 py-3 text-center text-xs font-bold uppercase tracking-widest text-gray-600">
                       Tier
                     </th>
@@ -912,12 +871,7 @@ export default function ClientsManagement({
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-sm">
-                        <div className="flex items-center gap-1">
-                          <Building className="w-4 h-4 text-gray-400" />
-                          <span>{client.branchName || getBranchName(client.branch || "") || "No Branch"}</span>
-                        </div>
-                      </td>
+                      
                       <td className="px-6 py-4 text-center">
                         <Badge
                           className={cn(
@@ -1212,29 +1166,7 @@ export default function ClientsManagement({
                   disabled={isEditing}
                 />
               </div>
-              <div>
-                <Label className="text-xs font-bold uppercase">
-                  Select Branch
-                </Label>
-                <select
-                  value={editingClient.branch || ""}
-                  onChange={(e) =>
-                    setEditingClient({
-                      ...editingClient,
-                      branch: e.target.value,
-                    })
-                  }
-                  className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm"
-                  disabled={isEditing || loadingBranches}
-                >
-                  <option value="">Select a branch</option>
-                  {branches.map((branch) => (
-                    <option key={branch.id} value={branch.id}>
-                      {branch.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+             
               <div>
                 <Label className="text-xs font-bold uppercase">
                   Membership Tier

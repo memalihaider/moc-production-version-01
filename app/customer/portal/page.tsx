@@ -49,6 +49,7 @@ import {
   Home,
   Building,
   Phone,
+  Users,
 } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 
@@ -81,6 +82,23 @@ interface Customer {
   birthday?: string;
 }
 
+interface Staff {
+  id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  role?: string;
+  branch?: string;
+  status: "active" | "inactive" | "on_leave";
+  specialization?: string[];
+  workingHours?: {
+    [key: string]: {
+      start: string;
+      end: string;
+    };
+  };
+}
+
 interface Booking {
   id: string;
   customerId: string;
@@ -99,6 +117,12 @@ interface Booking {
   completedAt?: any;
   cancelledAt?: any;
   pointsAwarded?: boolean;
+
+  // Staff information
+  staffId?: string;
+  staffName?: string;
+  staffRole?: string;
+  staffBranch?: string;
 
   // Complete service info fields
   serviceDescription?: string;
@@ -189,6 +213,45 @@ interface Feedback {
   status: "pending" | "approved" | "rejected";
   adminReply?: string;
   pointsAwarded?: boolean;
+  
+  // 🔥🔥🔥 NEW: Complete service info for service feedback
+  serviceId?: string;
+  serviceName?: string;
+  serviceDescription?: string;
+  servicePrice?: number;
+  serviceDuration?: string;
+  serviceCategory?: string;
+  serviceCategoryId?: string;
+  serviceImageUrl?: string;
+  serviceBranchNames?: string[];
+  serviceBranches?: string[];
+  servicePopularity?: string;
+  serviceRevenue?: number;
+  serviceTotalBookings?: number;
+  serviceCreatedAt?: any;
+  serviceUpdatedAt?: any;
+  serviceStatus?: string;
+  
+  // 🔥🔥🔥 NEW: Complete product info for product feedback
+  productId?: string;
+  productName?: string;
+  productDescription?: string;
+  productPrice?: number;
+  productCategory?: string;
+  productCategoryId?: string;
+  productImageUrl?: string;
+  productBranchNames?: string[];
+  productBranches?: string[];
+  productSku?: string;
+  productCost?: number;
+  productRating?: number;
+  productReviews?: number;
+  productRevenue?: number;
+  productTotalSold?: number;
+  productTotalStock?: number;
+  productCreatedAt?: any;
+  productUpdatedAt?: any;
+  productStatus?: string;
 }
 
 interface Transaction {
@@ -301,6 +364,15 @@ interface CheckoutFormData {
   orderNotes?: string;
 }
 
+// Booking Form Interface
+interface BookingFormData {
+  staffId: string;
+  staffName: string;
+  date: string;
+  time: string;
+  notes?: string;
+}
+
 export default function CustomerPortal() {
   const router = useRouter();
 
@@ -360,6 +432,27 @@ export default function CustomerPortal() {
     orderNotes: "",
   });
 
+  // 🔥🔥🔥 NEW: Booking Form States
+  const [staffList, setStaffList] = useState<Staff[]>([]);
+  const [showBookingForm, setShowBookingForm] = useState(false);
+  const [selectedServiceForBooking, setSelectedServiceForBooking] = useState<Service | null>(null);
+  const [selectedCartItemForBooking, setSelectedCartItemForBooking] = useState<CartItem | null>(null);
+  const [bookingFormData, setBookingFormData] = useState<BookingFormData>({
+    staffId: "",
+    staffName: "",
+    date: new Date().toISOString().split("T")[0],
+    time: "09:00",
+    notes: ""
+  });
+  const [isSubmittingBooking, setIsSubmittingBooking] = useState(false);
+  const [loadingStaff, setLoadingStaff] = useState(false);
+  const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>([]);
+  const [showBookingFormFromCart, setShowBookingFormFromCart] = useState(false);
+
+  // FIXED: Added state to track registration points
+  const [registrationPointsAwarded, setRegistrationPointsAwarded] = useState(false);
+  const [birthdayPointsChecked, setBirthdayPointsChecked] = useState(false);
+
   // Debug states
   const [lastUpdate, setLastUpdate] = useState<string>("");
 
@@ -372,7 +465,44 @@ export default function CustomerPortal() {
     return JSON.stringify(a) === JSON.stringify(b);
   }, []);
 
-  // 🔥🔥🔥 FIXED: Award Points Function with immediate wallet update
+  // 🔥🔥🔥 NEW: Generate time slots based on day
+  const generateTimeSlots = (dateString: string) => {
+    const date = new Date(dateString);
+    const dayOfWeek = date.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    
+    let slots: string[] = [];
+    
+    if (dayOfWeek >= 1 && dayOfWeek <= 5) { // Monday - Friday
+      for (let hour = 9; hour <= 20; hour++) {
+        slots.push(`${hour.toString().padStart(2, '0')}:00`);
+      }
+    } else if (dayOfWeek === 6) { // Saturday
+      for (let hour = 10; hour <= 18; hour++) {
+        slots.push(`${hour.toString().padStart(2, '0')}:00`);
+      }
+    } else { // Sunday
+      for (let hour = 11; hour <= 16; hour++) {
+        slots.push(`${hour.toString().padStart(2, '0')}:00`);
+      }
+    }
+    
+    return slots;
+  };
+
+  // 🔥🔥🔥 NEW: Update time slots when date changes
+  useEffect(() => {
+    if (bookingFormData.date) {
+      const slots = generateTimeSlots(bookingFormData.date);
+      setAvailableTimeSlots(slots);
+      
+      // If current time is not in available slots, reset to first slot
+      if (!slots.includes(bookingFormData.time)) {
+        setBookingFormData(prev => ({ ...prev, time: slots[0] || "09:00" }));
+      }
+    }
+  }, [bookingFormData.date]);
+
+  // 🔥🔥🔥 FIXED: Award Points Function with duplicate check
   const awardPoints = async (
     points: number,
     description: string,
@@ -381,6 +511,22 @@ export default function CustomerPortal() {
     if (!customer || !wallet || points <= 0) return;
 
     try {
+      // Check for duplicate transaction
+      if (referenceId) {
+        const duplicateCheck = await getDocs(
+          query(
+            collection(db, "transactions"),
+            where("customerId", "==", customer.id),
+            where("referenceId", "==", referenceId)
+          )
+        );
+
+        if (!duplicateCheck.empty) {
+          console.log("⚠️ Duplicate points award detected, skipping");
+          return;
+        }
+      }
+
       console.log(`🏅 Awarding ${points} points: ${description}`);
 
       // Add transaction
@@ -391,7 +537,7 @@ export default function CustomerPortal() {
         amount: 0,
         description: description,
         status: "success",
-        referenceId: referenceId || `POINTS_${Date.now()}`,
+        referenceId: referenceId || `POINTS_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         createdAt: serverTimestamp(),
       });
 
@@ -423,12 +569,26 @@ export default function CustomerPortal() {
     }
   };
 
-  // Check and Award Registration Points (100 points)
+  // 🔥🔥🔥 FIXED: Check and Award Registration Points (100 points) - No infinite loop
   const checkAndAwardRegistrationPoints = useCallback(async () => {
-    if (!customer) return;
+    if (!customer || !wallet) return;
+
+    // Already awarded, skip
+    if (registrationPointsAwarded) {
+      console.log("✅ Registration points already awarded (state check)");
+      return;
+    }
+
+    // Check localStorage
+    const localStorageKey = `reg_points_${customer.id}`;
+    if (localStorage.getItem(localStorageKey) === 'true') {
+      console.log("✅ Registration points already awarded (localStorage check)");
+      setRegistrationPointsAwarded(true);
+      return;
+    }
 
     try {
-      // Check if registration points already awarded
+      // Check if registration points already awarded in database
       const registrationCheck = await getDocs(
         query(
           collection(db, "transactions"),
@@ -439,20 +599,34 @@ export default function CustomerPortal() {
 
       if (registrationCheck.empty) {
         console.log("🎁 Awarding 100 registration points to new customer");
+        
+        // Use a unique reference ID
+        const uniqueRef = `REG_${customer.id}_${Date.now()}`;
+        
         await awardPoints(
           100,
           "Registration Bonus - Welcome to our platform!",
-          `REG_${Date.now()}`
+          uniqueRef
         );
+        
+        // Set flags
+        setRegistrationPointsAwarded(true);
+        localStorage.setItem(localStorageKey, 'true');
+        
+        console.log("✅ Registration points awarded successfully");
+      } else {
+        console.log("✅ Registration points already awarded in database");
+        setRegistrationPointsAwarded(true);
+        localStorage.setItem(localStorageKey, 'true');
       }
     } catch (error) {
       console.error("❌ Error awarding registration points:", error);
     }
-  }, [customer, wallet]);
+  }, [customer, wallet, registrationPointsAwarded]);
 
-  // Check and Award Birthday Points (200 points)
+  // 🔥🔥🔥 FIXED: Check and Award Birthday Points (200 points)
   const checkAndAwardBirthdayPoints = useCallback(async () => {
-    if (!customer || !wallet) return;
+    if (!customer || !wallet || birthdayPointsChecked) return;
 
     try {
       const today = new Date();
@@ -471,10 +645,14 @@ export default function CustomerPortal() {
           // Check if birthday points already awarded this year
           if (wallet.lastBirthdayPoints !== currentYear) {
             console.log("🎂 Awarding 200 birthday points");
+            
+            // Use unique reference ID
+            const uniqueRef = `BDAY_${customer.id}_${currentYear}_${Date.now()}`;
+            
             await awardPoints(
               200,
               `Birthday Bonus ${currentYear} - Happy Birthday!`,
-              `BDAY_${currentYear}`
+              uniqueRef
             );
 
             // Update last birthday year
@@ -485,10 +663,13 @@ export default function CustomerPortal() {
           }
         }
       }
+      
+      // Mark as checked to prevent re-checking
+      setBirthdayPointsChecked(true);
     } catch (error) {
       console.error("❌ Error awarding birthday points:", error);
     }
-  }, [customer, wallet]);
+  }, [customer, wallet, birthdayPointsChecked]);
 
   // Award Points for Services (10 points per $1) - IMMEDIATE
   const awardPointsForService = async (booking: Booking) => {
@@ -502,7 +683,7 @@ export default function CustomerPortal() {
         await awardPoints(
           pointsToAward,
           `Service Points: ${booking.serviceName} ($${booking.totalAmount})`,
-          booking.id
+          `SERVICE_${booking.id}`
         );
 
         // Update booking to mark points as awarded
@@ -528,7 +709,7 @@ export default function CustomerPortal() {
         await awardPoints(
           pointsToAward,
           `Product Points: ${order.products.length} items ($${order.totalAmount})`,
-          order.id
+          `ORDER_${order.id}`
         );
 
         // Update order to mark points as awarded
@@ -559,7 +740,7 @@ export default function CustomerPortal() {
         await awardPoints(
           pointsToAward,
           `Feedback Points: ${feedback.serviceOrProduct} (${feedback.rating} stars)`,
-          feedback.id
+          `FEEDBACK_${feedback.id}`
         );
 
         // Update feedback to mark points as awarded
@@ -573,18 +754,88 @@ export default function CustomerPortal() {
     }
   };
 
-  // Initialize loyalty points system
-  useEffect(() => {
-    if (customer && wallet) {
-      checkAndAwardRegistrationPoints();
-      checkAndAwardBirthdayPoints();
+  // 🔥🔥🔥 NEW: Fetch staff from Firebase
+  const fetchStaff = async () => {
+    try {
+      setLoadingStaff(true);
+      const staffQuery = query(
+        collection(db, "staff"),
+        where("status", "==", "active")
+      );
+      const staffSnapshot = await getDocs(staffQuery);
+      const staffData: Staff[] = [];
+      
+      staffSnapshot.forEach((doc) => {
+        const data = doc.data();
+        staffData.push({
+          id: doc.id,
+          name: data.name || "Staff Member",
+          email: data.email || "",
+          phone: data.phone || "",
+          role: data.role || "staff",
+          branch: data.branch || "Main Branch",
+          status: data.status || "active",
+          specialization: data.specialization || [],
+          workingHours: data.workingHours || {},
+        });
+      });
+      
+      console.log("👨‍💼 Staff loaded:", staffData.length);
+      setStaffList(staffData);
+    } catch (error) {
+      console.error("❌ Error fetching staff:", error);
+    } finally {
+      setLoadingStaff(false);
     }
+  };
+
+  // 🔥🔥🔥 FIXED: Initialize loyalty points system - Only check once
+  useEffect(() => {
+    const initializePoints = async () => {
+      if (customer && wallet && !registrationPointsAwarded) {
+        console.log("🔄 Initializing points system...");
+        
+        // Check localStorage first
+        const localStorageKey = `reg_points_${customer.id}`;
+        const hasAwarded = localStorage.getItem(localStorageKey);
+        
+        if (hasAwarded === 'true') {
+          console.log("✅ Registration points already awarded (from localStorage)");
+          setRegistrationPointsAwarded(true);
+        } else {
+          // Only award if not already awarded
+          await checkAndAwardRegistrationPoints();
+        }
+        
+        // Check birthday points
+        if (!birthdayPointsChecked) {
+          await checkAndAwardBirthdayPoints();
+        }
+      }
+    };
+
+    initializePoints();
   }, [
     customer,
     wallet,
+    registrationPointsAwarded,
+    birthdayPointsChecked,
     checkAndAwardRegistrationPoints,
     checkAndAwardBirthdayPoints,
   ]);
+
+  // 🔥🔥🔥 FIXED: Check localStorage on customer load
+  useEffect(() => {
+    if (customer) {
+      const localStorageKey = `reg_points_${customer.id}`;
+      const hasAwarded = localStorage.getItem(localStorageKey);
+      
+      if (hasAwarded === 'true') {
+        console.log("📝 Registration points flag found in localStorage");
+        setRegistrationPointsAwarded(true);
+      }
+    }
+  }, [customer]);
 
   // Monitor completed bookings for points
   useEffect(() => {
@@ -624,7 +875,8 @@ export default function CustomerPortal() {
     console.log("🔍 Wallet State Changed:", wallet);
     console.log("🔍 Loyalty Points:", wallet?.loyaltyPoints);
     console.log("🔍 Total Points Earned:", wallet?.totalPointsEarned);
-  }, [wallet]);
+    console.log("🔍 Registration Points Awarded:", registrationPointsAwarded);
+  }, [wallet, registrationPointsAwarded]);
 
   // Handle checkout form input change
   const handleCheckoutFormChange = (
@@ -637,6 +889,167 @@ export default function CustomerPortal() {
       ...prev,
       [name]: value,
     }));
+  };
+
+  // 🔥🔥🔥 NEW: Handle Book Service - Opens booking form
+  const handleBookService = async (service: Service) => {
+    if (!customer) {
+      router.push("/customer/login");
+      return;
+    }
+
+    // Initialize time slots for today
+    const todaySlots = generateTimeSlots(new Date().toISOString().split("T")[0]);
+    
+    setSelectedServiceForBooking(service);
+    setSelectedCartItemForBooking(null);
+    setBookingFormData({
+      staffId: "",
+      staffName: "",
+      date: new Date().toISOString().split("T")[0],
+      time: todaySlots[0] || "09:00",
+      notes: ""
+    });
+    setAvailableTimeSlots(todaySlots);
+    setShowBookingForm(true);
+    setShowBookingFormFromCart(false);
+  };
+
+  // 🔥🔥🔥 NEW: Handle Book Service from Cart
+  const handleBookServiceFromCart = async (cartItem: CartItem) => {
+    if (!customer) {
+      router.push("/customer/login");
+      return;
+    }
+
+    // Find the complete service details
+    const service = services.find((s) => s.id === cartItem.itemId);
+    if (!service) {
+      alert("Service details not found");
+      return;
+    }
+
+    // Initialize time slots for today
+    const todaySlots = generateTimeSlots(new Date().toISOString().split("T")[0]);
+    
+    setSelectedServiceForBooking(service);
+    setSelectedCartItemForBooking(cartItem);
+    setBookingFormData({
+      staffId: "",
+      staffName: "",
+      date: new Date().toISOString().split("T")[0],
+      time: todaySlots[0] || "09:00",
+      notes: ""
+    });
+    setAvailableTimeSlots(todaySlots);
+    setShowBookingForm(true);
+    setShowBookingFormFromCart(true);
+  };
+
+  // 🔥🔥🔥 NEW: Handle Book Service Submit
+  const handleBookServiceSubmit = async () => {
+    if (!selectedServiceForBooking || !customer || !bookingFormData.staffId) {
+      alert("Please select staff and fill all required fields");
+      return;
+    }
+
+    setIsSubmittingBooking(true);
+    try {
+      const selectedStaff = staffList.find(staff => staff.id === bookingFormData.staffId);
+      
+      // Format time for display (convert "09:00" to "9:00 AM")
+      const timeParts = bookingFormData.time.split(":");
+      const hour = parseInt(timeParts[0]);
+      const minute = timeParts[1];
+      const displayTime = hour >= 12 
+        ? `${hour === 12 ? 12 : hour - 12}:${minute} PM` 
+        : `${hour === 0 ? 12 : hour}:${minute} AM`;
+
+      // 🔥🔥🔥 COMPLETE BOOKING DATA FOR FIREBASE
+      const bookingData: any = {
+        customerId: customer.id,
+        customerName: customer.name || "Customer",
+        customerEmail: customer.email || "",
+        customerPhone: customer.phone || "",
+
+        // Service info
+        serviceId: selectedServiceForBooking.id,
+        serviceName: selectedServiceForBooking.name,
+        servicePrice: selectedServiceForBooking.price || 0,
+
+        // Staff info from form
+        staffId: bookingFormData.staffId,
+        staffName: selectedStaff?.name || "Staff",
+        staffRole: selectedStaff?.role || "staff",
+        staffBranch: selectedStaff?.branch || "Main Branch",
+
+        // Booking details from form
+        date: bookingFormData.date,
+        time: displayTime,
+        timeSlot: bookingFormData.time,
+        totalAmount: selectedServiceForBooking.price || 0,
+        status: "pending",
+        createdAt: serverTimestamp(),
+        notes: bookingFormData.notes || "",
+        pointsAwarded: false,
+
+        // Complete service information
+        serviceDescription: selectedServiceForBooking.description || "",
+        serviceDuration: selectedServiceForBooking.duration || "",
+        serviceCategory: selectedServiceForBooking.category || "",
+        serviceCategoryId: selectedServiceForBooking.categoryId || "",
+        serviceImageUrl: selectedServiceForBooking.imageUrl || "",
+        serviceBranchNames: selectedServiceForBooking.branchNames || [],
+        serviceBranches: selectedServiceForBooking.branches || [],
+        servicePopularity: selectedServiceForBooking.popularity || "low",
+        serviceRevenue: selectedServiceForBooking.revenue || 0,
+        serviceTotalBookings: selectedServiceForBooking.totalBookings || 0,
+        serviceCreatedAt: selectedServiceForBooking.createdAt || serverTimestamp(),
+        serviceUpdatedAt: selectedServiceForBooking.updatedAt || serverTimestamp(),
+        serviceStatus: selectedServiceForBooking.status || "active",
+
+        // Branch info
+        branchNames: selectedServiceForBooking.branchNames || [],
+        branches: selectedServiceForBooking.branches || [],
+      };
+
+      // Create booking in Firebase
+      const bookingRef = await addDoc(collection(db, "bookings"), bookingData);
+      console.log("✅ Service booked with ID:", bookingRef.id);
+      console.log("📝 Booking data saved to Firebase:", bookingData);
+
+      // Remove service from cart if booking was from cart
+      if (selectedCartItemForBooking) {
+        await deleteDoc(doc(db, "cart", selectedCartItemForBooking.id));
+        // Update local state
+        setCartItems(prev => prev.filter(item => item.id !== selectedCartItemForBooking.id));
+      }
+
+      // Add transaction for payment
+      await addDoc(collection(db, "transactions"), {
+        customerId: customer.id,
+        type: "booking",
+        amount: -(selectedServiceForBooking.price || 0),
+        description: `Booking for ${selectedServiceForBooking.name} with ${selectedStaff?.name}`,
+        status: "success",
+        referenceId: bookingRef.id,
+        createdAt: serverTimestamp(),
+      });
+
+      alert(`✅ ${selectedServiceForBooking.name} booked successfully with ${selectedStaff?.name} on ${bookingFormData.date} at ${displayTime}!`);
+      
+      // Reset form and close
+      setShowBookingForm(false);
+      setSelectedServiceForBooking(null);
+      setSelectedCartItemForBooking(null);
+      setActiveTab("bookings");
+      
+    } catch (error) {
+      console.error("❌ Error booking service:", error);
+      alert("Failed to book service. Please try again.");
+    } finally {
+      setIsSubmittingBooking(false);
+    }
   };
 
   // Add to Cart for Service
@@ -813,6 +1226,7 @@ export default function CustomerPortal() {
         await fetchCustomerData(customerObj.id);
         await fetchServices();
         await fetchProducts();
+        await fetchStaff(); // 🔥 Fetch staff
 
         // Fetch recent items after main data is loaded
         await fetchRecentServices();
@@ -826,6 +1240,7 @@ export default function CustomerPortal() {
         setIsLoading(false);
       }
     };
+    
 
     initializeData();
 
@@ -937,6 +1352,12 @@ export default function CustomerPortal() {
             createdAt: data.createdAt || serverTimestamp(),
             notes: data.notes || "",
             pointsAwarded: data.pointsAwarded || false,
+
+            // Staff info
+            staffId: data.staffId || "",
+            staffName: data.staffName || "",
+            staffRole: data.staffRole || "",
+            staffBranch: data.staffBranch || "",
 
             // Complete service info
             serviceDescription: data.serviceDescription || "",
@@ -1508,6 +1929,12 @@ export default function CustomerPortal() {
               notes: data.notes || "",
               pointsAwarded: data.pointsAwarded || false,
 
+              // Staff info
+              staffId: data.staffId || "",
+              staffName: data.staffName || "",
+              staffRole: data.staffRole || "",
+              staffBranch: data.staffBranch || "",
+
               // Complete service info
               serviceDescription: data.serviceDescription || "",
               serviceDuration: data.serviceDuration || "",
@@ -1741,7 +2168,7 @@ export default function CustomerPortal() {
 
       unsubscribeRefs.current.push(unsubscribeFeedbacks);
 
-      // 🔥🔥🔥 FIXED: Real-time wallet listener with proper updates
+      // 🔥🔥🔥 FIXED: Real-time wallet listener - Don't trigger registration points again
       const unsubscribeWallet = onSnapshot(
         doc(db, "wallets", customerId),
         (doc) => {
@@ -1775,6 +2202,9 @@ export default function CustomerPortal() {
             console.log("💰 Updated wallet object:", updatedWallet);
             setWallet(updatedWallet);
             setLastUpdate(new Date().toLocaleTimeString());
+            
+            // 🔥 IMPORTANT: Don't call checkAndAwardRegistrationPoints() here
+            // This prevents the infinite loop
           } else {
             console.log("💰 No wallet found, creating default");
             // Create default wallet if doesn't exist
@@ -2048,202 +2478,40 @@ export default function CustomerPortal() {
     }
   };
 
-  // 🔥🔥🔥 FIXED: Handle checkout for services only (NO FORM) - IMMEDIATE POINTS
-  const handleServiceCheckout = async () => {
-    if (!customer) {
-      alert("Please login to checkout");
+  // 🔥🔥🔥 NEW: Main checkout handler
+  const handleCheckout = () => {
+    if (cartItems.length === 0) {
+      alert("Your cart is empty!");
       return;
     }
 
-    // Check if cart has any services
-    const serviceItems = cartItems.filter((item) => item.type === "service");
-    if (serviceItems.length === 0) {
-      alert("No services in cart to checkout");
-      return;
-    }
+    // Check cart contents
+    const hasServices = cartItems.some((item) => item.type === "service");
+    const hasProducts = cartItems.some((item) => item.type === "product");
 
-    setCheckoutLoading(true);
-
-    try {
-      console.log(
-        "📅 Processing service checkout:",
-        serviceItems.length,
-        "services"
-      );
-
-      let successCount = 0;
-      let totalPointsAwarded = 0;
-
-      for (const serviceItem of serviceItems) {
-        try {
-          console.log("📅 Creating booking for:", serviceItem.itemName);
-
-          // Fetch the complete service details
-          let serviceData = null;
-          try {
-            const serviceDoc = await getDoc(
-              doc(db, "services", serviceItem.itemId)
-            );
-            if (serviceDoc.exists()) {
-              serviceData = serviceDoc.data();
-            }
-          } catch (fetchError) {
-            console.error("❌ Error fetching service data:", fetchError);
-          }
-
-          const bookingData: any = {
-            customerId: customer.id,
-            customerName: customer.name || "Customer",
-            customerEmail: customer.email || "",
-            customerPhone: customer.phone || "",
-
-            // Basic service info
-            serviceId: serviceItem.itemId,
-            serviceName:
-              serviceItem.itemName || serviceItem.serviceName || "Service",
-            servicePrice: serviceItem.price || 0,
-
-            // Booking details
-            date: new Date().toISOString().split("T")[0],
-            time: "10:00 AM",
-            totalAmount: serviceItem.price || 0,
-            status: "pending",
-            createdAt: serverTimestamp(),
-            notes: "Booked from cart",
-            pointsAwarded: true, // IMMEDIATELY TRUE
-
-            // Branch info
-            branchNames: serviceItem.branchNames || [],
-            branches: serviceItem.branchNames || [],
-          };
-
-          // Add complete service information if available
-          if (serviceData) {
-            bookingData.serviceDescription = serviceData.description || "";
-            bookingData.serviceDuration = serviceData.duration || "";
-            bookingData.serviceCategory = serviceData.category || "";
-            bookingData.serviceCategoryId = serviceData.categoryId || "";
-            bookingData.serviceImageUrl = serviceData.imageUrl || "";
-            bookingData.serviceBranchNames = serviceData.branchNames || [];
-            bookingData.serviceBranches = serviceData.branches || [];
-            bookingData.servicePopularity = serviceData.popularity || "low";
-            bookingData.serviceRevenue = serviceData.revenue || 0;
-            bookingData.serviceTotalBookings = serviceData.totalBookings || 0;
-            bookingData.serviceCreatedAt =
-              serviceData.createdAt || serverTimestamp();
-            bookingData.serviceUpdatedAt =
-              serviceData.updatedAt || serverTimestamp();
-            bookingData.serviceStatus = serviceData.status || "active";
-
-            if (
-              !bookingData.branchNames?.length &&
-              serviceData.branchNames?.length
-            ) {
-              bookingData.branchNames = serviceData.branchNames;
-              bookingData.branches = serviceData.branchNames;
-            }
-          }
-
-          // Create booking
-          const bookingRef = await addDoc(
-            collection(db, "bookings"),
-            bookingData
-          );
-          console.log("✅ Booking created with ID:", bookingRef.id);
-
-          // 🔥🔥🔥 IMMEDIATELY AWARD POINTS FOR SERVICE PURCHASE
-          // Calculate points (10 points per $1 spent)
-          const pointsToAward = Math.floor((serviceItem.price || 0) * 10);
-
-          if (pointsToAward > 0) {
-            console.log(
-              `🏅 Immediately awarding ${pointsToAward} points for service purchase`
-            );
-
-            // Add transaction
-            await addDoc(collection(db, "transactions"), {
-              customerId: customer.id,
-              type: "points_earned",
-              pointsAmount: pointsToAward,
-              amount: 0,
-              description: `Service Points: ${serviceItem.itemName} ($${serviceItem.price}) - Immediate Award`,
-              status: "success",
-              referenceId: bookingRef.id,
-              createdAt: serverTimestamp(),
-            });
-
-            // Update wallet IMMEDIATELY
-            if (wallet) {
-              const newLoyaltyPoints =
-                (wallet.loyaltyPoints || 0) + pointsToAward;
-              const newTotalEarned =
-                (wallet.totalPointsEarned || 0) + pointsToAward;
-
-              await updateDoc(doc(db, "wallets", customer.id), {
-                loyaltyPoints: newLoyaltyPoints,
-                totalPointsEarned: newTotalEarned,
-                updatedAt: serverTimestamp(),
-              });
-
-              // Update local state IMMEDIATELY
-              setWallet((prev) =>
-                prev
-                  ? {
-                      ...prev,
-                      loyaltyPoints: newLoyaltyPoints,
-                      totalPointsEarned: newTotalEarned,
-                    }
-                  : null
-              );
-
-              console.log(
-                `✅ ${pointsToAward} points immediately awarded for service purchase`
-              );
-              totalPointsAwarded += pointsToAward;
-            }
-          }
-
-          // Remove from cart
-          await deleteDoc(doc(db, "cart", serviceItem.id));
-
-          // Add transaction for payment
-          await addDoc(collection(db, "transactions"), {
-            customerId: customer.id,
-            type: "booking",
-            amount: -(serviceItem.price || 0),
-            description: `Booking for ${serviceItem.itemName}`,
-            status: "success",
-            referenceId: bookingRef.id,
-            createdAt: serverTimestamp(),
-          });
-
-          successCount++;
-        } catch (error) {
-          console.error(`❌ Error booking ${serviceItem.itemName}:`, error);
-          alert(`Failed to book ${serviceItem.itemName}. Please try again.`);
+    if (hasServices && hasProducts) {
+      // Mixed cart - show confirmation
+      if (
+        confirm(
+          "You have both services and products in your cart. Services will require booking information, products require checkout information. Continue?"
+        )
+      ) {
+        // Show booking form for first service
+        const firstServiceItem = cartItems.find(item => item.type === "service");
+        if (firstServiceItem) {
+          handleBookServiceFromCart(firstServiceItem);
         }
+        // Products ke liye checkout form baad mein show hoga
       }
-
-      if (successCount > 0) {
-        if (totalPointsAwarded > 0) {
-          alert(
-            `✅ ${successCount} service(s) booked successfully! You earned ${totalPointsAwarded} loyalty points. Check your bookings.`
-          );
-        } else {
-          alert(
-            `✅ ${successCount} service(s) booked successfully! Check your bookings.`
-          );
-        }
-        setActiveTab("bookings");
+    } else if (hasServices) {
+      // Only services - show booking form for first service
+      const firstServiceItem = cartItems.find(item => item.type === "service");
+      if (firstServiceItem) {
+        handleBookServiceFromCart(firstServiceItem);
       }
-
-      // Immediately update local cart state
-      setCartItems((prev) => prev.filter((item) => item.type !== "service"));
-    } catch (error) {
-      console.error("❌ Error during service checkout:", error);
-      alert("Failed to process service checkout. Please try again.");
-    } finally {
-      setCheckoutLoading(false);
+    } else {
+      // Only products - show checkout form
+      setShowCheckoutForm(true);
     }
   };
 
@@ -2335,7 +2603,7 @@ export default function CustomerPortal() {
             if (productData.branchNames?.length) {
               productData.branchNames.forEach((branch: string) =>
                 allBranchNames.add(branch)
-              );
+            );
             }
 
             // Also add to main branch fields if not already there
@@ -2386,7 +2654,7 @@ export default function CustomerPortal() {
           totalAmount: totalAmount,
           status: "pending",
           createdAt: serverTimestamp(),
-          pointsAwarded: true, // IMMEDIATELY TRUE
+          pointsAwarded: false, // Will be awarded after delivery
 
           // Shipping information from form
           shippingAddress: checkoutFormData.shippingAddress,
@@ -2416,52 +2684,6 @@ export default function CustomerPortal() {
         const orderRef = await addDoc(collection(db, "orders"), orderData);
         console.log("✅ Order created with ID:", orderRef.id);
 
-        // 🔥 IMMEDIATELY AWARD POINTS FOR PRODUCT PURCHASE
-        const pointsToAward = Math.floor(totalAmount * 10);
-
-        if (pointsToAward > 0) {
-          console.log(
-            `🏅 Immediately awarding ${pointsToAward} points for product purchase`
-          );
-
-          // Add transaction
-          await addDoc(collection(db, "transactions"), {
-            customerId: customer.id,
-            type: "points_earned",
-            pointsAmount: pointsToAward,
-            amount: 0,
-            description: `Product Points: ${productItems.length} items ($${totalAmount}) - Immediate Award`,
-            status: "success",
-            referenceId: orderRef.id,
-            createdAt: serverTimestamp(),
-          });
-
-          // Update wallet IMMEDIATELY
-          if (wallet) {
-            const newLoyaltyPoints =
-              (wallet.loyaltyPoints || 0) + pointsToAward;
-            const newTotalEarned =
-              (wallet.totalPointsEarned || 0) + pointsToAward;
-
-            await updateDoc(doc(db, "wallets", customer.id), {
-              loyaltyPoints: newLoyaltyPoints,
-              totalPointsEarned: newTotalEarned,
-              updatedAt: serverTimestamp(),
-            });
-
-            // Update local state IMMEDIATELY
-            setWallet((prev) =>
-              prev
-                ? {
-                    ...prev,
-                    loyaltyPoints: newLoyaltyPoints,
-                    totalPointsEarned: newTotalEarned,
-                  }
-                : null
-            );
-          }
-        }
-
         // Remove products from cart
         const deletePromises = productItems.map((item) =>
           deleteDoc(doc(db, "cart", item.id))
@@ -2489,15 +2711,9 @@ export default function CustomerPortal() {
           });
         }
 
-        if (pointsToAward > 0) {
-          alert(
-            `✅ Order placed for ${productItems.length} product(s) successfully! You earned ${pointsToAward} loyalty points. Check your orders.`
-          );
-        } else {
-          alert(
-            `✅ Order placed for ${productItems.length} product(s) successfully! Check your orders.`
-          );
-        }
+        alert(
+          `✅ Order placed for ${productItems.length} product(s) successfully! Check your orders.`
+        );
 
         // Close checkout form
         setShowCheckoutForm(false);
@@ -2530,241 +2746,119 @@ export default function CustomerPortal() {
     }
   };
 
-  // Main checkout handler
-  const handleCheckout = () => {
-    if (cartItems.length === 0) {
-      alert("Your cart is empty!");
-      return;
-    }
-
-    // Check cart contents
-    const hasServices = cartItems.some((item) => item.type === "service");
-    const hasProducts = cartItems.some((item) => item.type === "product");
-
-    if (hasServices && hasProducts) {
-      // Mixed cart - show confirmation
-      if (
-        confirm(
-          "You have both services and products in your cart. Services will be booked directly, products require checkout information. Continue?"
-        )
-      ) {
-        // First handle services (no form)
-        handleServiceCheckout();
-        // Then show form for products
-        setShowCheckoutForm(true);
-      }
-    } else if (hasServices) {
-      // Only services - direct booking (no form)
-      handleServiceCheckout();
-    } else {
-      // Only products - show checkout form
-      setShowCheckoutForm(true);
-    }
-  };
-
   // Checkout form submission
   const handleCheckoutSubmit = async () => {
     await handleProductCheckout();
   };
 
   // Handle feedback submission
-  const handleAddFeedback = async () => {
-    if (!feedbackComment.trim() || !feedbackService.trim() || !customer) {
-      alert("Please fill all required fields");
-      return;
+  
+  // Handle feedback submission WITH COMPLETE INFO
+const handleAddFeedback = async () => {
+  if (!feedbackComment.trim() || !feedbackService.trim() || !customer) {
+    alert("Please fill all required fields");
+    return;
+  }
+
+  setIsSubmittingFeedback(true);
+  try {
+    // 🔥🔥🔥 Find the selected service or product to get complete info
+    let completeFeedbackData: any = {
+      customerId: customer.id,
+      customerName: customer.name || "Customer",
+      customerEmail: customer.email || "",
+      serviceOrProduct: feedbackService,
+      type: feedbackType,
+      rating: feedbackRating,
+      comment: feedbackComment,
+      status: "pending",
+      createdAt: serverTimestamp(),
+      pointsAwarded: false,
+    };
+
+    if (feedbackType === "service") {
+      // 🔥 Find complete service info
+      const selectedService = services.find(s => s.name === feedbackService);
+      if (selectedService) {
+        completeFeedbackData = {
+          ...completeFeedbackData,
+          // Service basic info
+          serviceId: selectedService.id,
+          serviceName: selectedService.name,
+          servicePrice: selectedService.price || 0,
+          
+          // 🔥🔥🔥 COMPLETE SERVICE INFORMATION
+          serviceDescription: selectedService.description || "",
+          serviceDuration: selectedService.duration || "",
+          serviceCategory: selectedService.category || "",
+          serviceCategoryId: selectedService.categoryId || "",
+          serviceImageUrl: selectedService.imageUrl || "",
+          serviceBranchNames: selectedService.branchNames || [],
+          serviceBranches: selectedService.branches || [],
+          servicePopularity: selectedService.popularity || "low",
+          serviceRevenue: selectedService.revenue || 0,
+          serviceTotalBookings: selectedService.totalBookings || 0,
+          serviceCreatedAt: selectedService.createdAt || serverTimestamp(),
+          serviceUpdatedAt: selectedService.updatedAt || serverTimestamp(),
+          serviceStatus: selectedService.status || "active",
+        };
+      }
+    } else {
+      // 🔥 Find complete product info
+      const selectedProduct = products.find(p => p.name === feedbackService);
+      if (selectedProduct) {
+        completeFeedbackData = {
+          ...completeFeedbackData,
+          // Product basic info
+          productId: selectedProduct.id,
+          productName: selectedProduct.name,
+          productPrice: selectedProduct.price || 0,
+          
+          // 🔥🔥🔥 COMPLETE PRODUCT INFORMATION
+          productDescription: selectedProduct.description || "",
+          productCategory: selectedProduct.category || "",
+          productCategoryId: selectedProduct.categoryId || "",
+          productImageUrl: selectedProduct.imageUrl || "",
+          productBranchNames: selectedProduct.branchNames || [],
+          productBranches: selectedProduct.branches || [],
+          productSku: selectedProduct.sku || "",
+          productCost: selectedProduct.cost || 0,
+          productRating: selectedProduct.rating || 0,
+          productReviews: selectedProduct.reviews || 0,
+          productRevenue: selectedProduct.revenue || 0,
+          productTotalSold: selectedProduct.totalSold || 0,
+          productTotalStock: selectedProduct.totalStock || 0,
+          productCreatedAt: selectedProduct.createdAt || serverTimestamp(),
+          productUpdatedAt: selectedProduct.updatedAt || serverTimestamp(),
+          productStatus: selectedProduct.status || "active",
+        };
+      }
     }
 
-    setIsSubmittingFeedback(true);
-    try {
-      const feedbackData = {
-        customerId: customer.id,
-        customerName: customer.name || "Customer",
-        customerEmail: customer.email || "",
-        serviceOrProduct: feedbackService,
-        type: feedbackType,
-        rating: feedbackRating,
-        comment: feedbackComment,
-        status: "pending",
-        createdAt: serverTimestamp(),
-        pointsAwarded: false,
-      };
+    console.log("💬 Submitting feedback with complete info:", completeFeedbackData);
 
-      console.log("💬 Submitting feedback:", feedbackData);
+    // Add to Firebase feedbacks collection
+    const feedbackRef = await addDoc(
+      collection(db, "feedbacks"),
+      completeFeedbackData
+    );
 
-      // Add to Firebase feedbacks collection
-      const feedbackRef = await addDoc(
-        collection(db, "feedbacks"),
-        feedbackData
-      );
+    console.log("✅ Feedback saved with complete information, ID:", feedbackRef.id);
 
-      // Award loyalty points for feedback IMMEDIATELY
-      let pointsToAward = 0;
-      if (feedbackRating === 5) {
-        pointsToAward = 50;
-      } else if (feedbackRating === 4) {
-        pointsToAward = 25;
-      }
+    // Clear form
+    setFeedbackComment("");
+    setFeedbackService("");
+    setFeedbackRating(5);
+    setShowFeedbackForm(false);
 
-      if (pointsToAward > 0) {
-        await awardPoints(
-          pointsToAward,
-          `Feedback Points: ${feedbackService} (${feedbackRating} stars)`,
-          feedbackRef.id
-        );
-
-        // Update feedback to mark points as awarded
-        await updateDoc(doc(db, "feedbacks", feedbackRef.id), {
-          pointsAwarded: true,
-          updatedAt: serverTimestamp(),
-        });
-      }
-
-      // Clear form
-      setFeedbackComment("");
-      setFeedbackService("");
-      setFeedbackRating(5);
-      setShowFeedbackForm(false);
-
-      if (pointsToAward > 0) {
-        alert(
-          `Thank you for your feedback! You earned ${pointsToAward} loyalty points.`
-        );
-      } else {
-        alert("Thank you for your feedback!");
-      }
-    } catch (error) {
-      console.error("❌ Error submitting feedback:", error);
-      alert("Failed to submit feedback. Please try again.");
-    } finally {
-      setIsSubmittingFeedback(false);
-    }
-  };
-
-  // 🔥🔥🔥 FIXED: Handle quick service booking - IMMEDIATE POINTS
-  const handleQuickBook = async (service: Service) => {
-    if (!customer) {
-      router.push("/customer/login");
-      return;
-    }
-
-    try {
-      console.log("📅 Creating booking for service:", service.name);
-
-      const bookingData: any = {
-        customerId: customer.id,
-        customerName: customer.name || "Customer",
-        customerEmail: customer.email || "",
-
-        // Basic service info
-        serviceId: service.id,
-        serviceName: service.name,
-        servicePrice: service.price || 0,
-
-        // COMPLETE SERVICE INFORMATION
-        serviceDescription: service.description || "",
-        serviceDuration: service.duration || "",
-        serviceCategory: service.category || "",
-        serviceCategoryId: service.categoryId || "",
-        serviceImageUrl: service.imageUrl || "",
-        serviceBranchNames: service.branchNames || [],
-        serviceBranches: service.branches || [],
-        servicePopularity: service.popularity || "low",
-        serviceRevenue: service.revenue || 0,
-        serviceTotalBookings: service.totalBookings || 0,
-        serviceCreatedAt: service.createdAt || serverTimestamp(),
-        serviceUpdatedAt: service.updatedAt || serverTimestamp(),
-        serviceStatus: service.status || "active",
-
-        // Booking details
-        date: new Date().toISOString().split("T")[0],
-        time: "10:00 AM",
-        totalAmount: service.price || 0,
-        status: "pending",
-        createdAt: serverTimestamp(),
-        notes: "Quick booking from portal",
-        pointsAwarded: true, // IMMEDIATELY TRUE
-
-        // Branch info
-        branchNames: service.branchNames || [],
-        branches: service.branchNames || [],
-      };
-
-      // Add booking
-      const bookingRef = await addDoc(collection(db, "bookings"), bookingData);
-      console.log("✅ Booking created with ID:", bookingRef.id);
-
-      // 🔥 IMMEDIATELY AWARD POINTS FOR QUICK BOOK
-      const pointsToAward = Math.floor((service.price || 0) * 10);
-
-      if (pointsToAward > 0) {
-        console.log(
-          `🏅 Immediately awarding ${pointsToAward} points for quick booking`
-        );
-
-        // Add transaction
-        await addDoc(collection(db, "transactions"), {
-          customerId: customer.id,
-          type: "points_earned",
-          pointsAmount: pointsToAward,
-          amount: 0,
-          description: `Service Points: ${service.name} ($${service.price}) - Quick Book`,
-          status: "success",
-          referenceId: bookingRef.id,
-          createdAt: serverTimestamp(),
-        });
-
-        // Update wallet IMMEDIATELY
-        if (wallet) {
-          const newLoyaltyPoints = (wallet.loyaltyPoints || 0) + pointsToAward;
-          const newTotalEarned =
-            (wallet.totalPointsEarned || 0) + pointsToAward;
-
-          await updateDoc(doc(db, "wallets", customer.id), {
-            loyaltyPoints: newLoyaltyPoints,
-            totalPointsEarned: newTotalEarned,
-            updatedAt: serverTimestamp(),
-          });
-
-          // Update local state IMMEDIATELY
-          setWallet((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  loyaltyPoints: newLoyaltyPoints,
-                  totalPointsEarned: newTotalEarned,
-                }
-              : null
-          );
-        }
-      }
-
-      // Add transaction for payment
-      await addDoc(collection(db, "transactions"), {
-        customerId: customer.id,
-        type: "booking",
-        amount: -(service.price || 0),
-        description: `Booking for ${service.name}`,
-        status: "success",
-        referenceId: bookingRef.id,
-        createdAt: serverTimestamp(),
-      });
-
-      if (pointsToAward > 0) {
-        alert(
-          `✅ ${service.name} booked successfully! You earned ${pointsToAward} loyalty points. Check your bookings.`
-        );
-      } else {
-        alert(`✅ ${service.name} booked successfully! Check your bookings.`);
-      }
-
-      // Automatically switch to bookings tab
-      setActiveTab("bookings");
-    } catch (error) {
-      console.error("❌ Error creating booking:", error);
-      alert("Failed to create booking. Please try again.");
-    }
-  };
-
+    alert("Thank you for your feedback! Complete information has been saved.");
+  } catch (error) {
+    console.error("❌ Error submitting feedback:", error);
+    alert("Failed to submit feedback. Please try again.");
+  } finally {
+    setIsSubmittingFeedback(false);
+  }
+};
   // Handle confirm booking
   const handleConfirmBooking = async (bookingId: string) => {
     if (!customer) return;
@@ -2885,6 +2979,9 @@ export default function CustomerPortal() {
         completedAt: serverTimestamp(),
       });
 
+      // Award points for completed service
+      await awardPointsForService(booking);
+
       alert("✅ Booking marked as completed!");
     } catch (error) {
       console.error("❌ Error completing booking:", error);
@@ -2941,7 +3038,7 @@ export default function CustomerPortal() {
         totalAmount: product.price || 0,
         status: "pending",
         createdAt: serverTimestamp(),
-        pointsAwarded: true, // IMMEDIATELY TRUE
+        pointsAwarded: false, // Will be awarded after delivery
 
         // Shipping information (default)
         shippingAddress: "",
@@ -2972,51 +3069,6 @@ export default function CustomerPortal() {
       const orderRef = await addDoc(collection(db, "orders"), orderData);
       console.log("✅ Order created with ID:", orderRef.id);
 
-      // 🔥 IMMEDIATELY AWARD POINTS FOR QUICK PURCHASE
-      const pointsToAward = Math.floor((product.price || 0) * 10);
-
-      if (pointsToAward > 0) {
-        console.log(
-          `🏅 Immediately awarding ${pointsToAward} points for quick purchase`
-        );
-
-        // Add transaction
-        await addDoc(collection(db, "transactions"), {
-          customerId: customer.id,
-          type: "points_earned",
-          pointsAmount: pointsToAward,
-          amount: 0,
-          description: `Product Points: ${product.name} ($${product.price}) - Quick Purchase`,
-          status: "success",
-          referenceId: orderRef.id,
-          createdAt: serverTimestamp(),
-        });
-
-        // Update wallet IMMEDIATELY
-        if (wallet) {
-          const newLoyaltyPoints = (wallet.loyaltyPoints || 0) + pointsToAward;
-          const newTotalEarned =
-            (wallet.totalPointsEarned || 0) + pointsToAward;
-
-          await updateDoc(doc(db, "wallets", customer.id), {
-            loyaltyPoints: newLoyaltyPoints,
-            totalPointsEarned: newTotalEarned,
-            updatedAt: serverTimestamp(),
-          });
-
-          // Update local state IMMEDIATELY
-          setWallet((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  loyaltyPoints: newLoyaltyPoints,
-                  totalPointsEarned: newTotalEarned,
-                }
-              : null
-          );
-        }
-      }
-
       // Add transaction
       await addDoc(collection(db, "transactions"), {
         customerId: customer.id,
@@ -3028,13 +3080,7 @@ export default function CustomerPortal() {
         createdAt: serverTimestamp(),
       });
 
-      if (pointsToAward > 0) {
-        alert(
-          `✅ ${product.name} ordered successfully! You earned ${pointsToAward} loyalty points. Check your orders.`
-        );
-      } else {
-        alert(`✅ ${product.name} ordered successfully! Check your orders.`);
-      }
+      alert(`✅ ${product.name} ordered successfully! Check your orders.`);
 
       // Automatically switch to orders tab
       setActiveTab("orders");
@@ -3181,12 +3227,16 @@ export default function CustomerPortal() {
     }
   };
 
-  // Loyalty Points Dashboard Component
-  const renderLoyaltyPointsDashboard = () => (
-   // <Card className="border-none shadow-lg rounded-2xl mb-8 bg-gradient-to-r from-secondary/10 to-secondary/5">
-   <div></div>
-     
-  );
+  // Debug function to reset registration points
+  const resetRegistrationPoints = () => {
+    if (customer) {
+      const localStorageKey = `reg_points_${customer.id}`;
+      localStorage.removeItem(localStorageKey);
+      setRegistrationPointsAwarded(false);
+      setBirthdayPointsChecked(false);
+      alert("Registration points reset! Create a new account to test.");
+    }
+  };
 
   if (isLoading) {
     return (
@@ -3274,10 +3324,10 @@ export default function CustomerPortal() {
             </div>
           </div>
 
-          {/* 🔥 LOYALTY POINTS DASHBOARD - ADDED HERE */}
-          {renderLoyaltyPointsDashboard()}
-
-          
+          {/* Debug Section - Only show in development */}
+          {process.env.NODE_ENV === "development" && (
+           <div></div>
+          )}
 
           {/* Index Error Warning */}
           {hasIndexError && (
@@ -3349,7 +3399,7 @@ export default function CustomerPortal() {
                 </TabsTrigger>
               </TabsList>
 
-              {/* Dashboard Tab - Same as before */}
+              {/* Dashboard Tab */}
               <TabsContent value="dashboard" className="mt-6 space-y-8">
                 {/* Quick Stats */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -3471,7 +3521,7 @@ export default function CustomerPortal() {
                   </Card>
                 </div>
 
-                {/* Recent Activity & Quick Actions - Same as before */}
+                {/* Recent Activity & Quick Actions */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                   {/* Left Column - Recent Bookings & Orders */}
                   <div className="lg:col-span-2 space-y-6">
@@ -3519,6 +3569,11 @@ export default function CustomerPortal() {
                                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                       <Clock className="w-3 h-3" />
                                       {booking.date} at {booking.time}
+                                      {booking.staffName && (
+                                        <span className="text-xs text-blue-600">
+                                          • {booking.staffName}
+                                        </span>
+                                      )}
                                     </div>
                                     <p className="text-xs text-muted-foreground mt-1">
                                       Booked {getTimeAgo(booking.createdAt)}
@@ -3680,7 +3735,7 @@ export default function CustomerPortal() {
                                   size="sm"
                                   variant="outline"
                                   className="rounded-lg"
-                                  onClick={() => handleQuickBook(service)}
+                                  onClick={() => handleBookService(service)}
                                 >
                                   Book Now
                                 </Button>
@@ -3791,15 +3846,15 @@ export default function CustomerPortal() {
                             </p>
                           </div>
                         ) : (
-                          <div className="space-y-3">
+                          <div className="space-y-3 max-h-[400px] overflow-y-auto">
                             {recentTransactions.map((txn) => (
                               <div
                                 key={txn.id}
-                                className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0"
+                                className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0"
                               >
                                 <div className="flex items-center gap-3">
                                   <div
-                                    className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                                    className={`w-10 h-10 rounded-full flex items-center justify-center ${
                                       txn.amount > 0 ||
                                       (txn.pointsAmount || 0) > 0
                                         ? "bg-green-100"
@@ -3866,7 +3921,7 @@ export default function CustomerPortal() {
                 </div>
               </TabsContent>
 
-              {/* Cart Tab - Same as before */}
+              {/* Cart Tab */}
               <TabsContent value="cart" className="mt-6">
                 <Card className="border-none shadow-lg rounded-2xl">
                   <CardHeader>
@@ -3909,7 +3964,7 @@ export default function CustomerPortal() {
                   </CardHeader>
 
                   <CardContent>
-                    {/* Checkout Form - Same as before */}
+                    {/* Checkout Form */}
                     {showCheckoutForm && (
                       <div className="mb-8 p-6 border-2 border-secondary/20 rounded-2xl bg-secondary/5">
                         <h3 className="text-xl font-serif font-bold mb-6 flex items-center gap-2">
@@ -4326,22 +4381,34 @@ export default function CustomerPortal() {
                                       </Button>
                                     </div>
                                   </div>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() =>
-                                      handleRemoveFromCart(item.id)
-                                    }
-                                    disabled={removingCartItem === item.id}
-                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                  >
-                                    {removingCartItem === item.id ? (
-                                      <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                                    ) : (
-                                      <Trash2 className="w-4 h-4 mr-1" />
+                                  <div className="flex gap-2">
+                                    {item.type === "service" && (
+                                      <Button
+                                        size="sm"
+                                        className="bg-secondary hover:bg-secondary/90 text-primary rounded-lg"
+                                        onClick={() => handleBookServiceFromCart(item)}
+                                      >
+                                        <Calendar className="w-4 h-4 mr-1" />
+                                        Book Now
+                                      </Button>
                                     )}
-                                    Remove
-                                  </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() =>
+                                        handleRemoveFromCart(item.id)
+                                      }
+                                      disabled={removingCartItem === item.id}
+                                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                    >
+                                      {removingCartItem === item.id ? (
+                                        <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                                      ) : (
+                                        <Trash2 className="w-4 h-4 mr-1" />
+                                      )}
+                                      Remove
+                                    </Button>
+                                  </div>
                                 </div>
                               </div>
                             </div>
@@ -4358,7 +4425,7 @@ export default function CustomerPortal() {
                               </p>
                               {item.type === "service" && (
                                 <p className="text-xs text-blue-600 mt-1">
-                                  Will be booked directly on checkout
+                                  Requires booking information
                                 </p>
                               )}
                               {item.type === "product" && (
@@ -4458,7 +4525,7 @@ export default function CustomerPortal() {
                               <Sparkles className="w-4 h-4 text-blue-600" />
                               <p className="text-sm text-blue-700">
                                 <span className="font-semibold">Note:</span>{" "}
-                                Services in cart will be booked directly, while
+                                Services in cart require booking information, while
                                 products require checkout information.
                               </p>
                             </div>
@@ -4512,6 +4579,12 @@ export default function CustomerPortal() {
                                       <h3 className="text-lg font-semibold">
                                         {booking.serviceName}
                                       </h3>
+                                      {booking.staffName && (
+                                        <p className="text-sm text-blue-600 mt-1">
+                                          👨‍💼 Staff: {booking.staffName}
+                                          {booking.staffRole && ` (${booking.staffRole})`}
+                                        </p>
+                                      )}
                                       {booking.serviceBranchNames &&
                                         booking.serviceBranchNames.length >
                                           0 && (
@@ -4680,17 +4753,6 @@ export default function CustomerPortal() {
                                         )}
                                       </Button>
                                     )}
-
-                                    {/* View Details Button */}
-                                    <Button
-                                      variant="ghost"
-                                      onClick={() =>
-                                        console.log("Booking details:", booking)
-                                      }
-                                    >
-                                      <Eye className="w-4 h-4 mr-2" />
-                                      View Details
-                                    </Button>
 
                                     {/* Points Status */}
                                     {booking.status === "completed" && (
@@ -5018,7 +5080,7 @@ export default function CustomerPortal() {
                                   variant={
                                     feedbackType === "product"
                                       ? "default"
-                                      : "outline"
+                                    : "outline"
                                   }
                                   onClick={() => setFeedbackType("product")}
                                   className="flex-1"
@@ -5343,251 +5405,9 @@ export default function CustomerPortal() {
               </TabsContent>
 
               {/* Wallet Tab */}
-
-              <Card>
-                   <CardHeader>
-        <div className="flex flex-col md:flex-row md:items-center justify-between">
-          <div>
-            <CardTitle className="text-2xl font-serif flex items-center gap-2">
-              <Award className="w-6 h-6 text-secondary" />
-              Loyalty Points Program
-            </CardTitle>
-            <CardDescription>
-              Earn points on every purchase and activity
-            </CardDescription>
-          </div>
-          <div className="flex items-center gap-2 mt-4 md:mt-0">
-            <div className="text-right">
-              <p className="text-3xl font-bold text-secondary">
-                {wallet?.loyaltyPoints || 0}
-              </p>
-              <p className="text-sm text-muted-foreground">Current Points</p>
-              <p className="text-xs text-muted-foreground">
-                Last updated: {lastUpdate || "Never"}
-              </p>
-            </div>
-            <Badge className="bg-secondary text-primary px-3 py-1">
-              ${walletPointsValue.toFixed(2)} Value
-            </Badge>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent>
-        {/* How to Earn Points */}
-        <div className="mb-8">
-          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-secondary" />
-            How to Earn Points
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Registration Card */}
-            <Card className="border border-secondary/20 hover:border-secondary/40 transition-colors">
-              <CardContent className="p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 bg-secondary/10 rounded-xl flex items-center justify-center">
-                    <User className="w-6 h-6 text-secondary" />
-                  </div>
-                  <div>
-                    <p className="text-xl font-bold text-secondary">100</p>
-                    <p className="text-xs text-muted-foreground">POINTS</p>
-                  </div>
-                </div>
-                <h4 className="font-semibold mb-2">First Registration</h4>
-                <p className="text-sm text-muted-foreground">
-                  Get 100 bonus points when you create an account
-                </p>
-                
-              </CardContent>
-            </Card>
-
-            {/* Service Card */}
-            <Card className="border border-blue-200 hover:border-blue-400 transition-colors">
-              <CardContent className="p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                    <Calendar className="w-6 h-6 text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="text-xl font-bold text-blue-600">10</p>
-                    <p className="text-xs text-muted-foreground">POINTS / $1</p>
-                  </div>
-                </div>
-                <h4 className="font-semibold mb-2">Book Services</h4>
-                <p className="text-sm text-muted-foreground">
-                  Earn 10 points per $1 spent on services
-                </p>
-                <div className="flex items-center gap-2 mt-3">
-                  <Badge
-                    variant="outline"
-                    className="border-blue-200 text-blue-600"
-                  >
-                    Total: {bookings.length}
-                  </Badge>
-                  <Link href="/services">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-6 text-blue-600"
-                    >
-                      Book Now
-                    </Button>
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Product Card */}
-            <Card className="border border-purple-200 hover:border-purple-400 transition-colors">
-              <CardContent className="p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
-                    <Package className="w-6 h-6 text-purple-600" />
-                  </div>
-                  <div>
-                    <p className="text-xl font-bold text-purple-600">10</p>
-                    <p className="text-xs text-muted-foreground">POINTS / $1</p>
-                  </div>
-                </div>
-                <h4 className="font-semibold mb-2">Buy Products</h4>
-                <p className="text-sm text-muted-foreground">
-                  Earn 10 points per $1 spent on products
-                </p>
-                <div className="flex items-center gap-2 mt-3">
-                  <Badge
-                    variant="outline"
-                    className="border-purple-200 text-purple-600"
-                  >
-                    Total: {orders.length}
-                  </Badge>
-                  <Link href="/products">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-6 text-purple-600"
-                    >
-                      Shop Now
-                    </Button>
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Birthday Card */}
-            <Card className="border border-pink-200 hover:border-pink-400 transition-colors">
-              <CardContent className="p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 bg-pink-100 rounded-xl flex items-center justify-center">
-                    <Gift className="w-6 h-6 text-pink-600" />
-                  </div>
-                  <div>
-                    <p className="text-xl font-bold text-pink-600">200</p>
-                    <p className="text-xs text-muted-foreground">POINTS</p>
-                  </div>
-                </div>
-                <h4 className="font-semibold mb-2">Birthday Bonus</h4>
-                <p className="text-sm text-muted-foreground">
-                  Get 200 points on your birthday
-                </p>
-                <Badge className="mt-3 bg-pink-100 text-pink-700 border-pink-200">
-                  🎁 Available on Birthday
-                </Badge>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-
-        {/* Points Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">
-                    Total Points Earned
-                  </p>
-                  <p className="text-2xl font-bold text-primary">
-                    {wallet?.totalPointsEarned?.toLocaleString() || "0"}
-                  </p>
-                </div>
-                <ArrowUpRight className="w-8 h-8 text-green-500" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">
-                    Points Redeemed
-                  </p>
-                  <p className="text-2xl font-bold text-primary">
-                    {wallet?.totalPointsRedeemed?.toLocaleString() || "0"}
-                  </p>
-                </div>
-                <Gift className="w-8 h-8 text-secondary" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">
-                    Points Value
-                  </p>
-                  <p className="text-2xl font-bold text-primary">
-                    ${walletPointsValue.toFixed(2)}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    100 points = $1
-                  </p>
-                </div>
-                <Wallet className="w-8 h-8 text-blue-500" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Recent Points Activity */}
-        <div className="mt-8">
-          <h3 className="text-lg font-semibold mb-4">Recent Points Activity</h3>
-          <div className="space-y-3">
-            {transactions
-              .filter((txn) => txn.pointsAmount && txn.pointsAmount > 0)
-              .slice(0, 5)
-              .map((txn) => (
-                <div
-                  key={txn.id}
-                  className="flex items-center justify-between p-4 bg-gray-50 rounded-xl"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                      <ArrowUpRight className="w-5 h-5 text-green-600" />
-                    </div>
-                    <div>
-                      <p className="font-medium">{txn.description}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {getTimeAgo(txn.createdAt)}
-                      </p>
-                    </div>
-                  </div>
-                  <div>
-                    <p className="font-bold text-green-600">
-                      +{txn.pointsAmount} pts
-                    </p>
-                  </div>
-                </div>
-              ))}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
               <TabsContent value="wallet" className="mt-6">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                   {/* Wallet Summary */}
-                  
                   <div className="lg:col-span-2">
                     <Card className="border-none shadow-lg rounded-2xl">
                       <CardHeader>
@@ -5600,7 +5420,30 @@ export default function CustomerPortal() {
                       </CardHeader>
                       <CardContent>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                          
+                          <Card className="bg-gradient-to-br from-primary to-primary/80 text-white">
+                            <CardContent className="p-6">
+                              <div className="flex items-center justify-between mb-4">
+                                <div>
+                                  <p className="text-sm opacity-80">
+                                    Available Balance
+                                  </p>
+                                  <p className="text-4xl font-bold">
+                                    ${wallet?.balance?.toFixed(2) || "0.00"}
+                                  </p>
+                                  <p className="text-sm opacity-80 mt-1">
+                                    Ready to use
+                                  </p>
+                                </div>
+                                <Wallet className="w-12 h-12 opacity-50" />
+                              </div>
+                              <Link href="/customer/portal/wallet/topup">
+                                <Button className="w-full bg-white hover:bg-white/90 text-primary">
+                                  <Plus className="w-4 h-4 mr-2" />
+                                  Add Funds
+                                </Button>
+                              </Link>
+                            </CardContent>
+                          </Card>
 
                           <Card className="bg-gradient-to-br from-secondary to-secondary/80 text-primary">
                             <CardContent className="p-6">
@@ -5620,8 +5463,7 @@ export default function CustomerPortal() {
                                 <Award className="w-12 h-12 opacity-50" />
                               </div>
                               <Link href="/customer/portal/loyalty">
-                                <Button className="w-full bg-primary hover:bg-primary/90 text-white"  
-                                onClick={() => setActiveTab("wallet")}>
+                                <Button className="w-full bg-primary hover:bg-primary/90 text-white">
                                   <Gift className="w-4 h-4 mr-2" />
                                   Redeem Points
                                 </Button>
@@ -5795,6 +5637,185 @@ export default function CustomerPortal() {
           </Card>
         </div>
       </div>
+
+      {/* 🔥🔥🔥 Service Booking Form Modal */}
+      {showBookingForm && selectedServiceForBooking && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold">
+                {showBookingFormFromCart ? "Book Service from Cart" : "Book Service"}
+              </h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowBookingForm(false)}
+              >
+                ✕
+              </Button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Service Info */}
+              <div className="p-4 bg-gray-50 rounded-xl">
+                <div className="flex items-center gap-3">
+                  {selectedServiceForBooking.imageUrl && (
+                    <img
+                      src={selectedServiceForBooking.imageUrl}
+                      alt={selectedServiceForBooking.name}
+                      className="w-12 h-12 rounded-lg object-cover"
+                    />
+                  )}
+                  <div>
+                    <p className="font-semibold">{selectedServiceForBooking.name}</p>
+                    <p className="text-primary font-bold">${selectedServiceForBooking.price}</p>
+                    {selectedServiceForBooking.duration && (
+                      <p className="text-sm text-gray-600">
+                        ⏱️ Duration: {selectedServiceForBooking.duration}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Staff Selection */}
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Select Staff *
+                </label>
+                <select
+                  value={bookingFormData.staffId}
+                  onChange={(e) => {
+                    const selected = staffList.find(staff => staff.id === e.target.value);
+                    setBookingFormData({
+                      ...bookingFormData,
+                      staffId: e.target.value,
+                      staffName: selected?.name || ""
+                    });
+                  }}
+                  className="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-secondary"
+                  required
+                >
+                  <option value="">Choose a staff member</option>
+                  {loadingStaff ? (
+                    <option>Loading staff...</option>
+                  ) : staffList.length === 0 ? (
+                    <option>No staff available</option>
+                  ) : (
+                    staffList.map((staff) => (
+                      <option key={staff.id} value={staff.id}>
+                        {staff.name} - {staff.role} ({staff.branch})
+                      </option>
+                    ))
+                  )}
+                </select>
+              </div>
+
+              {/* Date Selection */}
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Select Date *
+                </label>
+                <input
+                  type="date"
+                  value={bookingFormData.date}
+                  onChange={(e) => {
+                    setBookingFormData({...bookingFormData, date: e.target.value});
+                    // Time slots will update automatically via useEffect
+                  }}
+                  min={new Date().toISOString().split("T")[0]}
+                  className="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-secondary"
+                  required
+                />
+              </div>
+
+              {/* Time Selection */}
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Select Time *
+                </label>
+                <select
+                  value={bookingFormData.time}
+                  onChange={(e) => setBookingFormData({...bookingFormData, time: e.target.value})}
+                  className="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-secondary"
+                  required
+                >
+                  {availableTimeSlots.length === 0 ? (
+                    <option>No slots available</option>
+                  ) : (
+                    availableTimeSlots.map((slot) => {
+                      const hour = parseInt(slot.split(':')[0]);
+                      const minute = slot.split(':')[1];
+                      const displayTime = hour >= 12 
+                        ? `${hour === 12 ? 12 : hour - 12}:${minute} PM` 
+                        : `${hour === 0 ? 12 : hour}:${minute} AM`;
+                      return (
+                        <option key={slot} value={slot}>
+                          {displayTime}
+                        </option>
+                      );
+                    })
+                  )}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  {(() => {
+                    const date = new Date(bookingFormData.date);
+                    const day = date.getDay();
+                    if (day >= 1 && day <= 5) {
+                      return "Monday-Friday: 9 AM - 8 PM";
+                    } else if (day === 6) {
+                      return "Saturday: 10 AM - 6 PM";
+                    } else {
+                      return "Sunday: 11 AM - 4 PM";
+                    }
+                  })()}
+                </p>
+              </div>
+
+              {/* Additional Notes */}
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Additional Notes (Optional)
+                </label>
+                <textarea
+                  value={bookingFormData.notes}
+                  onChange={(e) => setBookingFormData({...bookingFormData, notes: e.target.value})}
+                  placeholder="Any special requirements or notes..."
+                  className="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-secondary min-h-[80px]"
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-4">
+                <Button
+                  onClick={handleBookServiceSubmit}
+                  disabled={isSubmittingBooking || !bookingFormData.staffId}
+                  className="flex-1 bg-secondary hover:bg-secondary/90 text-primary rounded-xl"
+                >
+                  {isSubmittingBooking ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Booking...
+                    </>
+                  ) : (
+                    <>
+                      <Calendar className="w-4 h-4 mr-2" />
+                      Book Now
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowBookingForm(false)}
+                  className="rounded-xl"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

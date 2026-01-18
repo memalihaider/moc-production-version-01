@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar, Clock, User, Search, Filter, CheckCircle, XCircle, AlertCircle, Building, Phone, Mail, DollarSign, Loader2, RefreshCw, ChevronDown, MapPin, Package, ShoppingBag, Truck, CreditCard, Home, Globe } from "lucide-react";
+import { Calendar, Clock, User, Search, Filter, CheckCircle, XCircle, AlertCircle, Building, Phone, Mail, DollarSign, Loader2, RefreshCw, ChevronDown, MapPin, Package, ShoppingBag, Truck, CreditCard, Home, Globe, Link } from "lucide-react";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { AdminSidebar, AdminMobileSidebar } from "@/components/admin/AdminSidebar";
 import { useAuth } from "@/contexts/AuthContext";
@@ -24,8 +24,7 @@ import {
   Timestamp,
   DocumentData,
   QueryDocumentSnapshot,
-  onSnapshot,
-  getDoc
+  onSnapshot
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
@@ -36,6 +35,9 @@ interface OrderProduct {
   price: number;
   quantity: number;
   image: string;
+  branchNames?: string[];
+  productBranches?: string[];
+  productBranchNames?: string[];
 }
 
 interface Customer {
@@ -50,6 +52,8 @@ interface Customer {
   role: string;
   createdAt: Timestamp;
   lastLogin: Timestamp;
+  branchId?: string;
+  branchName?: string;
 }
 
 interface Order {
@@ -61,10 +65,18 @@ interface Order {
   totalAmount: number;
   paymentMethod: string;
   shippingAddress: string;
-  status: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded';
+  status: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded' | 'rejected';
   notes?: string;
+  branchNames?: string[]; // Array of branch names
+  productBranches?: string[]; // Array of branch IDs from products
+  customerBranchId?: string;
+  customerBranchName?: string;
   createdAt: Timestamp;
   updatedAt?: Timestamp;
+  orderDate?: string;
+  shippingCity?: string;
+  shippingCountry?: string;
+  shippingPhone?: string;
 }
 
 interface CustomerMap {
@@ -86,6 +98,7 @@ interface OrdersStore {
     delivered: number;
     cancelled: number;
     refunded: number;
+    rejected: number;
     totalRevenue: number;
     todayOrders: number;
     activeCustomers: number;
@@ -99,6 +112,7 @@ interface OrdersStore {
   setupRealtimeUpdates: () => () => void;
 }
 
+// ==================== BRANCH FILTERED ORDERS STORE ====================
 const useOrdersStore = create<OrdersStore>((set, get) => ({
   // Initial state
   orders: [],
@@ -114,12 +128,13 @@ const useOrdersStore = create<OrdersStore>((set, get) => ({
     delivered: 0,
     cancelled: 0,
     refunded: 0,
+    rejected: 0,
     totalRevenue: 0,
     todayOrders: 0,
     activeCustomers: 0
   },
 
-  // Fetch all orders
+  // Fetch all orders WITH BRANCH FILTERING
   fetchOrders: async () => {
     set({ isLoading: true, error: null });
     try {
@@ -127,10 +142,27 @@ const useOrdersStore = create<OrdersStore>((set, get) => ({
       const q = query(ordersRef, orderBy('createdAt', 'desc'));
       const querySnapshot = await getDocs(q);
       
-      const ordersData: Order[] = [];
+      // Get user info from auth context
+      const user = (window as any).__userAuth || null;
+      const userBranchId = user?.branchId;
+      const userBranchName = user?.branchName;
+      const userRole = user?.role;
+      
+      console.log("🔄 Fetching orders with branch filtering:", {
+        userRole,
+        userBranchId,
+        userBranchName,
+        totalOrders: querySnapshot.size
+      });
+
+      const allOrdersData: Order[] = [];
+      const filteredOrdersData: Order[] = [];
+      
       querySnapshot.forEach((doc: QueryDocumentSnapshot<DocumentData>) => {
         const data = doc.data();
-        ordersData.push({
+        
+        // Extract order data
+        const order: Order = {
           id: doc.id,
           customerId: data.customerId || '',
           customerName: data.customerName || 'Unknown Customer',
@@ -140,19 +172,110 @@ const useOrdersStore = create<OrdersStore>((set, get) => ({
             productName: p.productName || 'Unknown Product',
             price: Number(p.price) || 0,
             quantity: Number(p.quantity) || 1,
-            image: p.image || 'https://images.unsplash.com/photo-1512690196222-7c7d3f993c1b?q=80&w=2070&auto=format&fit=crop'
+            image: p.image || 'https://images.unsplash.com/photo-1512690196222-7c7d3f993c1b?q=80&w=2070&auto=format&fit=crop',
+            branchNames: p.branchNames || [],
+            productBranches: p.productBranches || [],
+            productBranchNames: p.productBranchNames || []
           })) : [],
           totalAmount: Number(data.totalAmount) || 0,
           paymentMethod: data.paymentMethod || 'Unknown',
           shippingAddress: data.shippingAddress || '',
           status: (data.status as Order['status']) || 'pending',
-          notes: data.notes || '',
+          notes: data.notes || data.orderNotes || '',
+          branchNames: data.branchNames || [],
+          productBranches: data.products?.[0]?.productBranches || [],
+          customerBranchId: data.customerBranchId,
+          customerBranchName: data.customerBranchName,
           createdAt: data.createdAt || Timestamp.now(),
-          updatedAt: data.updatedAt || Timestamp.now()
-        });
+          updatedAt: data.updatedAt || Timestamp.now(),
+          orderDate: data.orderDate,
+          shippingCity: data.shippingCity,
+          shippingCountry: data.shippingCountry,
+          shippingPhone: data.shippingPhone
+        };
+
+        allOrdersData.push(order);
+        
+        // 🔥 STRICT BRANCH FILTERING LOGIC
+        if (userRole === 'admin' && userBranchName) {
+          // OPTION 1: Check if customer belongs to this branch (if customerBranchName exists)
+          if (order.customerBranchName === userBranchName) {
+            filteredOrdersData.push(order);
+            console.log(`✅ Order ${doc.id} included - Customer belongs to branch ${userBranchName}`);
+            return;
+          }
+          
+          // OPTION 2: Check product branches (productBranches array contains branch IDs)
+          const productBranches = order.productBranches || [];
+          if (productBranches.length > 0) {
+            // We need to check if any product in this order belongs to user's branch
+            // Since we have branch IDs in productBranches, we need to match with userBranchId
+            if (productBranches.includes(userBranchId)) {
+              filteredOrdersData.push(order);
+              console.log(`✅ Order ${doc.id} included - Product belongs to branch ${userBranchName} (ID: ${userBranchId})`);
+              return;
+            }
+          }
+          
+          // OPTION 3: Check branchNames array
+          const orderBranchNames = order.branchNames || [];
+          if (orderBranchNames.length > 0) {
+            // Check if any branch name matches exactly
+            if (orderBranchNames.includes(userBranchName)) {
+              filteredOrdersData.push(order);
+              console.log(`✅ Order ${doc.id} included - Branch name matches: ${userBranchName}`);
+              return;
+            }
+            
+            // Check for partial matches (e.g., "first branch" vs "first branch")
+            const normalizedUserBranch = userBranchName.toLowerCase().trim();
+            const hasMatch = orderBranchNames.some(branch => 
+              branch.toLowerCase().trim() === normalizedUserBranch
+            );
+            
+            if (hasMatch) {
+              filteredOrdersData.push(order);
+              console.log(`✅ Order ${doc.id} included - Branch name partial match: ${userBranchName}`);
+              return;
+            }
+          }
+          
+          // OPTION 4: Check product branch names
+          const productBranchNames = order.products?.[0]?.branchNames || 
+                                     order.products?.[0]?.productBranchNames || [];
+          if (productBranchNames.length > 0) {
+            const hasMatch = productBranchNames.some(name => 
+              name.toLowerCase().trim() === userBranchName.toLowerCase().trim()
+            );
+            if (hasMatch) {
+              filteredOrdersData.push(order);
+              console.log(`✅ Order ${doc.id} included - Product branch name matches: ${userBranchName}`);
+              return;
+            }
+          }
+          
+          console.log(`❌ Order ${doc.id} excluded - No branch match for ${userBranchName}`);
+          
+        } else if (userRole === 'super_admin') {
+          // Super admin: Show all orders
+          filteredOrdersData.push(order);
+        }
       });
       
-      set({ orders: ordersData, isLoading: false });
+      // Use filtered orders for branch admin, all orders for super admin
+      const finalOrdersData = userRole === 'admin' ? filteredOrdersData : allOrdersData;
+      
+      console.log(`✅ Orders loaded: ${finalOrdersData.length} orders (${userRole === 'admin' ? 'Branch Filtered' : 'All'})`);
+      console.log(`📊 Filtered orders for ${userBranchName}:`, finalOrdersData.map(o => ({
+        id: o.id,
+        customerName: o.customerName,
+        amount: o.totalAmount,
+        status: o.status,
+        branchNames: o.branchNames,
+        productBranches: o.productBranches
+      })));
+      
+      set({ orders: finalOrdersData, isLoading: false });
       get().calculateStats();
       
       // Fetch customers after orders
@@ -167,34 +290,54 @@ const useOrdersStore = create<OrdersStore>((set, get) => ({
     }
   },
 
-  // Fetch all customers
+  // Fetch all customers WITH BRANCH FILTERING
   fetchCustomers: async () => {
     try {
       const customersRef = collection(db, 'customers');
       const q = query(customersRef, orderBy('createdAt', 'desc'));
       const querySnapshot = await getDocs(q);
       
+      // Get user info from auth context
+      const user = (window as any).__userAuth || null;
+      const userBranchId = user?.branchId;
+      const userRole = user?.role;
+      
       const customersData: CustomerMap = {};
       querySnapshot.forEach((doc: QueryDocumentSnapshot<DocumentData>) => {
         const data = doc.data();
-        customersData[doc.id] = {
-          uid: doc.id,
-          name: data.name || 'Unknown Customer',
-          email: data.email || '',
-          phone: data.phone || '',
-          address: data.address || '',
-          city: data.city || '',
-          country: data.country || '',
-          status: data.status || 'active',
-          role: data.role || 'customer',
-          createdAt: data.createdAt || Timestamp.now(),
-          lastLogin: data.lastLogin || Timestamp.now()
-        };
+        
+        // Check if customer belongs to current branch
+        const customerBranchId = data.branchId;
+        const customerBranchName = data.branchName;
+        
+        // Filter customers based on user role
+        let shouldInclude = true;
+        if (userRole === 'admin' && userBranchId) {
+          shouldInclude = customerBranchId === userBranchId;
+        }
+        
+        if (shouldInclude) {
+          customersData[doc.id] = {
+            uid: doc.id,
+            name: data.name || 'Unknown Customer',
+            email: data.email || '',
+            phone: data.phone || '',
+            address: data.address || '',
+            city: data.city || '',
+            country: data.country || '',
+            status: data.status || 'active',
+            role: data.role || 'customer',
+            branchId: customerBranchId,
+            branchName: customerBranchName,
+            createdAt: data.createdAt || Timestamp.now(),
+            lastLogin: data.lastLogin || Timestamp.now()
+          };
+        }
       });
       
       set({ customers: customersData });
       
-      // Update stats with customer count
+      // Update stats with customer count (filtered)
       const activeCustomers = Object.values(customersData).filter(c => c.status === 'active').length;
       set(state => ({
         stats: {
@@ -202,6 +345,8 @@ const useOrdersStore = create<OrdersStore>((set, get) => ({
           activeCustomers
         }
       }));
+      
+      console.log(`✅ Filtered customers: ${Object.keys(customersData).length} customers`);
       
     } catch (error) {
       console.error('Error fetching customers:', error);
@@ -246,6 +391,8 @@ const useOrdersStore = create<OrdersStore>((set, get) => ({
     const delivered = orders.filter(o => o.status === 'delivered').length;
     const cancelled = orders.filter(o => o.status === 'cancelled').length;
     const refunded = orders.filter(o => o.status === 'refunded').length;
+    const rejected = orders.filter(o => o.status === 'rejected').length;
+    
     const totalRevenue = orders
       .filter(o => o.status === 'delivered')
       .reduce((sum, order) => sum + order.totalAmount, 0);
@@ -253,7 +400,7 @@ const useOrdersStore = create<OrdersStore>((set, get) => ({
     // Calculate today's orders
     const today = new Date().toISOString().split('T')[0];
     const todayOrders = orders.filter(o => {
-      const orderDate = o.createdAt.toDate().toISOString().split('T')[0];
+      const orderDate = o.orderDate || o.createdAt.toDate().toISOString().split('T')[0];
       return orderDate === today;
     }).length;
 
@@ -268,23 +415,33 @@ const useOrdersStore = create<OrdersStore>((set, get) => ({
         delivered,
         cancelled,
         refunded,
+        rejected,
         totalRevenue,
         todayOrders
       }
     });
   },
 
-  // Setup real-time updates
+  // Setup real-time updates WITH BRANCH FILTERING
   setupRealtimeUpdates: () => {
     try {
       const ordersRef = collection(db, 'orders');
       const q = query(ordersRef, orderBy('createdAt', 'desc'));
       
+      // Get user info
+      const user = (window as any).__userAuth || null;
+      const userBranchId = user?.branchId;
+      const userBranchName = user?.branchName;
+      const userRole = user?.role;
+      
       const unsubscribe = onSnapshot(q, async (querySnapshot) => {
-        const ordersData: Order[] = [];
+        const allOrdersData: Order[] = [];
+        const filteredOrdersData: Order[] = [];
+        
         querySnapshot.forEach((doc: QueryDocumentSnapshot<DocumentData>) => {
           const data = doc.data();
-          ordersData.push({
+          
+          const order: Order = {
             id: doc.id,
             customerId: data.customerId || '',
             customerName: data.customerName || 'Unknown Customer',
@@ -294,19 +451,72 @@ const useOrdersStore = create<OrdersStore>((set, get) => ({
               productName: p.productName || 'Unknown Product',
               price: Number(p.price) || 0,
               quantity: Number(p.quantity) || 1,
-              image: p.image || 'https://images.unsplash.com/photo-1512690196222-7c7d3f993c1b?q=80&w=2070&auto=format&fit=crop'
+              image: p.image || 'https://images.unsplash.com/photo-1512690196222-7c7d3f993c1b?q=80&w=2070&auto=format&fit=crop',
+              branchNames: p.branchNames || [],
+              productBranches: p.productBranches || [],
+              productBranchNames: p.productBranchNames || []
             })) : [],
             totalAmount: Number(data.totalAmount) || 0,
             paymentMethod: data.paymentMethod || 'Unknown',
             shippingAddress: data.shippingAddress || '',
             status: (data.status as Order['status']) || 'pending',
-            notes: data.notes || '',
+            notes: data.notes || data.orderNotes || '',
+            branchNames: data.branchNames || [],
+            productBranches: data.products?.[0]?.productBranches || [],
+            customerBranchId: data.customerBranchId,
+            customerBranchName: data.customerBranchName,
             createdAt: data.createdAt || Timestamp.now(),
-            updatedAt: data.updatedAt || Timestamp.now()
-          });
+            updatedAt: data.updatedAt || Timestamp.now(),
+            orderDate: data.orderDate,
+            shippingCity: data.shippingCity,
+            shippingCountry: data.shippingCountry,
+            shippingPhone: data.shippingPhone
+          };
+
+          allOrdersData.push(order);
+          
+          // 🔥 STRICT BRANCH FILTERING for real-time updates
+          if (userRole === 'admin' && userBranchName) {
+            let shouldInclude = false;
+            
+            // Check customer branch
+            if (order.customerBranchName === userBranchName) {
+              shouldInclude = true;
+            }
+            
+            // Check product branches
+            if (!shouldInclude && order.productBranches?.includes(userBranchId)) {
+              shouldInclude = true;
+            }
+            
+            // Check branch names
+            if (!shouldInclude && order.branchNames?.some(name => 
+              name.toLowerCase().trim() === userBranchName.toLowerCase().trim()
+            )) {
+              shouldInclude = true;
+            }
+            
+            // Check product branch names
+            if (!shouldInclude) {
+              const productBranchNames = order.products?.[0]?.branchNames || 
+                                         order.products?.[0]?.productBranchNames || [];
+              if (productBranchNames.some(name => 
+                name.toLowerCase().trim() === userBranchName.toLowerCase().trim()
+              )) {
+                shouldInclude = true;
+              }
+            }
+            
+            if (shouldInclude) {
+              filteredOrdersData.push(order);
+            }
+          } else if (userRole === 'super_admin') {
+            filteredOrdersData.push(order);
+          }
         });
         
-        set({ orders: ordersData });
+        const finalOrdersData = userRole === 'admin' ? filteredOrdersData : allOrdersData;
+        set({ orders: finalOrdersData });
         get().calculateStats();
         
         // Refresh customers data
@@ -343,10 +553,25 @@ export default function SuperAdminOrders() {
     updateOrderStatus
   } = useOrdersStore();
 
+  // Set user info globally for store access
+  useEffect(() => {
+    if (user) {
+      (window as any).__userAuth = user;
+      console.log("👤 User set in global store:", {
+        email: user.email,
+        role: user.role,
+        branchId: user.branchId,
+        branchName: user.branchName
+      });
+    }
+  }, [user]);
+
   // Fetch data on mount
   useEffect(() => {
-    fetchOrders();
-  }, [fetchOrders]);
+    if (user) {
+      fetchOrders();
+    }
+  }, [fetchOrders, user]);
 
   const handleLogout = () => {
     logout();
@@ -369,7 +594,7 @@ export default function SuperAdminOrders() {
     const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
     const matchesPayment = paymentFilter === 'all' || order.paymentMethod === paymentFilter;
     const matchesDate = !selectedDate || 
-      order.createdAt.toDate().toISOString().split('T')[0] === selectedDate;
+      (order.orderDate || order.createdAt.toDate().toISOString().split('T')[0]) === selectedDate;
 
     return matchesSearch && matchesStatus && matchesPayment && matchesDate;
   });
@@ -377,7 +602,7 @@ export default function SuperAdminOrders() {
   // Get unique payment methods
   const paymentMethods = Array.from(new Set(orders.map(order => order.paymentMethod)));
 
-  // Status configuration
+  // Status configuration (including rejected)
   const statusConfig = {
     pending: { 
       label: 'Pending', 
@@ -427,6 +652,13 @@ export default function SuperAdminOrders() {
       icon: DollarSign,
       badgeColor: 'bg-gray-500',
       description: 'Order has been refunded'
+    },
+    rejected: { 
+      label: 'Rejected', 
+      color: 'bg-red-100 text-red-800 hover:bg-red-100',
+      icon: XCircle,
+      badgeColor: 'bg-red-500',
+      description: 'Order has been rejected'
     }
   };
 
@@ -438,7 +670,8 @@ export default function SuperAdminOrders() {
     { value: 'shipped', label: 'Shipped' },
     { value: 'delivered', label: 'Delivered' },
     { value: 'cancelled', label: 'Cancelled' },
-    { value: 'refunded', label: 'Refunded' }
+    { value: 'refunded', label: 'Refunded' },
+    { value: 'rejected', label: 'Rejected' }
   ];
 
   // Payment method icons
@@ -448,7 +681,8 @@ export default function SuperAdminOrders() {
     card: CreditCard,
     credit: CreditCard,
     debit: CreditCard,
-    online: Globe
+    online: Globe,
+    cod: DollarSign
   };
 
   const handleStatusChange = async (orderId: string, newStatus: Order['status']) => {
@@ -486,7 +720,15 @@ export default function SuperAdminOrders() {
           <div className="text-center space-y-4">
             <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto" />
             <p className="text-lg font-semibold text-primary">Loading orders...</p>
-            <p className="text-sm text-gray-500">Fetching real-time data from Firebase</p>
+            <p className="text-sm text-gray-500">
+              {user?.role === 'admin' 
+                ? `Fetching orders for ${user?.branchName || 'your branch'}` 
+                : 'Fetching all orders'
+              }
+            </p>
+            <div className="text-xs text-gray-400">
+              Checking branch filters...
+            </div>
           </div>
         </div>
       </ProtectedRoute>
@@ -498,7 +740,7 @@ export default function SuperAdminOrders() {
       <div className="flex h-screen bg-gray-50">
         {/* Desktop Sidebar - Always Visible */}
         <AdminSidebar
-          role="branch_admin"
+          role={user?.role === 'super_admin' ? 'super_admin' : 'branch_admin'}
           onLogout={handleLogout}
           isOpen={sidebarOpen}
           onToggle={() => setSidebarOpen(!sidebarOpen)}
@@ -514,7 +756,7 @@ export default function SuperAdminOrders() {
             <div className="fixed inset-0 bg-black/50" onClick={() => setSidebarOpen(false)} />
             <div className="fixed inset-y-0 left-0 w-64 bg-white">
               <AdminMobileSidebar
-                role="super_admin"
+                role={user?.role === 'super_admin' ? 'super_admin' : 'branch_admin'}
                 onLogout={handleLogout}
                 isOpen={sidebarOpen}
                 onToggle={() => setSidebarOpen(!sidebarOpen)}
@@ -543,8 +785,23 @@ export default function SuperAdminOrders() {
                 </button>
                 
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900">All Orders</h1>
-                  <p className="text-sm text-gray-600">Manage product orders across all customers (Real-time Firebase Data)</p>
+                  <div className="flex items-center gap-3">
+                    <h1 className="text-2xl font-bold text-gray-900">
+                      {user?.role === 'admin' ? 'Branch Orders' : 'All Orders'}
+                    </h1>
+                    {user?.role === 'admin' && user?.branchName && (
+                      <Badge className="bg-blue-100 text-blue-800 border-blue-200">
+                        🏢 {user.branchName}
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-600">
+                    {user?.role === 'admin' 
+                      ? `Managing orders for ${user?.branchName || 'your branch'}` 
+                      : 'Manage product orders across all branches'
+                    }
+                    
+                  </p>
                 </div>
               </div>
               <div className="flex items-center gap-4">
@@ -558,13 +815,36 @@ export default function SuperAdminOrders() {
                   Refresh
                 </Button>
                 <span className="text-sm text-gray-600 hidden sm:block">
-                  Welcome, {user?.email}
+                  {user?.email}
                 </span>
                 <Button variant="outline" onClick={handleLogout} className="hidden sm:flex">
                   Logout
                 </Button>
               </div>
             </div>
+            
+            {/* Branch Info Banner */}
+            {user?.role === 'admin' && user?.branchName && (
+              <div className="px-4 lg:px-8 pb-4">
+               
+                     
+                      <div>
+                       
+                       
+                      
+                   
+                    
+                 
+                  
+                  {/* Debug Info */}
+                  {process.env.NODE_ENV === 'development' && (
+                    <div className="mt-3 pt-3 border-t border-blue-200 text-xs text-blue-700">
+                      
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </header>
 
           {/* Content */}
@@ -574,29 +854,20 @@ export default function SuperAdminOrders() {
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
+                    <CardTitle className="text-sm font-medium">
+                      {user?.role === 'admin' ? 'Branch Orders' : 'Total Orders'}
+                    </CardTitle>
                     <ShoppingBag className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">{stats.total}</div>
                     <p className="text-xs text-muted-foreground">
-                      Across all customers
+                      {user?.role === 'admin' ? 'For your branch only' : 'Across all branches'}
                     </p>
                   </CardContent>
                 </Card>
 
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Active Customers</CardTitle>
-                    <User className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{stats.activeCustomers}</div>
-                    <p className="text-xs text-muted-foreground">
-                      Registered customers
-                    </p>
-                  </CardContent>
-                </Card>
+                
 
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -626,7 +897,7 @@ export default function SuperAdminOrders() {
               </div>
 
               {/* Detailed Stats */}
-              <div className="grid grid-cols-2 md:grid-cols-7 gap-4 mb-8">
+              <div className="grid grid-cols-2 md:grid-cols-8 gap-4 mb-8">
                 {Object.entries(statusConfig).map(([status, config]) => (
                   <div 
                     key={status} 
@@ -638,7 +909,7 @@ export default function SuperAdminOrders() {
                     <div className="text-2xl font-bold">
                       {stats[status as keyof typeof stats] || 0}
                     </div>
-                    <div className="text-sm font-medium">
+                    <div className="text-sm font-medium truncate">
                       {config.label}
                     </div>
                   </div>
@@ -681,7 +952,7 @@ export default function SuperAdminOrders() {
                         {statusOptions.map(option => (
                           <SelectItem key={option.value} value={option.value}>
                             <div className="flex items-center gap-2">
-                              <div className={`w-2 h-2 rounded-full ${statusConfig[option.value as keyof typeof statusConfig].badgeColor}`}></div>
+                              <div className={`w-2 h-2 rounded-full ${statusConfig[option.value as keyof typeof statusConfig]?.badgeColor || 'bg-gray-500'}`}></div>
                               {option.label}
                             </div>
                           </SelectItem>
@@ -714,7 +985,7 @@ export default function SuperAdminOrders() {
                   <div className="flex flex-wrap gap-2 mt-4">
                     {statusFilter !== 'all' && (
                       <Badge variant="outline" className="gap-2">
-                        Status: {statusConfig[statusFilter as keyof typeof statusConfig]?.label}
+                        Status: {statusConfig[statusFilter as keyof typeof statusConfig]?.label || statusFilter}
                         <button onClick={() => setStatusFilter('all')} className="text-gray-400 hover:text-gray-600">
                           ×
                         </button>
@@ -766,7 +1037,7 @@ export default function SuperAdminOrders() {
               {/* Orders List */}
               <div className="space-y-4">
                 {filteredOrders.map((order) => {
-                  const status = statusConfig[order.status];
+                  const status = statusConfig[order.status] || statusConfig.pending;
                   const StatusIcon = status?.icon || AlertCircle;
                   const customer = getCustomerDetails(order.customerId);
                   const PaymentIcon = getPaymentIcon(order.paymentMethod);
@@ -785,7 +1056,7 @@ export default function SuperAdminOrders() {
                                 #{order.id.substring(0, 8)}
                               </div>
                               <div className="text-xs text-gray-500 mt-1">
-                                {order.createdAt?.toDate?.().toLocaleDateString() || 'N/A'}
+                                {order.orderDate || order.createdAt?.toDate?.().toLocaleDateString() || 'N/A'}
                               </div>
                             </div>
                             
@@ -805,6 +1076,13 @@ export default function SuperAdminOrders() {
                                     {customer.status}
                                   </Badge>
                                 )}
+                                {/* Branch Badge */}
+                                {order.customerBranchName && (
+                                  <Badge variant="outline" className="text-xs border-blue-300 text-blue-700">
+                                    <Building className="w-3 h-3 mr-1" />
+                                    {order.customerBranchName}
+                                  </Badge>
+                                )}
                               </div>
                               
                               <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
@@ -817,11 +1095,11 @@ export default function SuperAdminOrders() {
                                 </div>
                                 
                                 {/* Phone */}
-                                {customer?.phone && (
+                                {order.shippingPhone && (
                                   <div className="flex items-center gap-1">
                                     <Phone className="w-3 h-3" />
                                     <span className="font-medium">
-                                      {customer.phone}
+                                      {order.shippingPhone}
                                     </span>
                                   </div>
                                 )}
@@ -829,10 +1107,20 @@ export default function SuperAdminOrders() {
                                 {/* Payment Method */}
                                 <div className="flex items-center gap-1">
                                   <PaymentIcon className="w-3 h-3" />
-                                  <span>
+                                  <span className="capitalize">
                                     {order.paymentMethod}
                                   </span>
                                 </div>
+                                
+                                {/* Branch Info */}
+                                {user?.role === 'admin' && order.branchNames && (
+                                  <div className="flex items-center gap-1 text-blue-600">
+                                    <Building className="w-3 h-3" />
+                                    <span className="font-medium">
+                                      {order.branchNames.join(', ')}
+                                    </span>
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -852,7 +1140,7 @@ export default function SuperAdminOrders() {
                             {/* Status Badge */}
                             <Badge className={cn(
                               "gap-2 px-3 py-1.5 font-medium min-w-[120px] justify-center",
-                              status?.color
+                              status?.color || 'bg-gray-100 text-gray-800'
                             )}>
                               <StatusIcon className="w-4 h-4" />
                               <span>{status?.label || order.status}</span>
@@ -887,14 +1175,27 @@ export default function SuperAdminOrders() {
                                 
                                 {/* Product Details */}
                                 <div className="flex-1 min-w-0">
-                                  <h5 className="font-medium text-gray-900 truncate">
-                                    {product.productName}
-                                  </h5>
+                                  <div className="flex items-center gap-2">
+                                    <h5 className="font-medium text-gray-900 truncate">
+                                      {product.productName}
+                                    </h5>
+                                    {product.branchNames && product.branchNames.length > 0 && user?.role === 'super_admin' && (
+                                      <Badge variant="outline" className="text-xs border-gray-300">
+                                        {product.branchNames[0]}
+                                      </Badge>
+                                    )}
+                                  </div>
                                   <div className="flex items-center gap-4 text-sm text-gray-500 mt-1">
                                     <span>Price: ${product.price}</span>
                                     <span>Quantity: {product.quantity}</span>
                                     <span>Total: ${product.price * product.quantity}</span>
                                   </div>
+                                  {/* Product Branch Info */}
+                                  {product.productBranches && product.productBranches.length > 0 && (
+                                    <div className="text-xs text-gray-500 mt-1">
+                                      Branch IDs: {product.productBranches.join(', ')}
+                                    </div>
+                                  )}
                                 </div>
                                 
                                 {/* Product ID */}
@@ -912,38 +1213,29 @@ export default function SuperAdminOrders() {
                           <div>
                             <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
                               <Home className="w-4 h-4" />
-                              Shipping Address
+                              Shipping Details
                             </h4>
-                            <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
-                              {order.shippingAddress ? (
-                                <div className="space-y-1">
-                                  <div className="flex items-center gap-2">
-                                    <MapPin className="w-3 h-3" />
-                                    <span>{order.shippingAddress}</span>
-                                  </div>
-                                  {customer && (
-                                    <>
-                                      {customer.address && (
-                                        <div>Primary: {customer.address}</div>
-                                      )}
-                                      {customer.city && customer.country && (
-                                        <div>{customer.city}, {customer.country}</div>
-                                      )}
-                                    </>
-                                  )}
+                            <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg space-y-2">
+                              <div className="flex items-center gap-2">
+                                <MapPin className="w-3 h-3" />
+                                <span className="font-medium">Address:</span>
+                                <span>{order.shippingAddress}</span>
+                              </div>
+                              {(order.shippingCity || order.shippingCountry) && (
+                                <div className="flex items-center gap-2">
+                                  <Building className="w-3 h-3" />
+                                  <span className="font-medium">Location:</span>
+                                  <span>
+                                    {[order.shippingCity, order.shippingCountry].filter(Boolean).join(', ')}
+                                  </span>
                                 </div>
-                              ) : customer?.address ? (
-                                <div className="space-y-1">
-                                  <div className="flex items-center gap-2">
-                                    <MapPin className="w-3 h-3" />
-                                    <span>{customer.address}</span>
-                                  </div>
-                                  {customer.city && customer.country && (
-                                    <div>{customer.city}, {customer.country}</div>
-                                  )}
+                              )}
+                              {order.shippingPhone && (
+                                <div className="flex items-center gap-2">
+                                  <Phone className="w-3 h-3" />
+                                  <span className="font-medium">Contact:</span>
+                                  <span>{order.shippingPhone}</span>
                                 </div>
-                              ) : (
-                                <p className="text-gray-400 italic">No shipping address provided</p>
                               )}
                             </div>
                           </div>
@@ -966,7 +1258,7 @@ export default function SuperAdminOrders() {
                             >
                               <SelectTrigger className="w-full mb-4">
                                 <div className="flex items-center gap-2">
-                                  <div className={`w-2 h-2 rounded-full ${status?.badgeColor}`}></div>
+                                  <div className={`w-2 h-2 rounded-full ${status?.badgeColor || 'bg-gray-500'}`}></div>
                                   <span>Change Status</span>
                                   <ChevronDown className="w-3 h-3 ml-auto" />
                                 </div>
@@ -974,7 +1266,7 @@ export default function SuperAdminOrders() {
                               <SelectContent>
                                 {statusOptions.map(option => {
                                   const optionStatus = statusConfig[option.value as keyof typeof statusConfig];
-                                  const OptionIcon = optionStatus.icon;
+                                  const OptionIcon = optionStatus?.icon || AlertCircle;
                                   
                                   return (
                                     <SelectItem 
@@ -986,7 +1278,7 @@ export default function SuperAdminOrders() {
                                       <div>
                                         <div>{option.label}</div>
                                         <div className="text-xs text-gray-500">
-                                          {optionStatus.description}
+                                          {optionStatus?.description || 'Update order status'}
                                         </div>
                                       </div>
                                     </SelectItem>
@@ -1012,6 +1304,12 @@ export default function SuperAdminOrders() {
                           <div className="flex flex-wrap gap-4">
                             <span>Order ID: <code className="bg-gray-100 px-2 py-0.5 rounded">{order.id.substring(0, 8)}...</code></span>
                             <span>Customer ID: <code className="bg-gray-100 px-2 py-0.5 rounded">{order.customerId.substring(0, 8)}...</code></span>
+                            {order.customerBranchName && (
+                              <span>Customer Branch: <code className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded">{order.customerBranchName}</code></span>
+                            )}
+                            {order.branchNames && order.branchNames.length > 0 && (
+                              <span>Order Branches: <code className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded">{order.branchNames.join(', ')}</code></span>
+                            )}
                             <span>
                               Created: {order.createdAt?.toDate?.().toLocaleString() || 'N/A'}
                             </span>
@@ -1032,19 +1330,76 @@ export default function SuperAdminOrders() {
               {filteredOrders.length === 0 && (
                 <div className="text-center py-12">
                   <ShoppingBag className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No orders found</h3>
-                  <p className="text-gray-600 mb-4">Try adjusting your search or filter criteria.</p>
-                  <Button 
-                    variant="outline" 
-                    onClick={() => {
-                      setStatusFilter('all');
-                      setPaymentFilter('all');
-                      setSelectedDate('');
-                      setSearchQuery('');
-                    }}
-                  >
-                    Clear all filters
-                  </Button>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    {user?.role === 'admin' ? 'No orders for your branch' : 'No orders found'}
+                  </h3>
+                  <p className="text-gray-600 mb-4">
+                    {user?.role === 'admin' 
+                      ? `No orders found specifically for branch "${user?.branchName}". Orders will appear here once customers place orders in your branch.`
+                      : 'Try adjusting your search or filter criteria.'
+                    }
+                  </p>
+                  
+                  {/* Debug Info for Branch Admin */}
+                  {user?.role === 'admin' && (
+                    <div className="max-w-md mx-auto mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                      <div className="text-sm text-blue-800">
+                        <p className="font-medium mb-2">Debug Information:</p>
+                        <ul className="text-left space-y-1">
+                          <li>• Branch: <code className="bg-blue-100 px-2 py-0.5 rounded">{user.branchName}</code> (ID: <code>{user.branchId}</code>)</li>
+                          <li>• Filtering Methods:</li>
+                          <li className="ml-4">- customerBranchName === "{user.branchName}"</li>
+                          <li className="ml-4">- productBranches.includes("{user.branchId}")</li>
+                          <li className="ml-4">- branchNames.includes("{user.branchName}")</li>
+                          <li>• Check browser console for detailed filtering logs</li>
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="mt-6">
+                    {user?.role === 'admin' ? (
+                      <div className="flex gap-3 justify-center">
+                        <Link href="/admin/products">
+                          <Button variant="outline">
+                            <Package className="w-4 h-4 mr-2" />
+                            Check Products
+                          </Button>
+                        </Link>
+                        <Button 
+                          variant="outline" 
+                          onClick={() => {
+                            setStatusFilter('all');
+                            setPaymentFilter('all');
+                            setSelectedDate('');
+                            setSearchQuery('');
+                          }}
+                        >
+                          Clear all filters
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          onClick={fetchOrders}
+                          className="border-green-300 text-green-700"
+                        >
+                          <RefreshCw className="w-4 h-4 mr-2" />
+                          Refresh Data
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button 
+                        variant="outline" 
+                        onClick={() => {
+                          setStatusFilter('all');
+                          setPaymentFilter('all');
+                          setSelectedDate('');
+                          setSearchQuery('');
+                        }}
+                      >
+                        Clear all filters
+                      </Button>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -1075,7 +1430,12 @@ export default function SuperAdminOrders() {
               <div className="mt-6 text-sm text-gray-500">
                 <div className="flex items-center justify-between">
                   <div>
-                    Showing {filteredOrders.length} of {orders.length} total orders
+                    Showing {filteredOrders.length} of {orders.length} orders
+                    {user?.role === 'admin' && user?.branchName && (
+                      <span className="ml-2 text-blue-600">
+                        • Strictly filtered for {user.branchName}
+                      </span>
+                    )}
                   </div>
                   <div className="text-xs text-gray-400">
                     {Object.keys(customers).length} customers • ${stats.totalRevenue} total revenue
