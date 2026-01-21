@@ -432,11 +432,7 @@ const branchAdminNavItems = [
     href: '/admin',
     icon: BarChart3,
   },
-  {
-    title: 'Clients',
-    href: '/admin/clients',
-    icon: Users,
-  },
+  
   {
     title: 'Appointments',
     href: '/admin/appointments',
@@ -461,6 +457,11 @@ const branchAdminNavItems = [
     title: 'Categories',
     href: '/admin/categories',
     icon: Tag,
+  },
+  {
+    title: 'Clients',
+    href: '/admin/clients',
+    icon: Users,
   },
   {
     title: 'Feedbacks',
