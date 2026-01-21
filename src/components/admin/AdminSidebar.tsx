@@ -438,10 +438,10 @@ const branchAdminNavItems = [
     href: '/admin/appointments',
     icon: Calendar,
   },
-  {
-    title: 'Staff',
-    href: '/admin/staff',
-    icon: Users,
+   {
+    title: 'Booking Calender',
+    href: '/admin/bookingcalender',
+    icon: Calendar,
   },
   {
     title: 'Services',
@@ -454,13 +454,13 @@ const branchAdminNavItems = [
     icon: Package,
   },
   {
-    title: 'Categories',
-    href: '/admin/categories',
-    icon: Tag,
-  },
-  {
     title: 'Clients',
     href: '/admin/clients',
+    icon: Users,
+  },
+  {
+    title: 'Staff',
+    href: '/admin/staff',
     icon: Users,
   },
   {
@@ -468,6 +468,24 @@ const branchAdminNavItems = [
     href: '/admin/feedbacks',
     icon: Star,
   },
+  
+  
+  {
+    title: 'Categories',
+    href: '/admin/categories',
+    icon: Tag,
+  },
+  {
+    title: 'Analytics',
+    href: '/admin/analytics',
+    icon: TrendingUp,
+  },
+  {
+    title: 'Expenses',
+    href: '/admin/expenses',
+    icon: DollarSign,
+  },
+  
   {
     title: 'Orders',
     href: '/admin/orders',
@@ -478,31 +496,18 @@ const branchAdminNavItems = [
     href: '/admin/membership',
     icon: Award,
   },
-  {
-    title: 'Booking Calender',
-    href: '/admin/bookingcalender',
-    icon: Calendar,
+ {
+    title: 'Messages',
+    href: '/admin/messages',
+    icon: MessageCircle,
   },
-  {
-    title: 'Expenses',
-    href: '/admin/expenses',
-    icon: DollarSign,
-  },
-  {
-    title: 'Analytics',
-    href: '/admin/analytics',
-    icon: TrendingUp,
-  },
+  
   {
     title: 'custom Invoice',
     href: '/admin/custominvoice',
     icon: TrendingUp,
   },
-  {
-    title: 'Messages',
-    href: '/admin/messages',
-    icon: MessageCircle,
-  },
+  
   {
     title: 'Settings',
     href: '/admin/settings',
