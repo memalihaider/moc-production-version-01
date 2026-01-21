@@ -679,7 +679,7 @@ export default function SuperAdminInvoices() {
   // Render loading state
   if (loading && invoices.length === 0) {
     return (
-      <ProtectedRoute requiredRole="sadmin">
+      <ProtectedRoute requiredRole="admin">
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
             <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-secondary" />
