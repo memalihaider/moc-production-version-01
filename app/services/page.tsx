@@ -262,7 +262,7 @@
 // // WhatsApp contact function
 // const openWhatsApp = (message: string) => {
 //   const encodedMessage = encodeURIComponent(message);
-//   window.open(`https://wa.me/?text=${encodedMessage}`, '_blank');
+//   window.open(`https://wa.me/?text=AED{encodedMessage}`, '_blank');
 // };
 
 // // Main Component
@@ -507,7 +507,7 @@
 //       setShowMultiSelectSheet(false);
 //       setMultiSelectMode(false);
       
-//       alert(`${selectedServices.size} services added to your booking!`);
+//       alert(`AED{selectedServices.size} services added to your booking!`);
       
 //     } catch (error) {
 //       console.error('Error adding selected services:', error);
@@ -541,16 +541,16 @@
 
 //   // Handle share service
 //   const handleShareService = (service: Service) => {
-//     const shareText = `Check out ${service.name} - ${service.description}. Price: $${service.price}. Duration: ${service.duration} minutes.`;
+//     const shareText = `Check out AED{service.name} - AED{service.description}. Price: AEDAED{service.price}. Duration: AED{service.duration} minutes.`;
     
 //     if (navigator.share) {
 //       navigator.share({
-//         title: `${service.name} - Premium Grooming`,
+//         title: `AED{service.name} - Premium Grooming`,
 //         text: shareText,
 //         url: window.location.href,
 //       }).catch(err => console.log('Error sharing:', err));
 //     } else {
-//       navigator.clipboard.writeText(`${service.name}\n${shareText}\n${window.location.href}`).then(() => {
+//       navigator.clipboard.writeText(`AED{service.name}\nAED{shareText}\nAED{window.location.href}`).then(() => {
 //         alert('Service details copied to clipboard!');
 //       });
 //     }
@@ -684,7 +684,7 @@
 //                                     <Clock className="w-3.5 h-3.5 text-secondary" />
 //                                     <span className="text-xs font-bold text-secondary">{service.duration}m</span>
 //                                   </div>
-//                                   <span className="font-bold text-primary text-lg">${service.price}</span>
+//                                   <span className="font-bold text-primary text-lg">AED{service.price}</span>
 //                                 </div>
 //                               </div>
                               
@@ -914,7 +914,7 @@
 //                     {/* Price Badge */}
 //                     <div className="absolute top-5 right-5">
 //                       <div className="bg-white/95 backdrop-blur-sm text-primary border-none px-4 py-2.5 rounded-2xl font-black text-sm shadow-2xl">
-//                         ${service.price}
+//                         AED{service.price}
 //                       </div>
 //                     </div>
                     
@@ -976,7 +976,7 @@
 //                         </div>
 //                         <div className="flex items-center gap-1">
 //                           <span className="font-bold">Revenue:</span>
-//                           <span>${service.revenue}</span>
+//                           <span>AED{service.revenue}</span>
 //                         </div>
 //                       </div>
 //                       <div className={cn(
@@ -1106,7 +1106,7 @@
 //                         <p className="font-bold text-primary">Your Booking Cart</p>
 //                         <p className="text-sm text-gray-600">
 //                           {cartItems.length} service{cartItems.length !== 1 ? 's' : ''} selected • 
-//                           Total: ${cartItems.reduce((sum, item) => sum + item.price, 0).toFixed(2)}
+//                           Total: AED{cartItems.reduce((sum, item) => sum + item.price, 0).toFixed(2)}
 //                         </p>
 //                       </div>
 //                     </div>
@@ -1169,7 +1169,7 @@
 //                   {/* Stats Row */}
 //                   <div className="grid grid-cols-3 gap-4">
 //                     <div className="bg-gray-50 rounded-xl p-4 text-center">
-//                       <div className="text-2xl font-bold text-primary">${selectedService.price}</div>
+//                       <div className="text-2xl font-bold text-primary">AED{selectedService.price}</div>
 //                       <div className="text-xs text-gray-600">Price</div>
 //                     </div>
 //                     <div className="bg-gray-50 rounded-xl p-4 text-center">
@@ -1264,7 +1264,7 @@
 //                                 <DollarSign className="w-4 h-4 text-secondary" />
 //                                 <span className="font-medium">Service Price</span>
 //                               </div>
-//                               <span className="font-bold text-green-600">${selectedService.price}</span>
+//                               <span className="font-bold text-green-600">AED{selectedService.price}</span>
 //                             </div>
                             
 //                             <div className="flex items-center justify-between">
@@ -1272,7 +1272,7 @@
 //                                 <TrendingUp className="w-4 h-4 text-secondary" />
 //                                 <span className="font-medium">Total Revenue</span>
 //                               </div>
-//                               <span className="font-bold text-blue-600">${selectedService.revenue}</span>
+//                               <span className="font-bold text-blue-600">AED{selectedService.revenue}</span>
 //                             </div>
 //                           </div>
 //                         </div>
@@ -1318,7 +1318,7 @@
 //                               variant="outline" 
 //                               className="flex items-center gap-2"
 //                               onClick={() => openWhatsApp(
-//                                 `Hi, I'm interested in ${selectedService.name} service. Can you tell me more about it?`
+//                                 `Hi, I'm interested in AED{selectedService.name} service. Can you tell me more about it?`
 //                               )}
 //                               type="button"
 //                             >
@@ -1369,7 +1369,7 @@
 //                       <Button 
 //                         variant="outline"
 //                         className="flex-1"
-//                         onClick={() => router.push(`/booking?service=${selectedService.id}`)}
+//                         onClick={() => router.push(`/booking?service=AED{selectedService.id}`)}
 //                         type="button"
 //                       >
 //                         <Calendar className="w-4 h-4 mr-2" />
@@ -1714,7 +1714,7 @@ const useBookingStore = create<BookingStore>((set, get) => ({
 // WhatsApp contact function
 const openWhatsApp = (message: string) => {
   const encodedMessage = encodeURIComponent(message);
-  window.open(`https://wa.me/?text=${encodedMessage}`, '_blank');
+  window.open(`https://wa.me/?text=AED{encodedMessage}`, '_blank');
 };
 
 // Main Component
@@ -1876,7 +1876,7 @@ const handleAddToCart = (service: Service) => {
     setShowMultiSelectSheet(false);
     setMultiSelectMode(false);
     
-    alert(`${selectedServices.size} services added to your booking!`);
+    alert(`AED{selectedServices.size} services added to your booking!`);
   };
 
   // Toggle service selection for multi-select
@@ -1905,16 +1905,16 @@ const handleAddToCart = (service: Service) => {
 
   // Handle share service
   const handleShareService = (service: Service) => {
-    const shareText = `Check out ${service.name} - ${service.description}. Price: $${service.price}. Duration: ${service.duration} minutes.`;
+    const shareText = `Check out AED{service.name} - AED{service.description}. Price: AEDAED{service.price}. Duration: AED{service.duration} minutes.`;
     
     if (navigator.share) {
       navigator.share({
-        title: `${service.name} - Premium Grooming`,
+        title: `AED{service.name} - Premium Grooming`,
         text: shareText,
         url: window.location.href,
       }).catch(err => console.log('Error sharing:', err));
     } else {
-      navigator.clipboard.writeText(`${service.name}\n${shareText}\n${window.location.href}`).then(() => {
+      navigator.clipboard.writeText(`AED{service.name}\nAED{shareText}\nAED{window.location.href}`).then(() => {
         alert('Service details copied to clipboard!');
       });
     }
@@ -2057,7 +2057,7 @@ const handleAddToCart = (service: Service) => {
                                     <Clock className="w-3.5 h-3.5 text-secondary" />
                                     <span className="text-xs font-bold text-secondary">{service.duration}m</span>
                                   </div>
-                                  <span className="font-bold text-primary text-lg">${service.price}</span>
+                                  <span className="font-bold text-primary text-lg">AED{service.price}</span>
                                 </div>
                               </div>
                               
@@ -2299,7 +2299,7 @@ const handleAddToCart = (service: Service) => {
                       {/* Price Badge */}
                       <div className="absolute top-5 right-5">
                         <div className="bg-white/95 backdrop-blur-sm text-primary border-none px-4 py-2.5 rounded-2xl font-black text-sm shadow-2xl">
-                          ${service.price}
+                          AED{service.price}
                         </div>
                       </div>
                       
@@ -2361,7 +2361,7 @@ const handleAddToCart = (service: Service) => {
                           </div>
                           <div className="flex items-center gap-1">
                             <span className="font-bold">Revenue:</span>
-                            <span>${service.revenue}</span>
+                            <span>AED{service.revenue}</span>
                           </div>
                         </div>
                         <div className={cn(
@@ -2503,7 +2503,7 @@ const handleAddToCart = (service: Service) => {
                         <p className="font-bold text-primary">Your Booking Cart</p>
                         <p className="text-sm text-gray-600">
                           {cartItems.length} service{cartItems.length !== 1 ? 's' : ''} selected • 
-                          Total: ${cartItems.reduce((sum, item) => sum + item.price, 0).toFixed(2)}
+                          Total: AED{cartItems.reduce((sum, item) => sum + item.price, 0).toFixed(2)}
                         </p>
                       </div>
                     </div>
@@ -2576,7 +2576,7 @@ const handleAddToCart = (service: Service) => {
                   {/* Stats Row */}
                   <div className="grid grid-cols-3 gap-4">
                     <div className="bg-gray-50 rounded-xl p-4 text-center">
-                      <div className="text-2xl font-bold text-primary">${selectedService.price}</div>
+                      <div className="text-2xl font-bold text-primary">AED{selectedService.price}</div>
                       <div className="text-xs text-gray-600">Price</div>
                     </div>
                     <div className="bg-gray-50 rounded-xl p-4 text-center">
@@ -2671,7 +2671,7 @@ const handleAddToCart = (service: Service) => {
                                 <DollarSign className="w-4 h-4 text-secondary" />
                                 <span className="font-medium">Service Price</span>
                               </div>
-                              <span className="font-bold text-green-600">${selectedService.price}</span>
+                              <span className="font-bold text-green-600">AED{selectedService.price}</span>
                             </div>
                             
                             <div className="flex items-center justify-between">
@@ -2679,7 +2679,7 @@ const handleAddToCart = (service: Service) => {
                                 <TrendingUp className="w-4 h-4 text-secondary" />
                                 <span className="font-medium">Total Revenue</span>
                               </div>
-                              <span className="font-bold text-blue-600">${selectedService.revenue}</span>
+                              <span className="font-bold text-blue-600">AED{selectedService.revenue}</span>
                             </div>
                           </div>
                         </div>
@@ -2737,7 +2737,7 @@ const handleAddToCart = (service: Service) => {
                               variant="outline" 
                               className="flex items-center gap-2"
                               onClick={() => openWhatsApp(
-                                `Hi, I'm interested in ${selectedService.name} service. Can you tell me more about it?`
+                                `Hi, I'm interested in AED{selectedService.name} service. Can you tell me more about it?`
                               )}
                               type="button"
                             >
@@ -2799,7 +2799,7 @@ const handleAddToCart = (service: Service) => {
                       <Button 
                         variant="outline"
                         className="flex-1"
-                        onClick={() => router.push(`/booking?service=${selectedService.id}`)}
+                        onClick={() => router.push(`/booking?service=AED{selectedService.id}`)}
                         type="button"
                       >
                         <Calendar className="w-4 h-4 mr-2" />
