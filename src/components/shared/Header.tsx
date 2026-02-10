@@ -1,9 +1,45 @@
+'use client';
+
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import {  User} from "lucide-react";
+import {  User, ShoppingBag} from "lucide-react";
 import Image from "next/image"; // ✅ Image component import karein
+import { useState, useEffect } from "react";
 
 export function Header() {
+  const [cartCount, setCartCount] = useState(0);
+  
+  useEffect(() => {
+    // Load cart items from localStorage
+    const savedCart = localStorage.getItem('bookingCart');
+    if (savedCart) {
+      try {
+        const cart = JSON.parse(savedCart);
+        setCartCount(Array.isArray(cart) ? cart.length : 0);
+      } catch {
+        setCartCount(0);
+      }
+    }
+    
+    // Listen for storage changes
+    const handleStorageChange = () => {
+      const savedCart = localStorage.getItem('bookingCart');
+      if (savedCart) {
+        try {
+          const cart = JSON.parse(savedCart);
+          setCartCount(Array.isArray(cart) ? cart.length : 0);
+        } catch {
+          setCartCount(0);
+        }
+      } else {
+        setCartCount(0);
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
   return (
     <header className="fixed top-0 w-full bg-white/95 backdrop-blur-md border-b border-secondary/10 z-50 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
@@ -40,22 +76,30 @@ export function Header() {
             </Link>
           ))}
         </nav>
-        <div className="flex items-center gap-15">
-          {/* <Link href="/customer/login" className="text-xs uppercase tracking-widest font-semibold text-primary/70 hover:text-secondary hidden sm:block transition-colors">
-            Sign In
-          </Link> */}
-          {/* <Link href="/customer/portal" className="-mr-10 inline-flex">
-  <User className="text-6xl font-bold text-black-500" />
-</Link> */}
+        <div className="flex items-center gap-3">
+          {/* Cart Icon */}
+          <Link 
+            href="/booking" 
+            className="group relative flex items-center justify-center w-10 h-10 rounded-full bg-secondary/10 hover:bg-secondary hover:text-white text-secondary transition-all duration-300 shadow-md hover:shadow-lg"
+            title="View Cart"
+          >
+            <ShoppingBag className="w-5 h-5 group-hover:scale-110 transition-transform duration-200" />
+            {cartCount > 0 && (
+              <span className="absolute -top-1 -right-1 bg-secondary text-white text-[9px] font-black rounded-full w-5 h-5 flex items-center justify-center animate-pulse">
+                {cartCount}
+              </span>
+            )}
+          </Link>
 
+          {/* User Profile Icon */}
+          <Link 
+            href="/customer/portal" 
+            className="group flex items-center justify-center w-10 h-10 rounded-full bg-secondary hover:bg-secondary-500 transition-all duration-300 shadow-md hover:shadow-lg"
+          >
+            <User className="w-5 h-5 text-white group-hover:scale-110 transition-transform duration-200" />
+          </Link>
 
-
- <Link 
-  href="/customer/portal" 
-  className="group flex -mr-10 items-center justify-center  w-10 h-10 rounded-full bg-secondary hover:bg-secondary-500 transition-all duration-300 shadow-md hover:shadow-lg"
->
-  <User className="w-5 h-5 text-white group-hover:scale-110 transition-transform duration-200" />
-</Link>
+          {/* Book Now Button */}
 
 
 

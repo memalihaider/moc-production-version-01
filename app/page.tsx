@@ -286,7 +286,7 @@ const useHomeStore = create<HomeStore>((set, get) => ({
   fetchStaff: async () => {
     try {
       const staffRef = collection(db, 'staff');
-      const q = query(staffRef, orderBy('name', 'asc'), limit(4));
+      const q = query(staffRef, orderBy('name', 'asc'), limit(6));
       const querySnapshot = await getDocs(q);
       
       const staffData: StaffMember[] = [];
@@ -465,7 +465,7 @@ const useHomeStore = create<HomeStore>((set, get) => ({
       
       // ✅ Client side filter for active categories
       const activeCategories = categoriesData.filter(cat => cat.isActive);
-      set({ categories: activeCategories.slice(0, 4) }); // Limit to 4 active categories
+      set({ categories: activeCategories.slice(0, 5) }); // Limit to 5 active categories
     } catch (error) {
       console.error('Error fetching categories:', error);
       // ✅ Fallback: Agar error aaye to empty array set karo
@@ -807,9 +807,9 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="py-10 border-b border-gray-100 bg-white relative z-20 -mt-10 mx-4 md:mx-10 rounded-2xl shadow-2xl">
+      <section className="py-8 border-b border-gray-100 bg-white relative z-20 -mt-8 mx-4 md:mx-10 rounded-2xl shadow-lg">
         <div className="max-w-7xl mx-auto px-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {[
               { 
                 icon: Award, 
@@ -859,10 +859,10 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="py-12 bg-white border-b border-gray-50">
+      <section className="py-8 bg-white border-b border-gray-50">
         <div className="max-w-7xl mx-auto px-4">
-          <p className="text-center text-[10px] uppercase tracking-[0.4em] text-muted-foreground mb-8 font-bold">As Featured In</p>
-          <div className="flex flex-wrap justify-center items-center gap-12 md:gap-20 opacity-40 grayscale hover:grayscale-0 transition-all duration-700">
+          <p className="text-center text-[10px] uppercase tracking-[0.4em] text-muted-foreground mb-6 font-bold">As Featured In</p>
+          <div className="flex flex-wrap justify-center items-center gap-10 md:gap-16 opacity-40 grayscale hover:grayscale-0 transition-all duration-700">
             {['GQ', 'VOGUE', 'ESQUIRE', 'FORBES', 'MEN\'S HEALTH'].map((brand) => (
               <span key={brand} className="text-2xl md:text-3xl font-serif font-black tracking-tighter text-primary">{brand}</span>
             ))}
@@ -873,9 +873,9 @@ export default function Home() {
       
     
 
-      <section className="py-24 px-4 bg-white">
+      <section className="py-20 px-4 bg-gradient-to-b from-white via-white to-gray-50/80">
         <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-6">
+          <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-4">
             <div className="space-y-3">
               <div className="inline-block bg-secondary/10 px-3 py-1 rounded-full">
                 <span className="text-secondary font-bold tracking-[0.2em] uppercase text-[10px]">Our Collections</span>
@@ -904,11 +904,11 @@ export default function Home() {
               </Button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
               {categories.map((category) => (
                 <div 
                   key={category.id} 
-                  className="group cursor-pointer bg-white border border-gray-100 rounded-[2rem] overflow-hidden hover:border-secondary/30 hover:shadow-2xl transition-all duration-500 hover:-translate-y-2"
+                  className="group cursor-pointer bg-white border border-gray-100 rounded-[2rem] overflow-hidden hover:border-secondary/50 hover:shadow-[0_12px_40px_rgba(197,160,89,0.12)] transition-all duration-500 hover:-translate-y-1.5"
                 >
                   <div className="relative aspect-[4/3] overflow-hidden">
                     <img 
@@ -926,8 +926,8 @@ export default function Home() {
                       </Badge>
                     </div>
                   </div>
-                  <div className="p-8">
-                    <div className="flex items-center justify-between mb-4">
+                  <div className="p-6">
+                    <div className="flex items-center justify-between mb-3">
                       <div>
                         <h4 className="text-xl font-serif font-bold text-primary group-hover:text-secondary transition-colors duration-300">
                           {category.name}
@@ -939,14 +939,14 @@ export default function Home() {
                           </span>
                         </div>
                       </div>
-                      <div className="w-10 h-10 rounded-xl bg-secondary/10 flex items-center justify-center group-hover:bg-secondary group-hover:text-primary transition-all duration-500">
+                      <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-secondary/20 to-secondary/10 flex items-center justify-center group-hover:from-secondary group-hover:to-secondary/80 group-hover:text-primary transition-all duration-500 shadow-sm">
                         <Grid3X3 className="w-5 h-5 text-secondary group-hover:text-primary" />
                       </div>
                     </div>
-                    <p className="text-sm text-muted-foreground line-clamp-2 mb-6 font-light leading-relaxed">
+                    <p className="text-sm text-muted-foreground line-clamp-2 mb-5 font-light leading-relaxed">
                       {category.description || "Premium collection for the modern gentleman"}
                     </p>
-                    <div className="flex items-center justify-between pt-6 border-t border-gray-100">
+                    <div className="flex items-center justify-between pt-5 border-t border-gray-100">
                       <div>
                         <span className="text-[10px] uppercase tracking-widest text-gray-500 block mb-1">
                           Available At
@@ -971,9 +971,9 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="py-24 px-4 bg-white">
+      <section className="py-20 px-4 bg-gradient-to-b from-gray-50/80 via-white to-white">
         <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-6">
+          <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-4">
             <div className="space-y-3">
               <div className="inline-block bg-secondary/10 px-3 py-1 rounded-full">
                 <span className="text-secondary font-bold tracking-[0.2em] uppercase text-[10px]">Our Signature Menu</span>
@@ -1000,8 +1000,8 @@ export default function Home() {
             <Carousel opts={{ align: "start" }} className="w-full">
               <CarouselContent className="-ml-6">
                 {services.map((service) => (
-                  <CarouselItem key={service.id} className="pl-6 md:basis-1/2 lg:basis-1/3">
-                    <Card className="group border-none bg-white shadow-[0_10px_30px_rgba(0,0,0,0.05)] hover:shadow-[0_20px_50px_rgba(0,0,0,0.1)] overflow-hidden rounded-[2rem] transition-all duration-500">
+                  <CarouselItem key={service.id} className="pl-6 md:basis-1/2 lg:basis-1/4">
+                    <Card className="group border border-gray-100 bg-white shadow-[0_8px_24px_rgba(0,0,0,0.06)] hover:shadow-[0_16px_40px_rgba(197,160,89,0.15)] hover:border-secondary/40 overflow-hidden rounded-[2rem] transition-all duration-500">
                       <div className="relative aspect-[4/3] overflow-hidden">
                         <img 
                           src={service.imageUrl || "https://images.unsplash.com/photo-1599351431247-f5094021186d?q=80&w=2070&auto=format&fit=crop"} 
@@ -1023,7 +1023,7 @@ export default function Home() {
                           </Button>
                         </div>
                       </div>
-                      <CardHeader className="px-8 pt-8 pb-2">
+                      <CardHeader className="px-6 pt-6 pb-2">
                         <div className="flex justify-between items-center mb-3">
                           <Badge variant="outline" className="text-[10px] uppercase tracking-[0.2em] text-secondary border-secondary/30">
                             {service.category}
@@ -1037,7 +1037,7 @@ export default function Home() {
                           {service.name}
                         </CardTitle>
                       </CardHeader>
-                      <CardContent className="px-8 pb-8">
+                      <CardContent className="px-6 pb-6">
                         <p className="text-muted-foreground text-sm leading-relaxed line-clamp-2 font-light">
                           {service.description || "Premium grooming service for the modern gentleman"}
                         </p>
@@ -1060,25 +1060,25 @@ export default function Home() {
                   </CarouselItem>
                 ))}
               </CarouselContent>
-              <div className="hidden md:flex justify-center gap-4 mt-12">
-                <CarouselPrevious className="static translate-y-0 border-primary/10 hover:bg-primary hover:text-white transition-all" />
-                <CarouselNext className="static translate-y-0 border-primary/10 hover:bg-primary hover:text-white transition-all" />
+              <div className="hidden md:flex justify-center gap-3 mt-10">
+                <CarouselPrevious className="static translate-y-0 border-primary/20 text-primary hover:bg-primary hover:text-white transition-all" />
+                <CarouselNext className="static translate-y-0 border-primary/20 text-primary hover:bg-primary hover:text-white transition-all" />
               </div>
             </Carousel>
           )}
         </div>
       </section>
 
-      <section className="py-24 px-4 bg-[#0f0f0f] text-white relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-1/2 h-full bg-secondary/5 blur-[150px] pointer-events-none"></div>
+      <section className="py-20 px-4 bg-[#0f0f0f] text-white relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-1/2 h-full bg-secondary/8 blur-[150px] pointer-events-none"></div>
         <div className="max-w-7xl mx-auto relative z-10">
-          <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-6">
+          <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-4">
             <div className="space-y-3">
-              <div className="inline-block bg-secondary/20 px-3 py-1 rounded-full border border-secondary/30">
+              <div className="inline-block bg-secondary/20 px-3 py-1 rounded-full border border-secondary/40">
                 <span className="text-secondary font-bold tracking-[0.2em] uppercase text-[10px]">Premium Apothecary</span>
               </div>
               <h2 className="text-4xl md:text-5xl font-serif font-bold text-white">Grooming Essentials</h2>
-              <Badge variant="outline" className="text-xs border-white/20 text-white">
+              <Badge variant="outline" className="text-xs border-white/25 text-white">
                 {products.length} Premium Products Available
               </Badge>
             </div>
@@ -1100,8 +1100,8 @@ export default function Home() {
               <CarouselContent className="-ml-6">
                 {products.map((product) => (
                   <CarouselItem key={product.id} className="pl-6 md:basis-1/2 lg:basis-1/4">
-                    <div className="group cursor-pointer bg-white/[0.03] p-6 border border-white/10 rounded-[2.5rem] hover:bg-white/[0.07] hover:border-secondary/50 transition-all duration-500">
-                      <div className="relative aspect-square overflow-hidden mb-6 rounded-[2rem] bg-white/5">
+                    <div className="group cursor-pointer bg-gradient-to-br from-white/[0.04] to-white/[0.01] p-5 border border-white/10 rounded-[2.5rem] hover:bg-gradient-to-br hover:from-white/[0.08] hover:to-white/[0.02] hover:border-secondary/50 transition-all duration-500 hover:shadow-[0_20px_50px_rgba(197,160,89,0.15)]">
+                      <div className="relative aspect-square overflow-hidden mb-5 rounded-[2rem] bg-white/3">
                         <img 
                           src={product.imageUrl || "https://images.unsplash.com/photo-1512690196222-7c7d3f993c1b?q=80&w=2070&auto=format&fit=crop"} 
                           alt={product.name} 
@@ -1149,17 +1149,55 @@ export default function Home() {
                           <span>SKU: {product.sku}</span>
                           <span>Stock: {product.totalStock}</span>
                         </div>
-                        <Button asChild className="w-full mt-6 bg-white/10 hover:bg-secondary hover:text-primary text-white rounded-2xl py-6 text-[10px] font-black tracking-[0.2em] transition-all duration-500 border border-white/5 hover:border-secondary">
-                          <Link href={`/products?product=${product.id}`}>ADD TO COLLECTION</Link>
+                        <Button 
+                          onClick={() => {
+                            // Add product to cart
+                            const cartItem = {
+                              id: product.id,
+                              name: product.name,
+                              category: product.category,
+                              duration: '0',
+                              price: product.price,
+                              description: product.description,
+                              image: product.imageUrl,
+                              rating: product.rating,
+                              reviews: product.reviews
+                            };
+                            
+                            const savedCart = localStorage.getItem('bookingCart');
+                            let cart = savedCart ? JSON.parse(savedCart) : [];
+                            
+                            // Check if item already exists
+                            const existingIndex = cart.findIndex((item: any) => item.id === product.id);
+                            if (existingIndex > -1) {
+                              cart.splice(existingIndex, 1);
+                            }
+                            cart.push(cartItem);
+                            
+                            localStorage.setItem('bookingCart', JSON.stringify(cart));
+                            
+                            // Dispatch event for header update
+                            window.dispatchEvent(new StorageEvent('storage', {
+                              key: 'bookingCart',
+                              newValue: JSON.stringify(cart),
+                              oldValue: savedCart
+                            }));
+                            
+                            // Show feedback
+                            alert('Added to cart! Visit booking page to proceed.');
+                          }}
+                          className="w-full mt-6 bg-white/10 hover:bg-secondary hover:text-primary text-white rounded-2xl py-6 text-[10px] font-black tracking-[0.2em] transition-all duration-500 border border-white/5 hover:border-secondary"
+                        >
+                          ADD TO CART
                         </Button>
                       </div>
                     </div>
                   </CarouselItem>
                 ))}
               </CarouselContent>
-              <div className="hidden md:flex justify-end gap-3 mt-12">
-                <CarouselPrevious className="static translate-y-0 border-white/10 text-white hover:bg-white/10 transition-all" />
-                <CarouselNext className="static translate-y-0 border-white/10 text-white hover:bg-white/10 transition-all" />
+              <div className="hidden md:flex justify-end gap-3 mt-10">
+                <CarouselPrevious className="static translate-y-0 border-white/15 text-white hover:bg-white/15 hover:border-secondary/50 transition-all" />
+                <CarouselNext className="static translate-y-0 border-white/15 text-white hover:bg-white/15 hover:border-secondary/50 transition-all" />
               </div>
             </Carousel>
           )}
@@ -1167,10 +1205,10 @@ export default function Home() {
       </section>
 
 
-<section className="py-20 px-4 bg-gray-50/50 relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-[0.03] pointer-events-none"></div>
+<section className="py-16 px-4 bg-gray-50/40 relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-[0.02] pointer-events-none"></div>
         <div className="max-w-7xl mx-auto relative z-10">
-          <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-4">
+          <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-4">
             <div className="space-y-2">
               <div className="inline-block bg-secondary/10 px-3 py-1 rounded-full">
                 <span className="text-secondary font-bold tracking-[0.2em] uppercase text-[10px]">Exclusive Privileges</span>
@@ -1464,7 +1502,7 @@ export default function Home() {
             <Carousel opts={{ align: "start", loop: true }} className="w-full">
               <CarouselContent className="-ml-8">
                 {staff.map((member) => (
-                  <CarouselItem key={member.id} className="pl-8 basis-1/4">
+                  <CarouselItem key={member.id} className="pl-8 basis-1/2 md:basis-1/3 lg:basis-1/6">
                     <Card className="group overflow-hidden border-none shadow-none bg-transparent">
                       <div className="relative aspect-[3/4] overflow-hidden rounded-[2.5rem] mb-8 shadow-2xl">
                         <img 
@@ -1524,10 +1562,10 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="py-32 px-4 bg-white relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-[0.02] pointer-events-none"></div>
+      <section className="py-24 px-4 bg-white relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-[0.01] pointer-events-none"></div>
         <div className="max-w-7xl mx-auto relative z-10">
-          <div className="flex flex-col md:flex-row items-end justify-between mb-16 gap-6">
+          <div className="flex flex-col md:flex-row items-end justify-between mb-12 gap-4">
             <div className="space-y-3">
               <div className="inline-block bg-secondary/10 px-3 py-1 rounded-full">
                 <span className="text-secondary font-bold tracking-[0.2em] uppercase text-[10px]">Our Global Presence</span>
@@ -1611,10 +1649,10 @@ export default function Home() {
           <div className="inline-block bg-secondary/20 px-4 py-1.5 rounded-full mb-8 border border-secondary/30">
             <span className="text-secondary font-black tracking-[0.3em] uppercase text-[10px]">The Inner Circle</span>
           </div>
-          <h2 className="text-5xl md:text-7xl font-serif font-bold text-white mb-10 leading-tight">
+          <h2 className="text-5xl md:text-7xl font-serif font-bold text-white mb-8 leading-tight">
             Join The <span className="text-secondary italic">Elite</span>
           </h2>
-          <p className="text-xl text-gray-400 mb-16 font-light max-w-2xl mx-auto leading-relaxed">
+          <p className="text-xl text-gray-400 mb-12 font-light max-w-2xl mx-auto leading-relaxed">
             Subscribe to receive exclusive invitations, grooming insights, and priority access to our most sought-after events.
           </p>
           
