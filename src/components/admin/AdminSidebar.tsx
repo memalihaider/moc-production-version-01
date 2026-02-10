@@ -858,6 +858,7 @@ const branchAdminNavItems = [
     icon: Award,
     pageKey: 'membership'
   },
+ 
   // {
   //   title: 'Messages',
   //   href: '/admin/messages',
@@ -967,7 +968,12 @@ const superAdminNavItems = [
 
 
 
-
+ {
+    title: 'Attendance',
+    href: '/super-admin/attendance',
+    icon: Award,
+    pageKey: 'Attendance'
+  },
 
 
   {
