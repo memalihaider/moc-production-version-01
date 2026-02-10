@@ -912,58 +912,53 @@ export default function Home() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
               {categories.map((category) => (
-                <div 
-                  key={category.id} 
-                  className="group cursor-pointer bg-white border border-gray-100/50 rounded-[2.5rem] overflow-hidden hover:border-secondary/40 hover:shadow-[0_20px_50px_rgba(197,160,89,0.15)] transition-all duration-700 hover:-translate-y-3"
-                >
-                  <div className="relative aspect-[3/4] overflow-hidden">
-                    <img 
-                      src={category.image} 
-                      alt={category.name}
-                      className="w-full h-full object-cover transition-transform duration-[2000ms] group-hover:scale-110"
-                      onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-                        e.currentTarget.src = 'https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?q=80&w=2070&auto=format&fit=crop';
-                      }}
-                    />
-                    <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/20 to-transparent opacity-80 group-hover:opacity-100 transition-opacity duration-700"></div>
-                    
-                    <div className="absolute top-5 right-5">
-                      <div className="bg-white/10 backdrop-blur-md border border-white/20 text-white px-3 py-1 rounded-full font-black text-[9px] uppercase tracking-widest">
-                        {category.type}
+                <Link key={category.id} href={`/services?category=${encodeURIComponent(category.name.toLowerCase().replace(/\s+/g, '-'))}`}>
+                  <div className="group cursor-pointer bg-white border border-gray-100/50 rounded-[2.5rem] overflow-hidden hover:border-secondary/40 hover:shadow-[0_20px_50px_rgba(197,160,89,0.15)] transition-all duration-700 hover:-translate-y-3 h-full">
+                    <div className="relative aspect-[3/4] overflow-hidden">
+                      <img 
+                        src={category.image} 
+                        alt={category.name}
+                        className="w-full h-full object-cover transition-transform duration-[2000ms] group-hover:scale-110"
+                        onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+                          e.currentTarget.src = 'https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?q=80&w=2070&auto=format&fit=crop';
+                        }}
+                      />
+                      <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/20 to-transparent opacity-80 group-hover:opacity-100 transition-opacity duration-700"></div>
+                      
+                      <div className="absolute top-5 right-5">
+                        <div className="bg-white/10 backdrop-blur-md border border-white/20 text-white px-3 py-1 rounded-full font-black text-[9px] uppercase tracking-widest">
+                          {category.type}
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="absolute bottom-6 left-6 right-6 translate-y-2 group-hover:translate-y-0 transition-transform duration-700">
-                      <h4 className="text-2xl font-serif font-bold text-white mb-2 leading-tight">
-                        {category.name}
-                      </h4>
-                      <div className="flex items-center gap-2 opacity-80 group-hover:opacity-100 transition-opacity">
-                        <MapPin className="w-3 h-3 text-secondary" />
-                        <span className="text-[9px] text-white uppercase tracking-[0.2em] font-black">
-                          {category.branchCity}
-                        </span>
+                      <div className="absolute bottom-6 left-6 right-6 translate-y-2 group-hover:translate-y-0 transition-transform duration-700">
+                        <h4 className="text-2xl font-serif font-bold text-white mb-2 leading-tight">
+                          {category.name}
+                        </h4>
+                        <div className="flex items-center gap-2 opacity-80 group-hover:opacity-100 transition-opacity">
+                          <MapPin className="w-3 h-3 text-secondary" />
+                          <span className="text-[9px] text-white uppercase tracking-[0.2em] font-black">
+                            {category.branchCity}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="p-6 bg-white">
+                      <p className="text-xs text-muted-foreground line-clamp-2 mb-6 font-light leading-relaxed">
+                        {category.description || "Premium bespoke collection tailored for individual character."}
+                      </p>
+                      <div className="flex items-center justify-between pt-5 border-t border-gray-100">
+                        <div className="w-10 h-10 rounded-2xl bg-secondary/5 flex items-center justify-center text-secondary group-hover:bg-secondary group-hover:text-primary transition-all duration-500 shadow-xs">
+                          <Grid3X3 className="w-5 h-5" />
+                        </div>
+                        <div className="rounded-full text-[10px] font-black tracking-widest text-primary group-hover:text-secondary group/btn transition-colors">
+                          EXPLORE <ArrowRight className="ml-2 w-3 h-3 inline-block group-hover/btn:translate-x-1 transition-transform" />
+                        </div>
                       </div>
                     </div>
                   </div>
-                  
-                  <div className="p-6 bg-white">
-                    <p className="text-xs text-muted-foreground line-clamp-2 mb-6 font-light leading-relaxed">
-                      {category.description || "Premium bespoke collection tailored for individual character."}
-                    </p>
-                    <div className="flex items-center justify-between pt-5 border-t border-gray-100">
-                      <div className="w-10 h-10 rounded-2xl bg-secondary/5 flex items-center justify-center text-secondary group-hover:bg-secondary group-hover:text-primary transition-all duration-500 shadow-xs">
-                        <Grid3X3 className="w-5 h-5" />
-                      </div>
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        className="rounded-full text-[10px] font-black tracking-widest text-primary hover:text-secondary group/btn transition-colors"
-                      >
-                        EXPLORE <ArrowRight className="ml-2 w-3 h-3 group-hover/btn:translate-x-1 transition-transform" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
+                </Link>
               ))}
             </div>
           )}
@@ -1107,9 +1102,12 @@ export default function Home() {
                       <div className="relative aspect-[1/1.2] overflow-hidden p-4">
                         <div className="absolute inset-0 bg-linear-to-b from-transparent via-transparent to-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
                         <img 
-                          src={product.image} 
+                          src={product.imageUrl || 'https://images.unsplash.com/photo-1512690196222-7c7d3f993c1b?q=80&w=2070&auto=format&fit=crop'} 
                           alt={product.name} 
                           className="w-full h-full object-contain mix-blend-lighten transition-transform duration-[1500ms] group-hover:scale-110"
+                          onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+                            e.currentTarget.src = 'https://images.unsplash.com/photo-1512690196222-7c7d3f993c1b?q=80&w=2070&auto=format&fit=crop';
+                          }}
                         />
                         <div className="absolute top-4 right-4">
                           <button 

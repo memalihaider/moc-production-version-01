@@ -1434,7 +1434,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Header } from '@/components/shared/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -1720,6 +1720,7 @@ const openWhatsApp = (message: string) => {
 // Main Component
 export default function ServicesPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { 
     addToCart, 
     cartItems, 
@@ -1737,7 +1738,9 @@ export default function ServicesPage() {
   } = useServicesStore();
   const { staff, fetchStaff } = useStaffStore();
   
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  // Read category from URL query parameters
+  const categoryFromUrl = searchParams.get('category') || 'all';
+  const [selectedCategory, setSelectedCategory] = useState<string>(categoryFromUrl);
   const [selectedStaff, setSelectedStaff] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [addedService, setAddedService] = useState<string | null>(null);
@@ -1764,6 +1767,13 @@ export default function ServicesPage() {
     
     loadData();
   }, [fetchServices, fetchStaff, hasFetchedInitialData]);
+
+  // Update category when URL query param changes
+  useEffect(() => {
+    if (categoryFromUrl !== selectedCategory) {
+      setSelectedCategory(categoryFromUrl);
+    }
+  }, [categoryFromUrl]);
 
   // Set up real-time updates
   useEffect(() => {

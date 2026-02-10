@@ -2888,7 +2888,7 @@ const handleDeleteBooking = async (appointment: Appointment) => {
                       cardLast4Digits: apt.cardLast4Digits || '',
                       trnNumber: apt.trnNumber || '',
                       paymentMethods: apt.paymentMethods || [],
-                      paymentAmounts: apt.paymentAmounts || {},
+                      paymentAmounts: apt.paymentAmounts || { cash: 0, card: 0, check: 0, digital: 0, wallet: 0 },
                       discount: apt.discount || 0,
                       discountType: apt.discountType || 'fixed',
                       serviceTip: apt.serviceTip || 0,
