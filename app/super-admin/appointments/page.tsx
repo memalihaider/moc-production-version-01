@@ -365,7 +365,7 @@ const BookingModal = ({ isOpen, onClose, booking }: BookingModalProps) => {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="bg-gray-50 p-3 rounded-lg">
                 <p className="text-sm text-gray-500">Total Amount</p>
-                <p className="text-lg font-bold">${booking.totalAmount?.toFixed(2) || '0.00'}</p>
+                <p className="text-lg font-bold">AED {booking.totalAmount?.toFixed(2) || '0.00'}</p>
               </div>
               <div className="bg-gray-50 p-3 rounded-lg">
                 <p className="text-sm text-gray-500">Payment Method</p>

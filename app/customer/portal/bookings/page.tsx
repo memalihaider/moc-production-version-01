@@ -277,7 +277,7 @@ export default function CustomerBookings() {
                                 </div>
                               </div>
                             </div>
-                            <span className="font-bold text-primary">${service.price}</span>
+                            <span className="font-bold text-primary">AED {service.price}</span>
                           </div>
                         ))}
                       </div>
@@ -305,7 +305,7 @@ export default function CustomerBookings() {
                       </div>
                       <div className="mt-4 md:mt-0 text-right">
                         <p className="text-xs text-muted-foreground">Total Amount</p>
-                        <p className="text-2xl font-bold text-primary">${booking.totalAmount}</p>
+                        <p className="text-2xl font-bold text-primary">AED {booking.totalAmount}</p>
                       </div>
                     </div>
                   </CardContent>

@@ -653,7 +653,7 @@ export default function AdminFeedbackPage() {
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Product Revenue</p>
-                            <p className="text-3xl font-serif font-bold text-green-600">${stats.totalRevenue.toFixed(2)}</p>
+                            <p className="text-3xl font-serif font-bold text-green-600">AED {stats.totalRevenue.toFixed(2)}</p>
                             <p className="text-sm text-muted-foreground mt-1">From reviewed products</p>
                           </div>
                           <DollarSign className="w-12 h-12 text-green-500/20" />

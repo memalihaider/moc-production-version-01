@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { Header } from "@/components/shared/Header";
 import Link from "next/link";
+import { useRouter } from 'next/navigation';
 import { 
   Carousel, 
   CarouselContent, 
@@ -505,6 +506,24 @@ export default function Home() {
   } = useHomeStore();
 
   const { addToCart } = useBookingStore();
+  const router = useRouter();
+
+  const handleBookService = (service: Service) => {
+    // Transform Service to BookingService format and add to cart
+    addToCart({
+      id: service.id,
+      name: service.name,
+      price: service.price,
+      duration: `${service.duration}`,
+      description: service.description,
+      category: service.category,
+      rating: 5,
+      reviews: 0,
+      image: service.imageUrl
+    });
+    // Navigate to booking page
+    router.push('/booking');
+  };
 
   useEffect(() => {
     fetchHomeData();
@@ -798,9 +817,18 @@ export default function Home() {
             <Button size="lg" asChild className="bg-secondary hover:bg-white text-primary font-black px-12 py-8 text-sm rounded-2xl transition-all duration-700 shadow-[0_15px_40px_rgba(197,160,89,0.3)] hover:shadow-[0_25px_60px_rgba(197,160,89,0.5)] hover:scale-110 active:scale-95 tracking-[0.2em]">
               <Link href="/services">BOOK APPOINTMENT</Link>
             </Button>
-            <Button size="lg" variant="outline" asChild className="border-white/20 text-white hover:bg-white/10 hover:border-white/40 px-12 py-8 text-sm rounded-2xl transition-all duration-700 backdrop-blur-md hover:scale-110 active:scale-95 tracking-[0.2em]">
-              <Link href="/services">VIEW MENU</Link>
-            </Button>
+            <Button
+  size="lg"
+  asChild
+  className="bg-transparent border border-white text-white 
+             hover:bg-black hover:text-white hover:border-black
+             px-12 py-8 text-sm rounded-2xl 
+             transition-all duration-500 
+             hover:scale-105 active:scale-95 
+             tracking-[0.2em]"
+>
+  <Link href="/services">VIEW MENU</Link>
+</Button>
           </div>
         </div>
 
@@ -1013,7 +1041,7 @@ export default function Home() {
                         <div className="absolute inset-0 bg-linear-to-t from-primary/90 via-primary/20 to-transparent opacity-60 group-hover:opacity-80 transition-opacity duration-700"></div>
                         
                         <div className="absolute top-6 left-6">
-                          <div className="bg-white/10 backdrop-blur-md border border-white/20 text-white px-4 py-2 rounded-2xl font-black text-xs uppercase tracking-widest shadow-2xl">
+                          <div className="bg-white/20 backdrop-blur-md border border-white/30 text-white px-4 py-2 rounded-2xl font-black text-xs uppercase tracking-widest shadow-2xl">
                             {service.category}
                           </div>
                         </div>
@@ -1028,13 +1056,12 @@ export default function Home() {
                             <div className="text-3xl font-serif font-black text-secondary">
                               <span className="text-xs mr-1 opacity-70">AED</span>{service.price}
                             </div>
-                            <Link href="/booking">
-                              <Button 
-                                className="bg-secondary hover:bg-white text-primary font-black rounded-xl h-12 px-6 shadow-xl transition-all duration-500 hover:scale-105"
-                              >
-                                BOOK NOW
-                              </Button>
-                            </Link>
+                            <Button 
+                              onClick={() => handleBookService(service)}
+                              className="bg-secondary hover:bg-white text-primary font-black rounded-xl h-12 px-6 shadow-xl transition-all duration-500 hover:scale-105"
+                            >
+                              BOOK NOW
+                            </Button>
                           </div>
                         </div>
                       </div>
@@ -1081,7 +1108,7 @@ export default function Home() {
                 <div className="h-[1px] w-20 bg-secondary/40"></div>
               </div>
             </div>
-            <Button asChild variant="outline" className="border-white/10 text-white bg-white/5 hover:bg-white hover:text-primary rounded-2xl px-10 py-7 text-xs font-black tracking-[0.2em] group transition-all duration-700 backdrop-blur-md">
+            <Button asChild variant="outline" className="border-secondary/40 text-secondary bg-secondary/10 hover:bg-secondary hover:text-primary rounded-2xl px-10 py-7 text-xs font-black tracking-[0.2em] group transition-all duration-700 backdrop-blur-md">
               <Link href="/products" className="flex items-center">
                 VIEW FULL COLLECTION <ChevronRight className="ml-2 w-4 h-4 transition-transform group-hover:translate-x-1" />
               </Link>
@@ -1090,9 +1117,9 @@ export default function Home() {
 
           {products.length === 0 ? (
             <div className="text-center py-24 bg-white/5 rounded-[3rem] border border-dashed border-white/10 backdrop-blur-sm">
-              <Package className="w-16 h-16 text-white/10 mx-auto mb-6" />
-              <h3 className="text-2xl font-serif font-bold text-white/20 mb-2">Restocking Boutique</h3>
-              <p className="text-white/20 font-light">Our signature range of formulas will return shortly.</p>
+              <Package className="w-16 h-16 text-white/30 mx-auto mb-6" />
+              <h3 className="text-2xl font-serif font-bold text-white/40 mb-2">Restocking Boutique</h3>
+              <p className="text-white/40 font-light">Our signature range of formulas will return shortly.</p>
             </div>
           ) : (
             <Carousel opts={{ align: "start" }} className="w-full">
@@ -1266,7 +1293,7 @@ export default function Home() {
                             <Button 
                               variant="ghost" 
                               size="icon" 
-                              className="rounded-full bg-white/10 hover:bg-white/20 text-white"
+                              className="rounded-full bg-secondary/20 hover:bg-secondary text-secondary hover:text-primary"
                             >
                               <ArrowRight className="w-5 h-5" />
                             </Button>
@@ -1333,7 +1360,7 @@ export default function Home() {
                         <div className="absolute inset-0 bg-linear-to-tr from-black/20 via-transparent to-white/10 opacity-50"></div>
                         
                         {membership.totalSubscriptions > 10 && (
-                          <div className="absolute top-6 left-6 bg-white/10 backdrop-blur-md border border-white/20 text-white text-[9px] font-black px-4 py-1.5 rounded-full z-20 uppercase tracking-[0.2em] shadow-xl">
+                          <div className="absolute top-6 left-6 bg-white/20 backdrop-blur-md border border-white/30 text-white text-[9px] font-black px-4 py-1.5 rounded-full z-20 uppercase tracking-[0.2em] shadow-xl">
                             MOST COVETED
                           </div>
                         )}
@@ -1344,7 +1371,7 @@ export default function Home() {
                         
                         <div className="relative z-10 space-y-8">
                           <div className="flex items-start justify-between">
-                            <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center backdrop-blur-md border border-white/20 shadow-2xl">
+                            <div className="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center backdrop-blur-md border border-white/30 shadow-2xl">
                               <TierIcon className="w-7 h-7 text-white" />
                             </div>
                             <div className="text-right">
@@ -1354,7 +1381,7 @@ export default function Home() {
                           </div>
                           
                           <div>
-                            <div className="inline-block px-3 py-1 bg-white/10 rounded-full border border-white/20 text-[9px] font-black uppercase tracking-widest mb-4">
+                            <div className="inline-block px-3 py-1 bg-white/20 rounded-full border border-white/30 text-[9px] font-black uppercase tracking-widest mb-4">
                               {membership.tier.toUpperCase()} TIER
                             </div>
                             <h4 className="text-5xl font-serif font-black mb-2 leading-none flex items-baseline">
@@ -1372,7 +1399,7 @@ export default function Home() {
                             <div className="space-y-3">
                               {membership.benefits.slice(0, 3).map((benefit, index) => (
                                 <div key={index} className="flex items-center gap-3">
-                                  <div className="w-5 h-5 rounded-lg bg-white/10 flex items-center justify-center shrink-0 border border-white/10">
+                                  <div className="w-5 h-5 rounded-lg bg-white/20 flex items-center justify-center shrink-0 border border-white/30">
                                     <Check className="w-3 h-3 text-white" />
                                   </div>
                                   <span className="text-xs font-medium opacity-90">{benefit}</span>
@@ -1395,7 +1422,7 @@ export default function Home() {
                           
                           <Button 
                             variant="ghost" 
-                            className="rounded-2xl bg-white/10 hover:bg-white text-white hover:text-primary w-14 h-14 p-0 shadow-2xl transition-all duration-500"
+                            className="rounded-2xl bg-secondary/20 hover:bg-secondary text-secondary hover:text-primary w-14 h-14 p-0 shadow-2xl transition-all duration-500"
                           >
                             <ArrowRight className="w-6 h-6" />
                           </Button>
@@ -1458,7 +1485,7 @@ export default function Home() {
                               <a href="#" className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center text-primary hover:scale-110 transition-all shadow-2xl">
                                 <Instagram className="w-4 h-4" />
                               </a>
-                              <a href="#" className="w-10 h-10 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white hover:bg-secondary hover:text-primary transition-all shadow-2xl">
+                              <a href="#" className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center text-white hover:bg-secondary hover:text-primary transition-all shadow-2xl">
                                 <Phone className="w-4 h-4" />
                               </a>
                             </div>

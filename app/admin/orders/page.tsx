@@ -888,7 +888,7 @@ export default function SuperAdminOrders() {
                     <DollarSign className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">${stats.totalRevenue}</div>
+                    <div className="text-2xl font-bold">AED {stats.totalRevenue}</div>
                     <p className="text-xs text-muted-foreground">
                       From delivered orders
                     </p>
@@ -1130,7 +1130,7 @@ export default function SuperAdminOrders() {
                             {/* Amount */}
                             <div className="text-right">
                               <div className="text-2xl font-bold text-primary">
-                                ${order.totalAmount}
+                                AED {order.totalAmount}
                               </div>
                               <div className="text-sm text-gray-500">
                                 {order.products.length} item{order.products.length !== 1 ? 's' : ''}
@@ -1186,9 +1186,9 @@ export default function SuperAdminOrders() {
                                     )}
                                   </div>
                                   <div className="flex items-center gap-4 text-sm text-gray-500 mt-1">
-                                    <span>Price: ${product.price}</span>
+                                    <span>Price: AED {product.price}</span>
                                     <span>Quantity: {product.quantity}</span>
-                                    <span>Total: ${product.price * product.quantity}</span>
+                                    <span>Total: AED {product.price * product.quantity}</span>
                                   </div>
                                   {/* Product Branch Info */}
                                   {product.productBranches && product.productBranches.length > 0 && (
@@ -1438,7 +1438,7 @@ export default function SuperAdminOrders() {
                     )}
                   </div>
                   <div className="text-xs text-gray-400">
-                    {Object.keys(customers).length} customers • ${stats.totalRevenue} total revenue
+                    {Object.keys(customers).length} customers • AED {stats.totalRevenue} total revenue
                   </div>
                 </div>
               </div>

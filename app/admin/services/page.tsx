@@ -859,7 +859,7 @@ export default function SuperAdminServices() {
                             <div className="flex items-center gap-4">
                               <div className="flex items-center gap-1 text-sm">
                                 <DollarSign className="w-4 h-4 text-green-600" />
-                                <span className="font-semibold">${service.price}</span>
+                                <span className="font-semibold">AED {service.price}</span>
                               </div>
                               <div className="flex items-center gap-1 text-sm">
                                 <Clock className="w-4 h-4 text-blue-600" />
@@ -1030,7 +1030,7 @@ export default function SuperAdminServices() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-xs font-bold uppercase">
-                    Price ($) *
+                    Price (AED) *
                   </Label>
                   <Input
                     type="number"
@@ -1230,7 +1230,7 @@ export default function SuperAdminServices() {
                                 {selectedService?.status}
                               </span>
                               <span className="px-2 py-1 rounded-md text-xs border border-gray-300">
-                                ${selectedService?.price}
+                                AED {selectedService?.price}
                               </span>
                               <span className="px-2 py-1 rounded-md text-xs border border-gray-300">
                                 {selectedService?.duration} min

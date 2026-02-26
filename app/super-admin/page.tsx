@@ -753,7 +753,7 @@ export default function SuperAdminDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-3xl font-bold text-primary">
-                    ${overallStats.totalRevenue.toLocaleString()}
+                    AED {overallStats.totalRevenue.toLocaleString()}
                   </div>
                   <p className="text-xs text-green-600 font-medium mt-1">
                     +{overallStats.monthlyGrowth}% from last month
@@ -966,7 +966,7 @@ export default function SuperAdminDashboard() {
                             </div>
                             <div className="flex items-center justify-between mt-3">
                               <span className="text-lg font-bold text-primary">
-                                ${booking.totalAmount}
+                                AED {booking.totalAmount}
                               </span>
                               <span className="text-xs text-muted-foreground">
                                 {booking.timeAgo}
@@ -1039,7 +1039,7 @@ export default function SuperAdminDashboard() {
                             </div>
                             <div className="flex items-center justify-between mt-3">
                               <span className="text-lg font-bold text-primary">
-                                ${service.price}
+                                AED {service.price}
                               </span>
                               <span className="text-xs text-muted-foreground">
                                 {service.time}
@@ -1107,7 +1107,7 @@ export default function SuperAdminDashboard() {
                                   Price
                                 </p>
                                 <p className="font-semibold">
-                                  ${product.price}
+                                  AED {product.price}
                                 </p>
                               </div>
                             </div>

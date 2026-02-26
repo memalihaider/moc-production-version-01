@@ -858,9 +858,9 @@ export default function SuperAdminProducts() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Prices</SelectItem>
-                        <SelectItem value="under-20">Under $20</SelectItem>
-                        <SelectItem value="20-50">$20 - $50</SelectItem>
-                        <SelectItem value="over-50">Over $50</SelectItem>
+                        <SelectItem value="under-20">Under AED 20</SelectItem>
+                        <SelectItem value="20-50">AED 20 - 50</SelectItem>
+                        <SelectItem value="over-50">Over AED 50</SelectItem>
                       </SelectContent>
                     </Select>
                     <Select value={stockFilter} onValueChange={setStockFilter} disabled={loading}>
@@ -988,7 +988,7 @@ export default function SuperAdminProducts() {
                             <div className="flex items-center gap-4">
                               <div className="flex items-center gap-1 text-sm">
                                 <DollarSign className="w-4 h-4 text-green-600" />
-                                <span className="font-semibold">${product.price}</span>
+                                <span className="font-semibold">AED {product.price}</span>
                               </div>
                               <div className="flex items-center gap-1 text-sm">
                                 <Package className="w-4 h-4 text-blue-600" />
@@ -1000,7 +1000,7 @@ export default function SuperAdminProducts() {
                           <div className="grid grid-cols-2 gap-4 text-sm">
                             <div>
                               <span className="text-gray-500">Cost:</span>
-                              <span className="font-medium ml-1">${product.cost}</span>
+                              <span className="font-medium ml-1">AED {product.cost}</span>
                             </div>
                             <div>
                               <span className="text-gray-500">Margin:</span>
@@ -1186,7 +1186,7 @@ export default function SuperAdminProducts() {
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <Label className="text-xs font-bold uppercase">
-                    Price ($) *
+                    Price (AED) *
                   </Label>
                   <Input
                     type="number"
@@ -1201,7 +1201,7 @@ export default function SuperAdminProducts() {
                 </div>
                 <div>
                   <Label className="text-xs font-bold uppercase">
-                    Cost ($) *
+                    Cost (AED) *
                   </Label>
                   <Input
                     type="number"
@@ -1240,7 +1240,7 @@ export default function SuperAdminProducts() {
                     Margin: {calculateMargin(parseFloat(productForm.price), parseFloat(productForm.cost))}%
                   </p>
                   <p className="text-xs text-green-600 mt-1">
-                    Profit per unit: ${(parseFloat(productForm.price) - parseFloat(productForm.cost)).toFixed(2)}
+                    Profit per unit: AED {(parseFloat(productForm.price) - parseFloat(productForm.cost)).toFixed(2)}
                   </p>
                 </div>
               )}
@@ -1421,7 +1421,7 @@ export default function SuperAdminProducts() {
                                 {selectedProduct?.status?.replace('-', ' ')}
                               </span>
                               <span className="px-2 py-1 rounded-md text-xs border border-gray-300">
-                                ${selectedProduct?.price}
+                                AED {selectedProduct?.price}
                               </span>
                               <span className="px-2 py-1 rounded-md text-xs border border-gray-300">
                                 Stock: {selectedProduct?.totalStock}

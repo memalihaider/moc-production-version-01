@@ -305,7 +305,7 @@ export default function CustomerTransactions() {
                         )}
                         {txn.amount !== 0 && (
                           <p className={`font-bold ${txn.amount > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {txn.amount > 0 ? '+' : ''}${Math.abs(txn.amount).toFixed(2)}
+                            {txn.amount > 0 ? '+' : ''}AED {Math.abs(txn.amount).toFixed(2)}
                           </p>
                         )}
                         <div className="text-xs text-muted-foreground mt-1">
@@ -313,7 +313,7 @@ export default function CustomerTransactions() {
                             <span>Balance: {txn.pointsAfter} pts</span>
                           )}
                           {txn.balanceAfter !== undefined && txn.amount !== 0 && (
-                            <span> | ${txn.balanceAfter.toFixed(2)}</span>
+                            <span> | AED {txn.balanceAfter.toFixed(2)}</span>
                           )}
                         </div>
                       </div>

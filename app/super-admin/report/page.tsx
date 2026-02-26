@@ -313,7 +313,7 @@ export default function OrderFinanceReportPage() {
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">${summary.totalOrderRevenue.toFixed(2)}</div>
+                <div className="text-2xl font-bold">AED {summary.totalOrderRevenue.toFixed(2)}</div>
                 <p className="text-xs text-muted-foreground">
                   {summary.totalOrders} orders
                 </p>
@@ -328,7 +328,7 @@ export default function OrderFinanceReportPage() {
               <CardContent>
                 <div className="text-2xl font-bold">{summary.totalProductsSold}</div>
                 <p className="text-xs text-muted-foreground">
-                  Average: ${summary.averageOrderValue.toFixed(2)} per order
+                  Average: AED {summary.averageOrderValue.toFixed(2)} per order
                 </p>
               </CardContent>
             </Card>
@@ -339,9 +339,9 @@ export default function OrderFinanceReportPage() {
                 <TrendingUp className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">${summary.totalProfit.toFixed(2)}</div>
+                <div className="text-2xl font-bold">AED {summary.totalProfit.toFixed(2)}</div>
                 <p className="text-xs text-muted-foreground">
-                  Revenue: ${summary.totalOrderRevenue.toFixed(2)} • Cost: ${summary.totalCost.toFixed(2)}
+                  Revenue: AED {summary.totalOrderRevenue.toFixed(2)} • Cost: AED {summary.totalCost.toFixed(2)}
                 </p>
               </CardContent>
             </Card>
@@ -500,7 +500,7 @@ export default function OrderFinanceReportPage() {
                 <CardHeader>
                   <CardTitle>Orders Report</CardTitle>
                   <CardDescription>
-                    {filteredOrders.length} orders found • Total Revenue: ${filteredOrders.reduce((sum, o) => sum + o.totalAmount, 0).toFixed(2)}
+                    {filteredOrders.length} orders found • Total Revenue: AED {filteredOrders.reduce((sum, o) => sum + o.totalAmount, 0).toFixed(2)}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -549,7 +549,7 @@ export default function OrderFinanceReportPage() {
                                   {order.products.reduce((sum, p) => sum + p.quantity, 0)} items
                                 </div>
                               </TableCell>
-                              <TableCell className="font-bold">${order.totalAmount.toFixed(2)}</TableCell>
+                              <TableCell className="font-bold">AED {order.totalAmount.toFixed(2)}</TableCell>
                               <TableCell>
                                 <div className="flex flex-col gap-1">
                                   <Badge variant={order.paymentStatus === 'completed' ? 'default' : 'secondary'}>
@@ -626,22 +626,22 @@ export default function OrderFinanceReportPage() {
                                     {order.products.map((p, idx) => (
                                       <div key={idx} className="flex justify-between text-sm">
                                         <span className="truncate max-w-[120px]">{p.productName}</span>
-                                        <span>{p.quantity} × ${p.price}</span>
+                                        <span>{p.quantity} × AED {p.price}</span>
                                       </div>
                                     ))}
                                   </div>
                                 </TableCell>
                                 <TableCell className="font-bold text-green-600">
-                                  ${order.totalAmount.toFixed(2)}
+                                  AED {order.totalAmount.toFixed(2)}
                                 </TableCell>
                                 <TableCell className="text-red-500">
-                                  ${totalCost.toFixed(2)}
+                                  AED {totalCost.toFixed(2)}
                                 </TableCell>
                                 <TableCell className={cn(
                                   "font-bold",
                                   profit >= 0 ? "text-green-600" : "text-red-600"
                                 )}>
-                                  ${profit.toFixed(2)}
+                                  AED {profit.toFixed(2)}
                                 </TableCell>
                                 <TableCell>
                                   <Badge variant={margin >= 30 ? "default" : margin >= 20 ? "secondary" : "outline"}>
@@ -736,18 +736,18 @@ export default function OrderFinanceReportPage() {
                                   </TableCell>
                                   <TableCell>{product.quantity}</TableCell>
                                   <TableCell className="font-bold text-green-600">
-                                    ${product.revenue.toFixed(2)}
+                                    AED {product.revenue.toFixed(2)}
                                   </TableCell>
                                   <TableCell className="text-red-500">
-                                    ${product.cost.toFixed(2)}
+                                    AED {product.cost.toFixed(2)}
                                   </TableCell>
                                   <TableCell className={cn(
                                     "font-bold",
                                     product.profit >= 0 ? "text-green-600" : "text-red-600"
                                   )}>
-                                    ${product.profit.toFixed(2)}
+                                    AED {product.profit.toFixed(2)}
                                   </TableCell>
-                                  <TableCell>${avgPrice.toFixed(2)}</TableCell>
+                                  <TableCell>AED {avgPrice.toFixed(2)}</TableCell>
                                   <TableCell>
                                     <Badge variant={margin >= 30 ? "default" : margin >= 20 ? "secondary" : "outline"}>
                                       {margin.toFixed(1)}%

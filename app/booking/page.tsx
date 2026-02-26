@@ -2072,7 +2072,7 @@ export default function BookingCheckout() {
     // Check if wallet has sufficient balance for digital wallet payment
     if (paymentMethod === 'wallet' && customer) {
       if (walletBalanceAED < finalAmount) {
-        setValidationError(`Insufficient wallet balance. Your balance is $${walletBalanceAED.toFixed(2)} but total is $${finalAmount.toFixed(2)}. Please choose another payment method.`);
+        setValidationError(`Insufficient wallet balance. Your balance is AED ${walletBalanceAED.toFixed(2)} but total is AED ${finalAmount.toFixed(2)}. Please choose another payment method.`);
         return;
       }
     }
@@ -2085,13 +2085,13 @@ export default function BookingCheckout() {
       // Check if amounts equal total
       const totalPaid = numWalletAmount + numCashAmount;
       if (Math.abs(totalPaid - finalAmount) > 0.01) { // Allow small floating point difference
-        setValidationError(`Mixed payment amounts must equal the total of $${finalAmount.toFixed(2)}. Current: Wallet $${numWalletAmount.toFixed(2)} + Cash $${numCashAmount.toFixed(2)} = $${totalPaid.toFixed(2)}`);
+        setValidationError(`Mixed payment amounts must equal the total of AED ${finalAmount.toFixed(2)}. Current: Wallet AED ${numWalletAmount.toFixed(2)} + Cash AED ${numCashAmount.toFixed(2)} = AED ${totalPaid.toFixed(2)}`);
         return;
       }
       
       // Check if wallet amount exceeds balance
       if (numWalletAmount > walletBalanceAED) {
-        setValidationError(`Wallet amount ($${numWalletAmount.toFixed(2)}) exceeds your balance ($${walletBalanceAED.toFixed(2)})`);
+        setValidationError(`Wallet amount (AED ${numWalletAmount.toFixed(2)}) exceeds your balance (AED ${walletBalanceAED.toFixed(2)})`);
         return;
       }
     }
@@ -2159,8 +2159,8 @@ export default function BookingCheckout() {
         customerPhone: customerPhone,
         date: formatFirebaseDate(),
         notes: notes || specialRequests || (paymentMethod === 'mixed' 
-          ? `Payment Method: Mixed Payment. Wallet: $${walletPayment.toFixed(2)} AED, Cash: $${cashPayment.toFixed(2)} AED` 
-          : `Payment Method: ${paymentMethod}. Wallet: $${walletPayment.toFixed(2)} AED, Cash: $${cashPayment.toFixed(2)} AED`),
+          ? `Payment Method: Mixed Payment. Wallet: AED ${walletPayment.toFixed(2)}, Cash: AED ${cashPayment.toFixed(2)}` 
+          : `Payment Method: ${paymentMethod}. Wallet: AED ${walletPayment.toFixed(2)}, Cash: AED ${cashPayment.toFixed(2)}`),
         paymentAmounts: {
           wallet: walletPayment,
           cash: cashPayment
@@ -2763,7 +2763,7 @@ export default function BookingCheckout() {
                           <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded-lg">
                             <p className="text-xs text-red-700">
                               <AlertCircle className="w-3 h-3 inline mr-1" />
-                              Insufficient wallet balance. You need additional ${(finalTotal - getWalletBalanceInAED()).toFixed(2)} AED.
+                              Insufficient wallet balance. You need additional AED {(finalTotal - getWalletBalanceInAED()).toFixed(2)}.
                             </p>
                           </div>
                         )}
@@ -2865,7 +2865,7 @@ export default function BookingCheckout() {
                               </div>
                             </div>
                             <div className="flex items-center gap-3">
-                              <span className="font-bold text-sm">${item.price}</span>
+                              <span className="font-bold text-sm">AED {item.price}</span>
                               <button 
                                 onClick={() => removeFromCart(item.id)}
                                 className="text-white/40 hover:text-red-300 transition-colors"
@@ -2891,7 +2891,7 @@ export default function BookingCheckout() {
                       <div className="border-t border-white/10 pt-4 space-y-2">
                         <div className="flex justify-between text-xs text-white/60">
                           <span>Subtotal ({cartItems.length} services)</span>
-                          <span>${cartTotal.toFixed(2)}</span>
+                          <span>AED {cartTotal.toFixed(2)}</span>
                         </div>
                         
                         <div className="flex justify-between text-xs text-white/60">
@@ -2904,7 +2904,7 @@ export default function BookingCheckout() {
                             Final Amount
                           </span>
                           <span className="text-2xl font-serif font-bold text-secondary">
-                            ${finalTotal.toFixed(2)}
+                            AED {finalTotal.toFixed(2)}
                           </span>
                         </div>
 

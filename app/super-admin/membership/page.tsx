@@ -1468,7 +1468,7 @@ export default function SuperAdminMembership() {
                               <div className="flex items-center gap-4">
                                 <div className="flex items-center gap-1 text-sm">
                                   <DollarSign className="w-4 h-4 text-green-600" />
-                                  <span className="font-semibold">${membership.price}</span>
+                                  <span className="font-semibold">AED {membership.price}</span>
                                 </div>
                                 <div className="flex items-center gap-1 text-sm">
                                   <Calendar className="w-4 h-4 text-blue-600" />
@@ -2024,7 +2024,7 @@ export default function SuperAdminMembership() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-xs font-bold uppercase">
-                      Price ($) *
+                      Price (AED) *
                     </Label>
                     <Input
                       type="number"
@@ -2292,7 +2292,7 @@ export default function SuperAdminMembership() {
                               className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                             />
                             <Label htmlFor={`service-${service.id}`} className="text-sm cursor-pointer">
-                              {service.name} (${service.price})
+                              {service.name} (AED {service.price})
                             </Label>
                           </div>
                         ))}
@@ -2327,7 +2327,7 @@ export default function SuperAdminMembership() {
                               className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                             />
                             <Label htmlFor={`product-${product.id}`} className="text-sm cursor-pointer">
-                              {product.name} (${product.price})
+                              {product.name} (AED {product.price})
                             </Label>
                           </div>
                         ))}
@@ -2858,11 +2858,11 @@ export default function SuperAdminMembership() {
                               {selectedItem?.status}
                             </span>
                             <span className="px-2 py-1 rounded-md text-xs border border-gray-300">
-                              {dialogType === 'membership' && `$${selectedItem?.price}`}
-                              {dialogType === 'offer' && (selectedItem?.discountType === 'percentage' ? `${selectedItem?.discountValue}%` : `$${selectedItem?.discountValue}`)}
-                              {dialogType === 'promo' && (selectedItem?.discountType === 'percentage' ? `${selectedItem?.discountValue}%` : `$${selectedItem?.discountValue}`)}
-                              {dialogType === 'cashback' && (selectedItem?.cashbackType === 'percentage' ? `${selectedItem?.cashbackValue}%` : `$${selectedItem?.cashbackValue}`)}
-                              {dialogType === 'loyalty' && `${selectedItem?.pointsPerDollar} pts/$`}
+                              {dialogType === 'membership' && `AED ${selectedItem?.price}`}
+                              {dialogType === 'offer' && (selectedItem?.discountType === 'percentage' ? `${selectedItem?.discountValue}%` : `AED ${selectedItem?.discountValue}`)}
+                              {dialogType === 'promo' && (selectedItem?.discountType === 'percentage' ? `${selectedItem?.discountValue}%` : `AED ${selectedItem?.discountValue}`)}
+                              {dialogType === 'cashback' && (selectedItem?.cashbackType === 'percentage' ? `${selectedItem?.cashbackValue}%` : `AED ${selectedItem?.cashbackValue}`)}
+                              {dialogType === 'loyalty' && `${selectedItem?.pointsPerDollar} pts/AED`}
                             </span>
                           </div>
                         </div>

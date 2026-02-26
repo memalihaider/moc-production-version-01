@@ -1005,7 +1005,7 @@ export default function Branches() {
                                     </div>
                                     <div className="flex items-center gap-4 mt-3">
                                       <div className="text-sm text-gray-500">
-                                        <span className="font-bold text-primary text-lg">${service.price}</span>
+                                        <span className="font-bold text-primary text-lg">AED {service.price}</span>
                                       </div>
                                       <div className="text-sm text-gray-500 flex items-center">
                                         <Clock className="w-3 h-3 mr-1" />

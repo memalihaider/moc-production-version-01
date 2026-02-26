@@ -534,7 +534,7 @@ export default function ProductsPage() {
                 <DollarSign className="w-5 h-5 text-secondary" />
                 <div>
                   <p className="text-xs text-gray-400 uppercase tracking-wider">Inventory Value</p>
-                  <p className="text-2xl font-bold text-white">${totalValue.toLocaleString()}</p>
+                  <p className="text-2xl font-bold text-white">AED {totalValue.toLocaleString()}</p>
                 </div>
               </div>
             </div>
@@ -796,7 +796,7 @@ export default function ProductsPage() {
                       {/* Price Badge */}
                       <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-500">
                         <div className="bg-white/95 backdrop-blur-sm text-primary px-4 py-2 rounded-xl font-black text-sm shadow-2xl">
-                          ${product.price}
+                          AED {product.price}
                         </div>
                       </div>
                       
@@ -940,7 +940,7 @@ export default function ProductsPage() {
                     </div>
                     <div>
                       <p className="text-sm text-gray-500">Inventory Value</p>
-                      <p className="text-2xl font-bold text-primary">${totalValue.toLocaleString()}</p>
+                      <p className="text-2xl font-bold text-primary">AED {totalValue.toLocaleString()}</p>
                     </div>
                   </div>
                 </div>

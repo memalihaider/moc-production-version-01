@@ -225,7 +225,7 @@ export default function BranchPage({ params }: { params: { id: string } }) {
                       <h3 className="text-2xl font-serif font-bold text-white mb-4">{barber.name}</h3>
                       <div className="flex flex-wrap gap-2 mb-4">
                         {barber.specialties.map((spec, i) => (
-                          <span key={i} className="text-[9px] font-black tracking-widest uppercase px-3 py-1 bg-white/10 text-white/80 rounded-full border border-white/10">
+                          <span key={i} className="text-[9px] font-black tracking-widest uppercase px-3 py-1 bg-white/20 text-white rounded-full border border-white/30">
                             {spec}
                           </span>
                         ))}
@@ -278,7 +278,7 @@ export default function BranchPage({ params }: { params: { id: string } }) {
                         </div>
                       </div>
                       <div className="text-right">
-                        <span className="text-2xl font-serif font-bold text-primary">${service.price}</span>
+                        <span className="text-2xl font-serif font-bold text-primary">AED {service.price}</span>
                         <div className="text-[10px] font-black tracking-widest text-muted-foreground uppercase mt-1">Starting from</div>
                       </div>
                     </div>

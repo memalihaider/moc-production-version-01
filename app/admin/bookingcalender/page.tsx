@@ -4606,7 +4606,7 @@ const handleDeleteBooking = async (appointment: Appointment) => {
                                 newMembers[index].tip = parseFloat(e.target.value) || 0;
                                 setBookingData({...bookingData, teamMembers: newMembers});
                               }}
-                              placeholder="$0.00"
+                              placeholder="0.00"
                               className="h-9 w-24 text-right"
                             />
                           </div>
@@ -5398,7 +5398,7 @@ const handleDeleteBooking = async (appointment: Appointment) => {
                             newMembers[index].tip = parseFloat(e.target.value) || 0;
                             setEditBookingData({...editBookingData, teamMembers: newMembers});
                           }}
-                          placeholder="$0.00"
+                          placeholder="0.00"
                           className="h-9 w-24 text-right"
                         />
                       </div>

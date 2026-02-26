@@ -487,7 +487,7 @@ export default function SuperAdminInvoices() {
       
       autoTable(doc, {
         startY: tableStartY,
-        head: [['Description', 'Qty', 'Unit Price ($)', 'Total ($)']],
+        head: [['Description', 'Qty', 'Unit Price (AED)', 'Total (AED)']],
         body: [
           // Service row
           [invoice.service, '1', invoice.price.toFixed(2), invoice.price.toFixed(2)],
@@ -1066,7 +1066,7 @@ export default function SuperAdminInvoices() {
                       <SelectContent>
                         {services.map(service => (
                           <SelectItem key={service.id} value={service.name}>
-                            {service.name} - ${service.price}
+                            {service.name} - AED {service.price}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -1110,7 +1110,7 @@ export default function SuperAdminInvoices() {
                     />
                   </div>
                   <div>
-                    <Label>Service Price ($)</Label>
+                    <Label>Service Price (AED)</Label>
                     <Input
                       type="number"
                       value={invoiceForm.price}
@@ -1257,14 +1257,14 @@ export default function SuperAdminInvoices() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="fixed">$ Fixed</SelectItem>
+                          <SelectItem value="fixed">AED Fixed</SelectItem>
                           <SelectItem value="percentage">% Percent</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                   </div>
                   <div>
-                    <Label>Service Tip ($)</Label>
+                    <Label>Service Tip (AED)</Label>
                     <Input
                       type="number"
                       placeholder="0.00"
@@ -1282,7 +1282,7 @@ export default function SuperAdminInvoices() {
                     />
                   </div>
                   <div>
-                    <Label>Service Charges ($)</Label>
+                    <Label>Service Charges (AED)</Label>
                     <Input
                       type="number"
                       placeholder="0.00"

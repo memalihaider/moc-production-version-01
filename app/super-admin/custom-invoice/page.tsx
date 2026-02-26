@@ -490,7 +490,7 @@ export default function SuperAdminInvoices() {
     
     autoTable(doc, {
       startY: tableStartY,
-      head: [['Description', 'Qty', 'Unit Price ($)', 'Total ($)']],
+      head: [['Description', 'Qty', 'Unit Price (AED)', 'Total (AED)']],
       body: [
         // Service row
         [invoice.service, '1', invoice.price.toFixed(2), invoice.price.toFixed(2)],
@@ -1720,7 +1720,7 @@ export default function SuperAdminInvoices() {
                       <SelectContent>
                         {services.map(service => (
                           <SelectItem key={service.id} value={service.name}>
-                            {service.name} - ${service.price}
+                            {service.name} - AED {service.price}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -1764,7 +1764,7 @@ export default function SuperAdminInvoices() {
                     />
                   </div>
                   <div>
-                    <Label>Service Price ($)</Label>
+                    <Label>Service Price (AED)</Label>
                     <Input
                       type="number"
                       value={invoiceForm.price}

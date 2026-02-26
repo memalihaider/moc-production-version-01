@@ -548,7 +548,7 @@ function CalendarView({
                   </div>
                   <div className="flex items-center gap-4">
                     <Badge variant="outline" className="bg-white">
-                      ${ordersOnDate.reduce((sum, order) => sum + order.totalAmount, 0)}
+                      AED {ordersOnDate.reduce((sum, order) => sum + order.totalAmount, 0)}
                     </Badge>
                     {isExpanded ? (
                       <Minus className="w-5 h-5 text-gray-500" />
@@ -581,7 +581,7 @@ function CalendarView({
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
                             <div>
                               <span className="text-gray-500">Total:</span>
-                              <span className="font-medium ml-2">${order.totalAmount}</span>
+                              <span className="font-medium ml-2">AED {order.totalAmount}</span>
                             </div>
                             <div>
                               <span className="text-gray-500">Payment:</span>
@@ -991,7 +991,7 @@ export default function SuperAdminOrders() {
                     <DollarSign className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">${stats.totalRevenue}</div>
+                    <div className="text-2xl font-bold">AED {stats.totalRevenue}</div>
                     <p className="text-xs text-muted-foreground">
                       From delivered orders
                     </p>
@@ -1258,7 +1258,7 @@ export default function SuperAdminOrders() {
                               {/* Amount */}
                               <div className="text-right">
                                 <div className="text-2xl font-bold text-primary">
-                                  ${order.totalAmount}
+                                  AED {order.totalAmount}
                                 </div>
                                 <div className="text-sm text-gray-500">
                                   {order.products.length} item{order.products.length !== 1 ? 's' : ''}
@@ -1385,10 +1385,10 @@ export default function SuperAdminOrders() {
                                           </div>
                                           <div className="text-right">
                                             <div className="text-lg font-bold text-primary">
-                                              ${product.price * product.quantity}
+                                              AED {product.price * product.quantity}
                                             </div>
                                             <div className="text-sm text-gray-500">
-                                              ${product.price} × {product.quantity}
+                                              AED {product.price} × {product.quantity}
                                             </div>
                                           </div>
                                         </div>
@@ -1397,12 +1397,12 @@ export default function SuperAdminOrders() {
                                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-3 text-sm">
                                           <div>
                                             <span className="text-gray-500">Cost:</span>
-                                            <span className="font-medium ml-2">${product.productCost}</span>
+                                            <span className="font-medium ml-2">AED {product.productCost}</span>
                                           </div>
                                           <div>
                                             <span className="text-gray-500">Profit:</span>
                                             <span className="font-medium text-green-600 ml-2">
-                                              ${(product.price - product.productCost).toFixed(2)}
+                                              AED {(product.price - product.productCost).toFixed(2)}
                                             </span>
                                           </div>
                                           <div>
@@ -1436,7 +1436,7 @@ export default function SuperAdminOrders() {
                                   <div>
                                     <div className="text-sm text-gray-500">Subtotal</div>
                                     <div className="text-lg font-semibold">
-                                      ${order.totalAmount}
+                                      AED {order.totalAmount}
                                     </div>
                                   </div>
                                   <div>
@@ -1592,7 +1592,7 @@ export default function SuperAdminOrders() {
                     Showing {filteredOrders.length} of {orders.length} total orders
                   </div>
                   <div className="text-xs text-gray-400">
-                    ${stats.totalRevenue} total revenue • {stats.thisMonthOrders} this month
+                    AED {stats.totalRevenue} total revenue • {stats.thisMonthOrders} this month
                   </div>
                 </div>
               </div>

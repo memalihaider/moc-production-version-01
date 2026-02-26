@@ -506,11 +506,11 @@ export default function SuperAdminAnalytics() {
         ['Time Range:', timeRange],
         [],
         ['Metric', 'Value', 'Growth %'],
-        ['Total Revenue', `$${analytics.overview.totalRevenue.toLocaleString()}`, `${analytics.overview.revenueChange.toFixed(1)}%`],
+        ['Total Revenue', `AED ${analytics.overview.totalRevenue.toLocaleString()}`, `${analytics.overview.revenueChange.toFixed(1)}%`],
         ['Total Bookings', analytics.overview.totalBookings, `${analytics.overview.bookingsChange.toFixed(1)}%`],
         ['Total Customers', analytics.overview.totalCustomers, `${analytics.overview.bookingsChange.toFixed(1)}%`],
         ['Total Orders', analytics.overview.totalOrders, `${analytics.overview.ordersChange.toFixed(1)}%`],
-        ['Average Order Value', `$${analytics.overview.avgOrderValue.toFixed(2)}`, ''],
+        ['Average Order Value', `AED ${analytics.overview.avgOrderValue.toFixed(2)}`, ''],
       ];
       const overviewWs = XLSX.utils.aoa_to_sheet(overviewData);
       XLSX.utils.book_append_sheet(wb, overviewWs, 'Overview');

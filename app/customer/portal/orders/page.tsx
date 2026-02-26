@@ -283,7 +283,7 @@ export default function CustomerOrders() {
                                 <p className="text-xs text-muted-foreground">Qty: {product.quantity}</p>
                               </div>
                             </div>
-                            <span className="font-bold text-primary">${(product.price * product.quantity).toFixed(2)}</span>
+                            <span className="font-bold text-primary">AED {(product.price * product.quantity).toFixed(2)}</span>
                           </div>
                         ))}
                       </div>
@@ -305,13 +305,13 @@ export default function CustomerOrders() {
                         )}
                         {order.walletAmountUsed > 0 && (
                           <div className="text-blue-600">
-                            ${order.walletAmountUsed} from wallet
+                            AED {order.walletAmountUsed} from wallet
                           </div>
                         )}
                       </div>
                       <div className="mt-4 md:mt-0 text-right">
                         <p className="text-xs text-muted-foreground">Total Amount</p>
-                        <p className="text-2xl font-bold text-primary">${order.totalAmount.toFixed(2)}</p>
+                        <p className="text-2xl font-bold text-primary">AED {order.totalAmount.toFixed(2)}</p>
                       </div>
                     </div>
                   </CardContent>

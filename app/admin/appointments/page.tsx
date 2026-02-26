@@ -825,7 +825,7 @@ export default function SuperAdminAppointments() {
                     <DollarSign className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">${stats.totalRevenue}</div>
+                    <div className="text-2xl font-bold">AED {stats.totalRevenue}</div>
                     <p className="text-xs text-muted-foreground">
                       {user?.role === 'admin' ? 'From your branch' : 'From completed appointments'}
                     </p>
@@ -1001,7 +1001,7 @@ export default function SuperAdminAppointments() {
                               <div className="text-lg font-bold text-primary">{appointment.time}</div>
                               <div className="text-sm text-gray-500">{appointment.date}</div>
                               <Badge variant="outline" className="mt-2 text-xs">
-                                ${appointment.totalAmount}
+                                AED {appointment.totalAmount}
                               </Badge>
                             </div>
                             

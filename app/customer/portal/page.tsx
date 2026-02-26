@@ -672,13 +672,13 @@ export default function CustomerPortal() {
     if (!customer || !wallet) return;
 
     try {
-      // Calculate points (10 points per $1 spent)
+      // Calculate points (10 points per AED 1 spent)
       const pointsToAward = Math.floor((booking.totalAmount || 0) * 10);
 
       if (pointsToAward > 0 && !booking.pointsAwarded) {
         await awardPoints(
           pointsToAward,
-          `Service Points: ${booking.serviceName} ($${booking.totalAmount})`,
+          `Service Points: ${booking.serviceName} (AED ${booking.totalAmount})`,
           `SERVICE_${booking.id}`
         );
 
@@ -693,18 +693,18 @@ export default function CustomerPortal() {
     }
   };
 
-  // Award Points for Products (10 points per $1) - IMMEDIATE
+  // Award Points for Products (10 points per AED 1) - IMMEDIATE
   const awardPointsForProduct = async (order: Order) => {
     if (!customer || !wallet) return;
 
     try {
-      // Calculate points (10 points per $1 spent)
+      // Calculate points (10 points per AED 1 spent)
       const pointsToAward = Math.floor((order.totalAmount || 0) * 10);
 
       if (pointsToAward > 0 && !order.pointsAwarded) {
         await awardPoints(
           pointsToAward,
-          `Product Points: ${order.products.length} items ($${order.totalAmount})`,
+          `Product Points: ${order.products.length} items (AED ${order.totalAmount})`,
           `ORDER_${order.id}`
         );
 
@@ -3619,7 +3619,7 @@ export default function CustomerPortal() {
                                     {booking.status}
                                   </Badge>
                                   <p className="text-sm font-bold text-primary mt-1">
-                                    ${booking.totalAmount}
+                                    AED {booking.totalAmount}
                                   </p>
                                 </div>
                               </div>
@@ -3693,7 +3693,7 @@ export default function CustomerPortal() {
                                     {order.status}
                                   </Badge>
                                   <p className="text-sm font-bold text-primary mt-1">
-                                    ${order.totalAmount}
+                                    AED {order.totalAmount}
                                   </p>
                                 </div>
                               </div>
@@ -3737,7 +3737,7 @@ export default function CustomerPortal() {
                                     {service.name}
                                   </p>
                                   <p className="text-xs text-muted-foreground">
-                                    ${service.price}
+                                    AED {service.price}
                                   </p>
                                   <p className="text-xs text-green-600 mt-1">
                                     Earns: {Math.floor(service.price * 10)}{" "}
@@ -3811,7 +3811,7 @@ export default function CustomerPortal() {
                                     {product.name}
                                   </p>
                                   <p className="text-xs text-muted-foreground">
-                                    ${product.price}
+                                    AED {product.price}
                                   </p>
                                   <p className="text-xs text-green-600 mt-1">
                                     Earns: {Math.floor(product.price * 10)}{" "}
@@ -4213,11 +4213,11 @@ export default function CustomerPortal() {
                               </div>
                               <div className="flex justify-between">
                                 <span className="text-gray-600">Shipping:</span>
-                                <span className="font-semibold">$0.00</span>
+                                <span className="font-semibold">AED 0.00</span>
                               </div>
                               <div className="flex justify-between">
                                 <span className="text-gray-600">Tax:</span>
-                                <span className="font-semibold">$0.00</span>
+                                <span className="font-semibold">AED 0.00</span>
                               </div>
                               <div className="flex justify-between text-lg font-bold border-t pt-2">
                                 <span>Total:</span>
@@ -4411,13 +4411,12 @@ export default function CustomerPortal() {
 
                             <div className="text-right">
                               <p className="text-2xl font-bold text-primary">
-                                $
-                                {(
+                                AED {(
                                   (item.price || 0) * (item.quantity || 1)
                                 ).toFixed(2)}
                               </p>
                               <p className="text-sm text-muted-foreground">
-                                ${item.price} each
+                                AED {item.price} each
                               </p>
                               {item.type === "service" && (
                                 <p className="text-xs text-blue-600 mt-1">
@@ -4471,7 +4470,7 @@ export default function CustomerPortal() {
                               </div>
                               <div className="flex justify-between">
                                 <span className="text-gray-600">Shipping:</span>
-                                <span className="font-semibold">$0.00</span>
+                                <span className="font-semibold">AED 0.00</span>
                               </div>
                               <div className="flex justify-between text-lg font-bold border-t pt-2">
                                 <span>Total:</span>
@@ -4644,7 +4643,7 @@ export default function CustomerPortal() {
                                         Total Amount:
                                       </span>
                                       <p className="text-muted-foreground">
-                                        ${booking.totalAmount}
+                                        AED {booking.totalAmount}
                                       </p>
                                     </div>
                                   </div>
@@ -4751,7 +4750,7 @@ export default function CustomerPortal() {
 
                                   <div className="text-right">
                                     <p className="text-2xl font-bold text-primary">
-                                      ${booking.totalAmount}
+                                      AED {booking.totalAmount}
                                     </p>
                                     <p className="text-sm text-muted-foreground">
                                       Total Amount
@@ -4966,7 +4965,7 @@ export default function CustomerPortal() {
                                   </Badge>
                                   <div className="text-right">
                                     <p className="text-2xl font-bold text-primary">
-                                      ${order.totalAmount}
+                                      AED {order.totalAmount}
                                     </p>
                                     <p className="text-sm text-muted-foreground">
                                       Total Amount
@@ -5083,7 +5082,7 @@ export default function CustomerPortal() {
                                         key={service.id}
                                         value={service.name}
                                       >
-                                        {service.name} (${service.price})
+                                        {service.name} (AED {service.price})
                                       </option>
                                     ))
                                   : products.map((product) => (
@@ -5091,7 +5090,7 @@ export default function CustomerPortal() {
                                         key={product.id}
                                         value={product.name}
                                       >
-                                        {product.name} (${product.price})
+                                        {product.name} (AED {product.price})
                                       </option>
                                     ))}
                                 <option value="other">Other</option>
@@ -5631,7 +5630,7 @@ export default function CustomerPortal() {
                   )}
                   <div>
                     <p className="font-semibold">{selectedServiceForBooking.name}</p>
-                    <p className="text-primary font-bold">${selectedServiceForBooking.price}</p>
+                    <p className="text-primary font-bold">AED {selectedServiceForBooking.price}</p>
                     {selectedServiceForBooking.duration && (
                       <p className="text-sm text-gray-600">
                         ⏱️ Duration: {selectedServiceForBooking.duration}

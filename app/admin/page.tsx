@@ -1280,7 +1280,7 @@ export default function SuperAdminDashboard() {
                                   <div>
                                     <p className="text-xs text-gray-500">Amount</p>
                                     <p className="font-semibold text-lg text-green-600">
-                                      ${booking.totalAmount}
+                                      AED {booking.totalAmount}
                                     </p>
                                   </div>
                                 </div>
@@ -1348,7 +1348,7 @@ export default function SuperAdminDashboard() {
                               <div>
                                 <p className="text-xs text-gray-500">Price</p>
                                 <p className="text-xl font-bold text-primary">
-                                  ${service.price}
+                                  AED {service.price}
                                 </p>
                               </div>
                               <div>
@@ -1431,7 +1431,7 @@ export default function SuperAdminDashboard() {
                             <div className="mb-4">
                               <p className="text-xs text-gray-500 mb-1">Price</p>
                               <p className="text-2xl font-bold text-primary">
-                                ${product.price}
+                                AED {product.price}
                               </p>
                             </div>
                             <div className="flex items-center justify-between">

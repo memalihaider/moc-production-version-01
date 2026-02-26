@@ -417,7 +417,7 @@ export default function BookingReportPage() {
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">${summary.totalBookingRevenue.toFixed(2)}</div>
+                <div className="text-2xl font-bold">AED {summary.totalBookingRevenue.toFixed(2)}</div>
                 <p className="text-xs text-muted-foreground">
                   {summary.totalBookings} bookings
                 </p>
@@ -430,7 +430,7 @@ export default function BookingReportPage() {
                 <CreditCard className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">${summary.totalCashPayments.toFixed(2)}</div>
+                <div className="text-2xl font-bold">AED {summary.totalCashPayments.toFixed(2)}</div>
                 <p className="text-xs text-muted-foreground">
                   {(summary.totalCashPayments / summary.totalBookingRevenue * 100 || 0).toFixed(1)}% of total
                 </p>
@@ -443,7 +443,7 @@ export default function BookingReportPage() {
                 <Wallet className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">${summary.totalWalletPayments.toFixed(2)}</div>
+                <div className="text-2xl font-bold">AED {summary.totalWalletPayments.toFixed(2)}</div>
                 <p className="text-xs text-muted-foreground">
                   {(summary.totalWalletPayments / summary.totalBookingRevenue * 100 || 0).toFixed(1)}% of total
                 </p>
@@ -456,7 +456,7 @@ export default function BookingReportPage() {
                 <ShoppingBag className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">${summary.totalOnlinePayments.toFixed(2)}</div>
+                <div className="text-2xl font-bold">AED {summary.totalOnlinePayments.toFixed(2)}</div>
                 <p className="text-xs text-muted-foreground">
                   {(summary.totalOnlinePayments / summary.totalBookingRevenue * 100 || 0).toFixed(1)}% of total
                 </p>

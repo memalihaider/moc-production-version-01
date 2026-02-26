@@ -1970,7 +1970,7 @@ export default function ProductsOrderCheckout() {
 
                         <div className="flex justify-between text-xs text-white/60">
                           <span>Tax</span>
-                          <span>$0.00</span>
+                          <span>AED 0.00</span>
                         </div>
 
                         <div className="flex justify-between items-center pt-3 border-t border-white/10">

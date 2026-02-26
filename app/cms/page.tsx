@@ -39,9 +39,9 @@ export default function LandingPageCMS() {
   ];
 
   const services = [
-    { id: 1, name: "Haircut & Styling", price: "From $35", description: "Professional cuts with modern techniques", status: "published" },
-    { id: 2, name: "Beard Grooming", price: "From $25", description: "Precision beard trimming and styling", status: "published" },
-    { id: 3, name: "Premium Packages", price: "From $65", description: "Complete grooming experience", status: "published" },
+    { id: 1, name: "Haircut & Styling", price: "From AED 35", description: "Professional cuts with modern techniques", status: "published" },
+    { id: 2, name: "Beard Grooming", price: "From AED 25", description: "Precision beard trimming and styling", status: "published" },
+    { id: 3, name: "Premium Packages", price: "From AED 65", description: "Complete grooming experience", status: "published" },
   ];
 
   const seoSettings = {

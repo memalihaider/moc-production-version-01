@@ -117,7 +117,7 @@ const getStatusText = (status: string): string => {
 };
 
 const formatCurrency = (amount: number): string => {
-  return `₹${amount?.toFixed(2) || '0.00'}`;
+  return `AED ${amount?.toFixed(2) || '0.00'}`;
 };
 
 const formatDateTime = (date: string | Date): string => {
