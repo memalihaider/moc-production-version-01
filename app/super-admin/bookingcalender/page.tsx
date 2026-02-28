@@ -674,48 +674,187 @@ const createBookingInFirebase = async (
     const servicesPrice = selectedServices.reduce((sum, s) => sum + s.price, 0);
     const totalAmount = servicesPrice;
     
-    const bookingNumber = `ADMIN-${Date.now()}`;
+    // ✅ BOOKING NUMBER - EXACT 2nd FORMAT
+    const bookingNumber = `BOOK-${Date.now()}`;
     
+    // ✅ GET CURRENT DATE IN EXACT 2nd FORMAT
+    const now = new Date();
+    
+    // Format date as "YYYY-MM-DD HH:MM:SS.mmmmmm"
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    const milliseconds = String(now.getMilliseconds()).padStart(6, '0');
+    
+    const dateTimeString = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}.${milliseconds}`;
+    const bookingDateString = `${year}-${month}-${day}`;
+    
+    // ✅ Format time to "2:00 PM" style
+    const formatTimeTo12Hour = (time: string): string => {
+      if (time.includes('AM') || time.includes('PM')) return time;
+      
+      const [hour, minute] = time.split(':');
+      const h = parseInt(hour);
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      const hour12 = h % 12 || 12;
+      return `${hour12}:${minute} ${ampm}`;
+    };
+    
+    const bookingTimeString = formatTimeTo12Hour(bookingData.time);
+    const timeSlotString = bookingTimeString.split(' ')[0];
+    
+    // ✅ MAIN BRANCH
+    const mainBranch = selectedServices[0]?.branch || "Main Branch";
+    
+    // ✅ FIRST SERVICE
+    const firstService = selectedServices[0];
+    const firstServiceStaffId = firstService?.serviceId || "kXGNeY0fILAr1FR4niIu";
+    
+    // ✅ SERVICE DETAILS ARRAY
     const serviceDetails = selectedServices.map(service => ({
-      branch: service.branch,
       name: service.service,
-      price: service.price,
+      branch: service.branch,
       staff: service.staff,
-      staffId: service.serviceId
+      staffId: service.serviceId || firstServiceStaffId,
+      price: service.price,
+      duration: 60
     }));
     
+    // ✅ TEAM MEMBERS
+    const teamMembers = selectedServices.map(service => ({
+      name: service.staff,
+      role: "Hair Barber",
+      staffId: service.serviceId || firstServiceStaffId,
+      tip: 0
+    }));
+    
+    // ✅ PAYMENT AMOUNTS - EXACT 2nd FORMAT with ALL selected methods
+    const paymentAmounts: any = {};
+    
+    // Add only the payment methods that were selected and have amounts
+    bookingData.paymentMethods.forEach(method => {
+      const methodKey = method.toLowerCase();
+      const amount = bookingData.paymentAmounts[method as keyof typeof bookingData.paymentAmounts] || 0;
+      if (amount > 0) {
+        paymentAmounts[methodKey] = amount;
+      }
+    });
+    
+    // If no payment methods with amounts, add cash as 0
+    if (Object.keys(paymentAmounts).length === 0) {
+      paymentAmounts.cash = 0;
+    }
+    
+    // ✅ PAYMENT METHOD STRING for notes and display
+    const paymentMethodsString = bookingData.paymentMethods
+      .map(m => `${m}${bookingData.paymentAmounts[m as keyof typeof bookingData.paymentAmounts] ? `: $${bookingData.paymentAmounts[m as keyof typeof bookingData.paymentAmounts]}` : ''}`)
+      .join(', ');
+    
+    // ✅ Generate ID like "6QkECDD6Lrp7oc9Krg0u"
+    const generateId = () => {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+      let result = '';
+      for (let i = 0; i < 20; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return result;
+    };
+    
+    // ✅ FIREBASE BOOKING DATA - EXACT 2nd FORMAT
     const firebaseBookingData = {
+      bookingDate: bookingDateString,
+      bookingNumber: bookingNumber,
+      bookingTime: bookingTimeString,
+      date: dateTimeString,
+      time: bookingTimeString,
+      
+      branch: mainBranch,
+      branchId: mainBranch,
+      branchNames: [mainBranch],
+      branches: [mainBranch],
+      userBranchId: mainBranch,
+      userBranchName: mainBranch,
+      
       customerName: bookingData.customer,
       customerEmail: bookingData.email || "",
       customerPhone: bookingData.phone || "",
-      serviceName: selectedServices[0]?.service || "Multiple Services",
+      customerId: "BMM6eUOOm9gJLpB7bs0WAFcPVK63",
+      
+      serviceCategory: "Category 02",
+      serviceCategoryId: "OMKdORLeWL9HozfHtwud",
+      serviceCharges: 0,
+      serviceDuration: 22,
+      serviceId: firstServiceStaffId,
+      serviceName: firstService?.service || "Classic Service",
+      servicePrice: servicesPrice,
+      serviceTip: 0,
+      
       services: selectedServices.map(s => s.service),
       serviceDetails: serviceDetails,
-      servicePrice: servicesPrice,
+      
+      staff: firstService?.staff || "Alexa",
+      staffName: firstService?.staff || "Alexa",
+      staffId: firstServiceStaffId,
+      staffRole: "Hair Barber",
+      
+      teamMembers: teamMembers,
+      
+      subtotal: servicesPrice,
       totalAmount: totalAmount,
-      staff: bookingData.barber,
-      staffName: bookingData.barber,
-      date: bookingData.date,
-      time: bookingData.time,
-      bookingDate: bookingData.date,
-      bookingTime: bookingData.time,
-      status: bookingData.status || 'upcoming',
-      paymentMethod: bookingData.paymentMethods.length > 0 ? bookingData.paymentMethods.join(', ') : 'cash',
-      paymentStatus: bookingData.status === 'completed' ? 'paid' : 'upcoming',
-      branch: selectedServices[0]?.branch || "All Branches",
-      notes: bookingData.notes || '',
+      price: totalAmount,
+      
+      duration: "60 min",
+      totalDuration: 22,
+      timeSlot: timeSlotString,
+      
+      // ✅ PAYMENT DETAILS - MULTIPLE METHODS WITH AMOUNTS
+      paymentMethod: bookingData.paymentMethods.join(', '),
+      paymentStatus: "pending",
       paymentMethods: bookingData.paymentMethods,
-      paymentAmounts: bookingData.paymentAmounts,
-      cardLast4Digits: bookingData.cardLast4Digits || "",
-      trnNumber: bookingData.trnNumber || "",
-      createdBy: 'admin',
-      bookingNumber: bookingNumber,
+      paymentAmounts: paymentAmounts,  // This will have { cash: 12, check: 5 } etc.
+      cardLast4Digits: "",
+      trnNumber: "",
+      
+      discount: 0,
+      discountAmount: 0,
+      discountType: "none",
+      tax: 0,
+      taxAmount: 0,
+      
+      products: [],
+      productsTotal: 0,
+      
+      status: "upcoming",
+      
+      notes: `Payment Method: ${paymentMethodsString}. ${bookingData.notes}`.trim(),
+      
+      source: "customer_app",
+      createdBy: "admin",
+      userRole: "admin",
+      
       createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp()
+      updatedAt: serverTimestamp(),
+      
+      pointsAwarded: false,
+      
+      id: generateId(),
+      totalTips: 0
     };
 
+    console.log("📝 Payment Amounts being saved:", paymentAmounts);
+    console.log("📝 Full booking data:", JSON.stringify(firebaseBookingData, null, 2));
+    
     const bookingsRef = collection(db, "bookings");
     const docRef = await addDoc(bookingsRef, firebaseBookingData);
+    
+    addNotification({
+      type: 'success',
+      title: 'Booking Created',
+      message: `Booking #${bookingNumber} saved with payments: ${Object.entries(paymentAmounts).map(([k,v]) => `${k}: $${v}`).join(', ')}`
+    });
     
     return {success: true, bookingId: docRef.id};
     

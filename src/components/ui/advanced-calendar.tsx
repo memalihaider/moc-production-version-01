@@ -121,6 +121,21 @@ interface ServiceItem {
   updatedAt: any;
 }
 
+// NEW: Branch interface
+interface Branch {
+  id: string;
+  name: string;
+  address?: string;
+  city?: string;
+  country?: string;
+  phone?: string;
+  email?: string;
+  status?: string;
+  openingTime?: string;
+  closingTime?: string;
+  weeklyTimings?: any;
+}
+
 interface AdvancedCalendarProps {
   appointments: Appointment[];
   onAppointmentClick: (appointment: Appointment) => void;
@@ -1362,7 +1377,8 @@ if (amounts.Check > 0 || amounts.check > 0) {
 
 
   
- // ADVANCE CALENDAR POPUP COMPONENT - WITH STATUS DROPDOWN (FIXED)
+
+// ADVANCE CALENDAR POPUP COMPONENT - WITH RESCHEDULE FUNCTIONALITY
 const AdvanceCalendarPopup = ({ 
   appointment, 
   onClose,
@@ -1379,6 +1395,13 @@ const AdvanceCalendarPopup = ({
   const [loading, setLoading] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [freshAppointment, setFreshAppointment] = useState<Appointment | null>(null);
+  
+  // ✅ NEW: Reschedule state
+  const [showRescheduleDialog, setShowRescheduleDialog] = useState(false);
+  const [rescheduleDate, setRescheduleDate] = useState('');
+  const [rescheduleTime, setRescheduleTime] = useState('');
+  const [rescheduling, setRescheduling] = useState(false);
+  
   const [paymentDetails, setPaymentDetails] = useState<{
     methods: PaymentMethod[];
     totalPaid: number;
@@ -1501,21 +1524,41 @@ const AdvanceCalendarPopup = ({
     }
   };
   
-  // Function to update status in Firebase
+  // ✅ UPDATED: Function to update status with reschedule handling
   const handleStatusUpdate = async (newStatus: string) => {
     if (!displayAppointment?.firebaseId) {
       alert("No Firebase ID found for this appointment");
       return;
     }
     
+    // ✅ NEW: If status is 'rescheduled', show reschedule dialog first
+    if (newStatus === 'rescheduled') {
+      // Pre-fill with current date/time
+      setRescheduleDate(displayAppointment.bookingDate || displayAppointment.date || '');
+      setRescheduleTime(displayAppointment.bookingTime || displayAppointment.time || '');
+      setShowRescheduleDialog(true);
+      return;
+    }
+    
+    // For other statuses, update directly
+    await updateStatusOnly(newStatus);
+  };
+  
+  // ✅ NEW: Function to update only status (for non-reschedule)
+  const updateStatusOnly = async (newStatus: string) => {
+    if (!displayAppointment?.firebaseId) return;
+    
     setUpdatingStatus(true);
     try {
       const bookingRef = doc(db, "bookings", displayAppointment.firebaseId);
-      // ✅ updateDoc is now properly imported from firebase/firestore
-      await updateDoc(bookingRef, {
+      
+      // Prepare update data
+      const updateData: any = {
         status: newStatus,
         updatedAt: new Date()
-      });
+      };
+      
+      await updateDoc(bookingRef, updateData);
       
       // Update local state
       if (freshAppointment) {
@@ -1545,6 +1588,64 @@ const AdvanceCalendarPopup = ({
     }
   };
   
+  // ✅ NEW: Function to handle reschedule save
+  const handleRescheduleSave = async () => {
+    if (!displayAppointment?.firebaseId) {
+      alert("No Firebase ID found");
+      return;
+    }
+    
+    if (!rescheduleDate || !rescheduleTime) {
+      alert("Please select both date and time");
+      return;
+    }
+    
+    setRescheduling(true);
+    try {
+      const bookingRef = doc(db, "bookings", displayAppointment.firebaseId);
+      
+      // Prepare update data with new date/time
+      const updateData: any = {
+        status: 'rescheduled',
+        bookingDate: rescheduleDate,
+        bookingTime: rescheduleTime,
+        date: rescheduleDate,
+        time: rescheduleTime,
+        updatedAt: new Date()
+      };
+      
+      await updateDoc(bookingRef, updateData);
+      
+      // Update local state
+      const updatedAppointment = {
+        ...displayAppointment,
+        status: 'rescheduled',
+        bookingDate: rescheduleDate,
+        bookingTime: rescheduleTime,
+        date: rescheduleDate,
+        time: rescheduleTime
+      };
+      
+      setFreshAppointment(updatedAppointment as Appointment);
+      
+      // Call parent callback if provided
+      if (onStatusChange) {
+        onStatusChange(displayAppointment.firebaseId, 'rescheduled');
+      }
+      
+      console.log(`✅ Appointment rescheduled to ${rescheduleDate} at ${rescheduleTime}`);
+      
+      // Close reschedule dialog
+      setShowRescheduleDialog(false);
+      
+    } catch (error) {
+      console.error("Error rescheduling appointment:", error);
+      alert("Failed to reschedule. Please try again.");
+    } finally {
+      setRescheduling(false);
+    }
+  };
+  
   const displayAppointment = freshAppointment || appointment;
   
   if (!displayAppointment) return null;
@@ -1558,6 +1659,7 @@ const AdvanceCalendarPopup = ({
       case "pending": return "bg-orange-100 text-orange-800";
       case "cancelled": return "bg-red-100 text-red-800";
       case "rejected": return "bg-gray-100 text-gray-800";
+      case "rescheduled": return "bg-indigo-100 text-indigo-800";
       default: return "bg-gray-100 text-gray-800";
     }
   };
@@ -1571,318 +1673,410 @@ const AdvanceCalendarPopup = ({
       case "pending": return <Clock className="w-4 h-4" />;
       case "cancelled": return <X className="w-4 h-4" />;
       case "rejected": return <X className="w-4 h-4" />;
+      case "rescheduled": return <RotateCcw className="w-4 h-4" />;
       default: return <AlertCircle className="w-4 h-4" />;
     }
   };
   
-  const getPaymentStatusColor = (status: string): string => {
-    switch (status.toLowerCase()) {
-      case "paid": return "bg-green-100 text-green-800";
-      case "partial": return "bg-yellow-100 text-yellow-800";
-      case "pending": return "bg-orange-100 text-orange-800";
-      case "overdue": return "bg-red-100 text-red-800";
-      case "refunded": return "bg-blue-100 text-blue-800";
-      default: return "bg-gray-100 text-gray-800";
-    }
-  };
-  
   return (
-    <Sheet open={true} onOpenChange={onClose}>
-      <SheetContent className="w-full sm:max-w-full overflow-y-auto p-5 rounded-2xl mt-5">
-        {/* Hidden Title for Accessibility */}
-        <SheetTitle className="sr-only">Appointment Details</SheetTitle>
-        
-        {/* Header with Status Dropdown */}
-        <div className="sticky top-0 bg-white border-b z-10 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                <Calendar className="w-6 h-6 text-blue-600" />
+    <>
+      <Sheet open={true} onOpenChange={onClose}>
+        <SheetContent className="w-full sm:max-w-full overflow-y-auto p-5 rounded-2xl mt-5">
+          {/* Hidden Title for Accessibility */}
+          <SheetTitle className="sr-only">Appointment Details</SheetTitle>
+          
+          {/* Header with Status Dropdown */}
+          <div className="sticky top-0 bg-white border-b z-10 px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                  <Calendar className="w-6 h-6 text-blue-600" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">Appointment Details</h2>
+                  <p className="text-sm text-gray-500">Booking information</p>
+                </div>
               </div>
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900">Appointment Details</h2>
-                <p className="text-sm text-gray-500">Booking information</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              {/* Status Dropdown */}
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-500">Status:</span>
-                <Select
-                  value={displayAppointment.status}
-                  onValueChange={handleStatusUpdate}
-                  disabled={updatingStatus || !displayAppointment.firebaseId}
-                >
-                  <SelectTrigger className="w-40 h-9">
-                    <SelectValue>
-                      <div className="flex items-center gap-2">
-                        {getStatusIcon(displayAppointment.status)}
-                        <span className="capitalize">{displayAppointment.status}</span>
-                      </div>
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pending">
-                      <div className="flex items-center gap-2">
-                        <Clock className="w-4 h-4 text-orange-500" />
-                        <span>Pending</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="approved">
-                      <div className="flex items-center gap-2">
-                        <CheckCircle className="w-4 h-4 text-purple-500" />
-                        <span>Approved</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="in-progress">
-                      <div className="flex items-center gap-2">
-                        <Clock className="w-4 h-4 text-blue-500" />
-                        <span>In Progress</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="completed">
-                      <div className="flex items-center gap-2">
-                        <CheckCircle className="w-4 h-4 text-green-500" />
-                        <span>Completed</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="cancelled">
-                      <div className="flex items-center gap-2">
-                        <X className="w-4 h-4 text-red-500" />
-                        <span>Cancelled</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="rejected">
-                      <div className="flex items-center gap-2">
-                        <X className="w-4 h-4 text-gray-500" />
-                        <span>Rejected</span>
-                      </div>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-                {updatingStatus && (
-                  <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+              <div className="flex items-center gap-3">
+                {/* Status Dropdown with Rescheduled */}
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-500">Status:</span>
+                  <Select
+                    value={displayAppointment.status}
+                    onValueChange={handleStatusUpdate}
+                    disabled={updatingStatus || !displayAppointment.firebaseId}
+                  >
+                    <SelectTrigger className="w-40 h-9">
+                      <SelectValue>
+                        <div className="flex items-center gap-2">
+                          {getStatusIcon(displayAppointment.status)}
+                          <span className="capitalize">{displayAppointment.status}</span>
+                        </div>
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pending">
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-4 h-4 text-orange-500" />
+                          <span>Pending</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="approved">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle className="w-4 h-4 text-purple-500" />
+                          <span>Approved</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="in-progress">
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-4 h-4 text-blue-500" />
+                          <span>In Progress</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="completed">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle className="w-4 h-4 text-green-500" />
+                          <span>Completed</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="rescheduled">
+                        <div className="flex items-center gap-2">
+                          <RotateCcw className="w-4 h-4 text-indigo-500" />
+                          <span>Rescheduled</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="cancelled">
+                        <div className="flex items-center gap-2">
+                          <X className="w-4 h-4 text-red-500" />
+                          <span>Cancelled</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="rejected">
+                        <div className="flex items-center gap-2">
+                          <X className="w-4 h-4 text-gray-500" />
+                          <span>Rejected</span>
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {updatingStatus && (
+                    <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                  )}
+                </div>
+                {loading && (
+                  <Badge className="bg-blue-500 animate-pulse">Loading...</Badge>
                 )}
               </div>
-              {loading && (
-                <Badge className="bg-blue-500 animate-pulse">Loading...</Badge>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="p-6 space-y-6">
-          {/* Customer Information */}
-          <div className="bg-white border rounded-xl p-5">
-            <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
-              <User className="w-4 h-4 text-blue-600" />
-              Customer Information
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <p className="text-xs text-gray-500">Full Name</p>
-                <p className="font-medium text-gray-900">{displayAppointment.customerName || displayAppointment.customer}</p>
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">Email</p>
-                <p className="font-medium text-gray-900 break-all">{displayAppointment.customerEmail || displayAppointment.email || '—'}</p>
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">Phone</p>
-                <p className="font-medium text-gray-900">{displayAppointment.customerPhone || displayAppointment.phone || '—'}</p>
-              </div>
             </div>
           </div>
 
-          {/* Services Table */}
-          <div className="bg-white border rounded-xl p-5">
-            <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
-              <Scissors className="w-4 h-4 text-blue-600" />
-              Services
-            </h3>
-            
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-y">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Service</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Branch</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Staff</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500">Price</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {displayAppointment.serviceDetails && displayAppointment.serviceDetails.length > 0 ? (
-                    displayAppointment.serviceDetails.map((service: { name: string | number | bigint | boolean | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | Promise<string | number | bigint | boolean | React.ReactPortal | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | null | undefined> | null | undefined; branch: string | number | bigint | boolean | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | Promise<string | number | bigint | boolean | React.ReactPortal | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | null | undefined> | null | undefined; staff: string | number | bigint | boolean | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | Promise<string | number | bigint | boolean | React.ReactPortal | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | null | undefined> | null | undefined; price: number; }, index: React.Key | null | undefined) => (
-                      <tr key={index} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 font-medium">{service.name}</td>
-                        <td className="px-4 py-3">{service.branch}</td>
-                        <td className="px-4 py-3">{service.staff}</td>
+          <div className="p-6 space-y-6">
+            {/* Customer Information */}
+            <div className="bg-white border rounded-xl p-5">
+              <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
+                <User className="w-4 h-4 text-blue-600" />
+                Customer Information
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <p className="text-xs text-gray-500">Full Name</p>
+                  <p className="font-medium text-gray-900">{displayAppointment.customerName || displayAppointment.customer}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Email</p>
+                  <p className="font-medium text-gray-900 break-all">{displayAppointment.customerEmail || displayAppointment.email || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Phone</p>
+                  <p className="font-medium text-gray-900">{displayAppointment.customerPhone || displayAppointment.phone || '—'}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Services Table */}
+            <div className="bg-white border rounded-xl p-5">
+              <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
+                <Scissors className="w-4 h-4 text-blue-600" />
+                Services
+              </h3>
+              
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-y">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Service</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Branch</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Staff</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500">Price</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {displayAppointment.serviceDetails && displayAppointment.serviceDetails.length > 0 ? (
+                      displayAppointment.serviceDetails.map((service: any, index: React.Key | null | undefined) => (
+                        <tr key={index} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 font-medium">{service.name}</td>
+                          <td className="px-4 py-3">{service.branch}</td>
+                          <td className="px-4 py-3">{service.staff}</td>
+                          <td className="px-4 py-3 text-right font-medium">
+                            {formatCurrency(service.price)}
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr className="hover:bg-gray-50">
+                        <td className="px-4 py-3 font-medium">{displayAppointment.serviceName || displayAppointment.service}</td>
+                        <td className="px-4 py-3">{displayAppointment.branch}</td>
+                        <td className="px-4 py-3">{displayAppointment.staffName || displayAppointment.staff || displayAppointment.barber}</td>
                         <td className="px-4 py-3 text-right font-medium">
-                          {formatCurrency(service.price)}
+                          {formatCurrency(displayAppointment.servicePrice || displayAppointment.price)}
                         </td>
                       </tr>
-                    ))
-                  ) : (
-                    <tr className="hover:bg-gray-50">
-                      <td className="px-4 py-3 font-medium">{displayAppointment.serviceName || displayAppointment.service}</td>
-                      <td className="px-4 py-3">{displayAppointment.branch}</td>
-                      <td className="px-4 py-3">{displayAppointment.staffName || displayAppointment.staff || displayAppointment.barber}</td>
-                      <td className="px-4 py-3 text-right font-medium">
-                        {formatCurrency(displayAppointment.servicePrice || displayAppointment.price)}
+                    )}
+                  </tbody>
+                  <tfoot className="bg-gray-50 border-t">
+                    <tr>
+                      <td colSpan={3} className="px-4 py-3 text-right font-medium text-gray-700">Total:</td>
+                      <td className="px-4 py-3 text-right font-bold text-gray-900">
+                        {formatCurrency(displayAppointment.totalAmount || displayAppointment.servicePrice || displayAppointment.price)}
                       </td>
                     </tr>
-                  )}
-                </tbody>
-                <tfoot className="bg-gray-50 border-t">
-                  <tr>
-                    <td colSpan={3} className="px-4 py-3 text-right font-medium text-gray-700">Total:</td>
-                    <td className="px-4 py-3 text-right font-bold text-gray-900">
-                      {formatCurrency(displayAppointment.totalAmount || displayAppointment.servicePrice || displayAppointment.price)}
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          </div>
-
-          {/* Schedule */}
-          <div className="bg-white border rounded-xl p-5">
-            <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-blue-600" />
-              Schedule
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <p className="text-xs text-gray-500">Date</p>
-                <p className="font-medium text-gray-900">{displayAppointment.bookingDate || displayAppointment.date}</p>
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">Time</p>
-                <p className="font-medium text-gray-900">{displayAppointment.bookingTime || displayAppointment.time}</p>
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">Duration</p>
-                <p className="font-medium text-gray-900">{displayAppointment.duration || '60 min'}</p>
+                  </tfoot>
+                </table>
               </div>
             </div>
-          </div>
 
-          {/* Payment Details */}
-          <div className="bg-white border rounded-xl p-5">
-            <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
-              <CreditCard className="w-4 h-4 text-blue-600" />
-              Payment Details
-            </h3>
-            
-            <div className="space-y-3">
-              {displayAppointment.paymentAmounts && (
-                <>
-                  {(displayAppointment.paymentAmounts.Cash > 0 || displayAppointment.paymentAmounts.cash > 0) && (
-                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                          <DollarSign className="w-4 h-4 text-green-600" />
-                        </div>
-                        <span className="font-medium text-gray-900">Cash</span>
-                      </div>
-                      <span className="font-bold text-green-700">
-                        {formatCurrency(displayAppointment.paymentAmounts.Cash || displayAppointment.paymentAmounts.cash || 0)}
-                      </span>
-                    </div>
-                  )}
-
-                  {(displayAppointment.paymentAmounts.Digital > 0 || displayAppointment.paymentAmounts.digital > 0) && (
-                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                          <Smartphone className="w-4 h-4 text-purple-600" />
-                        </div>
-                        <span className="font-medium text-gray-900">Digital</span>
-                      </div>
-                      <span className="font-bold text-green-700">
-                        {formatCurrency(displayAppointment.paymentAmounts.Digital || displayAppointment.paymentAmounts.digital || 0)}
-                      </span>
-                    </div>
-                  )}
-
-                  {(displayAppointment.paymentAmounts.Card > 0 || displayAppointment.paymentAmounts.card > 0) && (
-                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                          <CreditCard className="w-4 h-4 text-blue-600" />
-                        </div>
-                        <span className="font-medium text-gray-900">Card</span>
-                        {displayAppointment.cardLast4Digits && (
-                          <span className="text-xs text-gray-500">(•••• {displayAppointment.cardLast4Digits})</span>
-                        )}
-                      </div>
-                      <span className="font-bold text-green-700">
-                        {formatCurrency(displayAppointment.paymentAmounts.Card || displayAppointment.paymentAmounts.card || 0)}
-                      </span>
-                    </div>
-                  )}
-
-                  {(displayAppointment.paymentAmounts.Check > 0 || displayAppointment.paymentAmounts.check > 0) && (
-                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
-                          <FileText className="w-4 h-4 text-orange-600" />
-                        </div>
-                        <span className="font-medium text-gray-900">Check</span>
-                      </div>
-                      <span className="font-bold text-green-700">
-                        {formatCurrency(displayAppointment.paymentAmounts.Check || displayAppointment.paymentAmounts.check || 0)}
-                      </span>
-                    </div>
-                  )}
-                </>
-              )}
-
-              {(!displayAppointment.paymentAmounts || 
-                Object.values(displayAppointment.paymentAmounts || {}).every(v => v === 0)) && (
-                <div className="p-4 bg-yellow-50 rounded-lg text-center">
-                  <p className="text-sm text-yellow-800">No payment details found</p>
-                </div>
-              )}
-
-              <div className="mt-4 pt-4 border-t flex items-center justify-between">
-                <span className="font-semibold text-gray-700">Total Amount</span>
-                <span className="text-xl font-bold text-blue-700">
-                  {formatCurrency(displayAppointment.totalAmount || displayAppointment.servicePrice || displayAppointment.price || 0)}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {displayAppointment.notes && (
+            {/* Schedule */}
             <div className="bg-white border rounded-xl p-5">
-              <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                <FileText className="w-4 h-4 text-blue-600" />
-                Notes
+              <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-blue-600" />
+                Schedule
               </h3>
-              <p className="text-gray-700 bg-gray-50 p-3 rounded-lg">{displayAppointment.notes}</p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <p className="text-xs text-gray-500">Date</p>
+                  <p className="font-medium text-gray-900">{displayAppointment.bookingDate || displayAppointment.date}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Time</p>
+                  <p className="font-medium text-gray-900">{displayAppointment.bookingTime || displayAppointment.time}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Duration</p>
+                  <p className="font-medium text-gray-900">{displayAppointment.duration || '60 min'}</p>
+                </div>
+              </div>
             </div>
-          )}
 
-          <div className="flex justify-end gap-3 pt-4">
-            {displayAppointment.status === 'completed' && onGenerateInvoice && (
-              <Button
-                onClick={() => onGenerateInvoice(displayAppointment)}
-                className="bg-green-600 hover:bg-green-700 text-white gap-2"
-              >
-                <Receipt className="w-4 h-4" />
-                Generate Invoice
-              </Button>
-            )}
-            <Button onClick={onClose} variant="outline" className="gap-2">
-              <X className="w-4 h-4" />
-              Close
-            </Button>
+           {/* Payment Details - FIXED: Shows ALL payment methods dynamically */}
+<div className="bg-white border rounded-xl p-5">
+  <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
+    <CreditCard className="w-4 h-4 text-blue-600" />
+    Payment Details
+  </h3>
+  
+  <div className="space-y-3">
+    {/* Check if paymentAmounts exists and has data */}
+    {displayAppointment.paymentAmounts && Object.keys(displayAppointment.paymentAmounts).length > 0 ? (
+      <>
+        {/* 🔥 DYNAMIC LOOP - Shows EVERY payment method with amount > 0 */}
+        {Object.entries(displayAppointment.paymentAmounts).map(([method, amount]) => {
+          // Skip if amount is 0 or undefined
+          if (!amount || amount <= 0) return null;
+          
+          // Get appropriate icon and color based on payment method
+          const getPaymentIcon = (method: string) => {
+            const methodLower = method.toLowerCase();
+            switch (methodLower) {
+              case 'cash': return <DollarSign className="w-4 h-4 text-green-600" />;
+              case 'card': return <CreditCard className="w-4 h-4 text-blue-600" />;
+              case 'digital': return <Smartphone className="w-4 h-4 text-purple-600" />;
+              case 'check': return <FileText className="w-4 h-4 text-orange-600" />;
+              case 'wallet': return <Wallet className="w-4 h-4 text-indigo-600" />;
+              default: return <Coins className="w-4 h-4 text-gray-600" />;
+            }
+          };
+          
+          const getBgColor = (method: string) => {
+            const methodLower = method.toLowerCase();
+            switch (methodLower) {
+              case 'cash': return 'bg-green-100';
+              case 'card': return 'bg-blue-100';
+              case 'digital': return 'bg-purple-100';
+              case 'check': return 'bg-orange-100';
+              case 'wallet': return 'bg-indigo-100';
+              default: return 'bg-gray-100';
+            }
+          };
+          
+          return (
+            <div key={method} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div className="flex items-center gap-3">
+                <div className={`w-8 h-8 ${getBgColor(method)} rounded-full flex items-center justify-center`}>
+                  {getPaymentIcon(method)}
+                </div>
+                <span className="font-medium text-gray-900 capitalize">{method}</span>
+                {method.toLowerCase() === 'card' && displayAppointment.cardLast4Digits && (
+                  <span className="text-xs text-gray-500">(•••• {displayAppointment.cardLast4Digits})</span>
+                )}
+              </div>
+              <span className="font-bold text-green-700">
+                {formatCurrency(amount)}
+              </span>
+            </div>
+          );
+        })}
+        
+        {/* If no payment methods with amounts but paymentMethods array exists */}
+        {Object.values(displayAppointment.paymentAmounts).filter(v => v > 0).length === 0 && 
+         displayAppointment.paymentMethods && displayAppointment.paymentMethods.length > 0 && (
+          <div className="p-4 bg-blue-50 rounded-lg">
+            <p className="text-sm text-blue-800 font-medium mb-2">Payment Methods (no amounts):</p>
+            <div className="flex flex-wrap gap-2">
+              {displayAppointment.paymentMethods.map((method, idx) => (
+                <Badge key={idx} className="bg-blue-100 text-blue-800">
+                  {method}
+                </Badge>
+              ))}
+            </div>
           </div>
-        </div>
-      </SheetContent>
-    </Sheet>
+        )}
+      </>
+    ) : (
+      <div className="p-4 bg-yellow-50 rounded-lg text-center">
+        <p className="text-sm text-yellow-800">No payment details found</p>
+      </div>
+    )}
+
+    {/* Total Amount - Always show */}
+    <div className="mt-4 pt-4 border-t flex items-center justify-between">
+      <span className="font-semibold text-gray-700">Total Amount</span>
+      <span className="text-xl font-bold text-blue-700">
+        {formatCurrency(displayAppointment.totalAmount || displayAppointment.servicePrice || displayAppointment.price || 0)}
+      </span>
+    </div>
+  </div>
+</div>
+
+            {displayAppointment.notes && (
+              <div className="bg-white border rounded-xl p-5">
+                <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-blue-600" />
+                  Notes
+                </h3>
+                <p className="text-gray-700 bg-gray-50 p-3 rounded-lg">{displayAppointment.notes}</p>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3 pt-4">
+              {displayAppointment.status === 'completed' && onGenerateInvoice && (
+                <Button
+                  onClick={() => onGenerateInvoice(displayAppointment)}
+                  className="bg-green-600 hover:bg-green-700 text-white gap-2"
+                >
+                  <Receipt className="w-4 h-4" />
+                  Generate Invoice
+                </Button>
+              )}
+              <Button onClick={onClose} variant="outline" className="gap-2">
+                <X className="w-4 h-4" />
+                Close
+              </Button>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* ✅ NEW: Reschedule Dialog */}
+      <Sheet open={showRescheduleDialog} onOpenChange={setShowRescheduleDialog}>
+        <SheetContent className="w-full sm:max-w-md p-10 rounded-2xl mt-10 h-[700px]">
+          <SheetHeader>
+            <SheetTitle className="text-xl font-semibold flex items-center gap-2">
+              <RotateCcw className="w-5 h-5 text-indigo-600" />
+              Reschedule Appointment
+            </SheetTitle>
+            <SheetDescription>
+              Select new date and time for this appointment
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="mt-6 space-y-6">
+            {/* Customer Info */}
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <p className="text-sm text-gray-600">Customer:</p>
+              <p className="font-semibold text-gray-900">{displayAppointment?.customerName || displayAppointment?.customer}</p>
+            </div>
+
+            {/* Current Schedule */}
+            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+              <p className="text-sm text-blue-700 font-medium mb-2">Current Schedule:</p>
+              <div className="flex items-center gap-4 text-blue-800">
+                <div className="flex items-center gap-1">
+                  <Calendar className="w-4 h-4" />
+                  <span>{displayAppointment?.bookingDate || displayAppointment?.date}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Clock className="w-4 h-4" />
+                  <span>{displayAppointment?.bookingTime || displayAppointment?.time}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* New Date & Time */}
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-gray-700">New Date *</Label>
+                <Input
+                  type="date"
+                  value={rescheduleDate}
+                  onChange={(e) => setRescheduleDate(e.target.value)}
+                  className="h-11"
+                  min={new Date().toISOString().split('T')[0]}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-gray-700">New Time *</Label>
+                <Input
+                  type="time"
+                  value={rescheduleTime}
+                  onChange={(e) => setRescheduleTime(e.target.value)}
+                  className="h-11"
+                />
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3 pt-4">
+              <Button
+                variant="outline"
+                onClick={() => setShowRescheduleDialog(false)}
+                className="flex-1 h-11"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleRescheduleSave}
+                disabled={!rescheduleDate || !rescheduleTime || rescheduling}
+                className="flex-1 h-11 bg-indigo-600 hover:bg-indigo-700 gap-2"
+              >
+                {rescheduling ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent text-black rounded-full animate-spin"></div>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <RotateCcw className="w-4 h-4" />
+                    <p className='text-black'> Reschedule</p>
+                   
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+    </>
   );
 };
 
@@ -1919,6 +2113,38 @@ const fetchStaffFromFirebase = async (): Promise<StaffMember[]> => {
   }
 };
 
+// NEW FUNCTION: Fetch branches from Firebase (sirf naam fetch karna hai)
+const fetchBranchesFromFirebase = async (): Promise<Branch[]> => {
+  try {
+    const branchesRef = collection(db, "branches");
+    const querySnapshot = await getDocs(branchesRef);
+    
+    const branches: Branch[] = [];
+    querySnapshot.forEach((doc) => {
+      const data = doc.data();
+      branches.push({
+        id: doc.id,
+        name: data.name || "Unknown Branch", // SIRF NAAM CHAHIYE
+        address: data.address || "",
+        city: data.city || "",
+        country: data.country || "",
+        phone: data.phone || "",
+        email: data.email || "",
+        status: data.status || "active",
+        openingTime: data.openingTime || "09:00",
+        closingTime: data.closingTime || "18:00",
+        weeklyTimings: data.weeklyTimings || {}
+      });
+    });
+    
+    console.log("🏢 Branches fetched:", branches.map(b => b.name));
+    return branches;
+  } catch (error) {
+    console.error("Error fetching branches:", error);
+    return [];
+  }
+};
+
 export function AdvancedCalendar({ 
   appointments, 
   onAppointmentClick, 
@@ -1930,6 +2156,9 @@ export function AdvancedCalendar({
 }: AdvancedCalendarProps) {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedBarber, setSelectedBarber] = useState<string>('all');
+  // NEW: Selected branch for filtering
+  const [selectedBranch, setSelectedBranch] = useState<string>('all');
+  const [branches, setBranches] = useState<Branch[]>([]);
   const [timeSlotGap, setTimeSlotGap] = useState(30);
   const [layoutMode, setLayoutMode] = useState<'time-top' | 'employee-top'>('time-top');
   const [businessHours, setBusinessHours] = useState({ start: 9, end: 18 });
@@ -1942,6 +2171,7 @@ export function AdvancedCalendar({
   const [showInvoicePopup, setShowInvoicePopup] = useState(false);
   const [selectedInvoiceAppointment, setSelectedInvoiceAppointment] = useState<Appointment | null>(null);
   
+  // Load staff data
   useEffect(() => {
     const loadStaffData = async () => {
       if (propStaff && propStaff.length > 0) {
@@ -1954,6 +2184,16 @@ export function AdvancedCalendar({
     
     loadStaffData();
   }, [propStaff]);
+
+  // NEW: Load branches data
+  useEffect(() => {
+    const loadBranches = async () => {
+      const branchesData = await fetchBranchesFromFirebase();
+      setBranches(branchesData);
+    };
+    
+    loadBranches();
+  }, []);
 
   const barbers = useMemo(() => staffMembers.map(staff => staff.name), [staffMembers]);
 
@@ -1979,15 +2219,58 @@ export function AdvancedCalendar({
 
   const timeSlots = useMemo(() => generateTimeSlots(), [selectedDate, businessHours, timeSlotGap, hiddenHours]);
 
-  const filteredAppointments = useMemo(() => 
-    appointments.filter(apt => {
-      const aptDate = typeof apt.date === 'string' ? parseISO(apt.date) : new Date(apt.date);
-      const isSameDate = isSameDay(aptDate, selectedDate);
-      const isSameBarber = selectedBarber === 'all' || apt.barber === selectedBarber;
-      return isSameDate && isSameBarber;
-    }),
-    [appointments, selectedDate, selectedBarber]
-  );
+  // ==================== MAIN FILTER LOGIC - EXACT BRANCH MATCH ====================
+ // ==================== MAIN FILTER LOGIC - FIXED BRANCH MATCH ====================
+const filteredAppointments = useMemo(() => {
+  console.log("========== BRANCH FILTER DEBUG ==========");
+  console.log("1️⃣ Selected Branch from Dropdown:", selectedBranch);
+  console.log("2️⃣ Total Appointments Received:", appointments.length);
+  
+  // List all unique branches in appointments
+  const uniqueBranches = [...new Set(appointments.map(apt => apt.branch))];
+  console.log("3️⃣ Unique Branches in Appointments:", uniqueBranches);
+  
+  // First filter by date and barber
+  const dateAndBarberFiltered = appointments.filter(apt => {
+    const aptDate = typeof apt.date === 'string' ? parseISO(apt.date) : new Date(apt.date);
+    const isSameDate = isSameDay(aptDate, selectedDate);
+    const isSameBarber = selectedBarber === 'all' || apt.barber === selectedBarber;
+    
+    return isSameDate && isSameBarber;
+  });
+  
+  console.log(`4️⃣ After Date/Barber filter: ${dateAndBarberFiltered.length} bookings`);
+  
+  // AGAR "ALL BRANCHES" SELECT HAI TO SAB DIKHAO
+  if (selectedBranch === 'all') {
+    console.log("5️⃣ Showing ALL branches - NO branch filter applied");
+    return dateAndBarberFiltered;
+  }
+  
+  // SPECIFIC BRANCH SELECT HAI - SIRF EXACT MATCH WALI BOOKINGS DIKHAO
+  console.log(`5️⃣ Filtering for branch: "${selectedBranch}"`);
+  
+  const filtered = dateAndBarberFiltered.filter(apt => {
+    // EXACT MATCH - Booking mein branch "Mubaraka" hai aur selected branch "Mubaraka" hai
+    const aptBranch = apt.branch || '';
+    
+    // Convert both to strings and trim for exact comparison
+    const aptBranchStr = String(aptBranch).trim();
+    const selectedBranchStr = String(selectedBranch).trim();
+    
+    // Exact match comparison
+    const isSameBranch = aptBranchStr === selectedBranchStr;
+    
+    console.log(`   🔸 ${apt.customerName || apt.customer}: branch="${aptBranchStr}" | match=${isSameBranch}`);
+    
+    return isSameBranch;
+  });
+  
+  console.log(`6️⃣ Final Filtered Count: ${filtered.length} bookings for branch "${selectedBranch}"`);
+  console.log("==========================================");
+  
+  return filtered;
+}, [appointments, selectedDate, selectedBarber, selectedBranch]);
 
   const convertTo24Hour = (time12h: string): string => {
     if (!time12h) return "00:00";
@@ -2113,6 +2396,7 @@ export function AdvancedCalendar({
       case "pending": return "bg-orange-500";
       case "cancelled": return "bg-red-500";
       case "rejected": return "bg-gray-500";
+      case "rescheduled": return "bg-indigo-500"; // New rescheduled status
       default: return "bg-gray-300";
     }
   };
@@ -2173,6 +2457,24 @@ export function AdvancedCalendar({
   </Badge>
 </CardTitle>
             <div className="flex flex-wrap items-center gap-2">
+              {/* NEW: Branch Filter Dropdown */}
+              <Select value={selectedBranch} onValueChange={setSelectedBranch}>
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder="Select Branch" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Branches ({branches.length})</SelectItem>
+                  {branches.map(branch => (
+                    <SelectItem key={branch.id} value={branch.name}>
+                      <div className="flex items-center gap-2">
+                        <Building className="w-4 h-4" />
+                        <span>{branch.name}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
               <div className="flex items-center gap-2">
                 <Button
                   variant={layoutMode === 'time-top' ? 'default' : 'outline'}
@@ -2566,6 +2868,10 @@ export function AdvancedCalendar({
                   <span>Pending</span>
                 </div>
                 <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-indigo-500" />
+                  <span>Rescheduled</span>
+                </div>
+                <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-red-500" />
                   <span>Cancelled/Rejected</span>
                 </div>
@@ -2636,3 +2942,4 @@ export function AdvancedCalendar({
     </>
   );
 }
+
