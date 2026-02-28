@@ -748,11 +748,6 @@ const createBookingInFirebase = async (
       paymentAmounts.cash = 0;
     }
     
-    // ✅ PAYMENT METHOD STRING for notes and display
-    const paymentMethodsString = bookingData.paymentMethods
-      .map(m => `${m}${bookingData.paymentAmounts[m as keyof typeof bookingData.paymentAmounts] ? `: $${bookingData.paymentAmounts[m as keyof typeof bookingData.paymentAmounts]}` : ''}`)
-      .join(', ');
-    
     // ✅ Generate ID like "6QkECDD6Lrp7oc9Krg0u"
     const generateId = () => {
       const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -814,7 +809,7 @@ const createBookingInFirebase = async (
       paymentMethod: bookingData.paymentMethods.join(', '),
       paymentStatus: "pending",
       paymentMethods: bookingData.paymentMethods,
-      paymentAmounts: paymentAmounts,  // This will have { cash: 12, check: 5 } etc.
+      paymentAmounts: paymentAmounts,
       cardLast4Digits: "",
       trnNumber: "",
       
@@ -829,7 +824,8 @@ const createBookingInFirebase = async (
       
       status: "upcoming",
       
-      notes: `Payment Method: ${paymentMethodsString}. ${bookingData.notes}`.trim(),
+      // ✅ FIXED: SIRF MANUAL NOTES - NO PAYMENT METHODS ADDED
+      notes: bookingData.notes || '',
       
       source: "customer_app",
       createdBy: "admin",
@@ -845,6 +841,7 @@ const createBookingInFirebase = async (
     };
 
     console.log("📝 Payment Amounts being saved:", paymentAmounts);
+    console.log("📝 Notes being saved:", firebaseBookingData.notes);
     console.log("📝 Full booking data:", JSON.stringify(firebaseBookingData, null, 2));
     
     const bookingsRef = collection(db, "bookings");
@@ -868,7 +865,6 @@ const createBookingInFirebase = async (
     return {success: false};
   }
 };
-
 const deleteBookingInFirebase = async (bookingId: string): Promise<boolean> => {
   try {
     const bookingRef = doc(db, "bookings", bookingId);
