@@ -2452,9 +2452,7 @@ const filteredAppointments = useMemo(() => {
   <span className="text-xl font-extrabold bg-gradient-to-r from-pink-600 to-pink-600 bg-clip-text text-pink-600">
      Booking Calendar
   </span>
-  <Badge variant="outline" className="ml-2 border-pink-200 bg-pink-50 text-pink-700 font-semibold">
-    {staffMembers.length} Staff
-  </Badge>
+ 
 </CardTitle>
             <div className="flex flex-wrap items-center gap-2">
               {/* NEW: Branch Filter Dropdown */}
@@ -2474,6 +2472,59 @@ const filteredAppointments = useMemo(() => {
                   ))}
                 </SelectContent>
               </Select>
+
+
+
+  
+                 
+              
+
+               
+
+
+
+
+ <Select value={selectedBarber} onValueChange={setSelectedBarber}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Staff" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Staff ({staffMembers.length})</SelectItem>
+                      {staffMembers.map(staff => (
+                        <SelectItem key={staff.id} value={staff.name}>
+                          <div className="flex items-center gap-2">
+                            <div className="relative w-4 h-4 rounded-full overflow-hidden">
+                              <img 
+                                src={staff.avatar} 
+                                alt={staff.name} 
+                                className="object-cover w-full h-full"
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.src = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop";
+                                }}
+                              />
+                            </div>
+                            <span>{staff.name}</span>
+                          
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
               <div className="flex items-center gap-2">
                 <Button
@@ -2611,36 +2662,7 @@ const filteredAppointments = useMemo(() => {
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Filter Staff</Label>
-                  <Select value={selectedBarber} onValueChange={setSelectedBarber}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select Staff" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Staff ({staffMembers.length})</SelectItem>
-                      {staffMembers.map(staff => (
-                        <SelectItem key={staff.id} value={staff.name}>
-                          <div className="flex items-center gap-2">
-                            <div className="relative w-4 h-4 rounded-full overflow-hidden">
-                              <img 
-                                src={staff.avatar} 
-                                alt={staff.name} 
-                                className="object-cover w-full h-full"
-                                onError={(e) => {
-                                  const target = e.target as HTMLImageElement;
-                                  target.src = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop";
-                                }}
-                              />
-                            </div>
-                            <span>{staff.name}</span>
-                            <Badge variant="outline" className="text-xs">{staff.role}</Badge>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+               
               </div>
             </div>
           )}
