@@ -928,13 +928,6 @@ export default function ServicesPage() {
                         }}
                       />
                       
-                      {/* Category Badge - Now on Image */}
-                      <div className="absolute top-2 left-2">
-                        <Badge variant="outline" className="bg-black/70 backdrop-blur-sm text-white border-none text-[8px] uppercase tracking-wider px-2 py-0.5 rounded-md">
-                          {service.category}
-                        </Badge>
-                      </div>
-                      
                       {/* Price Badge */}
                       <div className="absolute top-2 right-2">
                         <div className="bg-secondary/90 backdrop-blur-sm text-primary border-none px-2 py-1 rounded-md font-bold text-xs shadow-sm">

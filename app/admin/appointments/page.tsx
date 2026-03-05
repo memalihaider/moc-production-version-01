@@ -627,7 +627,7 @@ export default function SuperAdminAppointments() {
         {/* Sidebar */}
         <div className={cn(
           "h-screen overflow-y-auto flex-shrink-0 sticky top-0",
-          sidebarOpen ? "w-1" : "w-16"
+          sidebarOpen ? "w-64" : "w-16"
         )}>
           <AdminSidebar 
             role="branch_admin"

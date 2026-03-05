@@ -606,7 +606,7 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ChevronDown, ChevronRight, Menu } from 'lucide-react';
+import { ChevronDown, ChevronRight, ChevronLeft, Menu } from 'lucide-react';
 import {
   BarChart3,
   Calendar,
@@ -915,11 +915,14 @@ const superAdminNavItems = [
 export function AdminSidebar({ 
   role, 
   onLogout, 
-  isOpen = true, 
-  onToggle,
+  isOpen: isOpenProp,
+  onToggle: onToggleProp,
   allowedPages = []
 }: SidebarProps) {
   const pathname = usePathname();
+  const [internalOpen, setInternalOpen] = useState(true);
+  const isOpen = isOpenProp !== undefined ? isOpenProp : internalOpen;
+  const onToggle = onToggleProp ?? (() => setInternalOpen(prev => !prev));
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({
     'catalog': false,
     'admin_tools': false,
@@ -994,6 +997,16 @@ export function AdminSidebar({
                   </span>
                 )}
               </Link>
+              {/* Sidebar toggle button - always visible */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onToggle}
+                className="h-8 w-8 rounded-lg text-gray-400 hover:text-secondary hover:bg-white/10 transition-all duration-200 flex-shrink-0"
+                title={isOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+              >
+                {isOpen ? <ChevronLeft className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+              </Button>
             </div>
           </div>
 

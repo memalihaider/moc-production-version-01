@@ -987,11 +987,8 @@ export default function ProductsPage() {
                     
                     {/* Product Info */}
                     <div className="flex-1 space-y-2 flex flex-col">
-                      {/* Category and Rating */}
-                      <div className="flex justify-between items-center">
-                        <Badge variant="outline" className="text-[8px] uppercase tracking-widest text-secondary border-secondary/20 font-black">
-                          {product.category}
-                        </Badge>
+                      {/* Rating */}
+                      <div className="flex justify-end items-center">
                         <div className="flex items-center gap-1">
                           <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
                           <span className="text-[10px] font-bold">{product.rating.toFixed(1)}</span>

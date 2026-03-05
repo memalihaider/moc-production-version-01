@@ -84,6 +84,8 @@ interface StaffMember {
   reviews: number;
   status: string;
   bio?: string;
+  branchNames?: string[];
+  branchId?: string;
 }
 
 interface Branch {
@@ -325,6 +327,8 @@ const useHomeStore = create<HomeStore>()(
               reviews: Number(data.reviews) || 0,
               status: data.status || 'active',
               bio: data.description || data.experience || 'Professional barber with extensive experience.',
+              branchNames: Array.isArray(data.branchNames) ? data.branchNames : [],
+              branchId: data.branchId || '',
             });
           });
           
@@ -652,8 +656,15 @@ export default function Home() {
     return category.branchName === selectedBranch || category.branchId === selectedBranch;
   });
 
-  // Staff filter (staff generally not branch-specific)
-  const filteredStaff = staff;
+  // Filter staff by branch
+  const filteredStaff = selectedBranch === 'all'
+    ? staff
+    : staff.filter(member => {
+        if (member.branchNames && member.branchNames.length > 0) {
+          return member.branchNames.includes(selectedBranch);
+        }
+        return false;
+      });
 
   // Calculate stats based on filtered data
   const totalActiveServices = filteredServices.filter(s => s.status === 'active').length;
@@ -1498,25 +1509,24 @@ export default function Home() {
 
      
      {/* Staff Section */}
-<section className="py-20 px-4 bg-gray-50/50 overflow-hidden relative">
+<section className="py-16 px-4 bg-gray-50/50 overflow-hidden relative">
   <div className="max-w-7xl mx-auto relative z-10">
-    <div className="text-center mb-12">
+    <div className="text-center mb-10">
       <div className="inline-block bg-secondary/10 px-3 py-1 rounded-full mb-4">
         <span className="text-secondary font-bold tracking-[0.2em] uppercase text-[10px]">The Artisans</span>
       </div>
-      <h2 className="text-4xl md:text-5xl font-serif font-bold text-primary mb-4">Meet The Masters</h2>
-      <p className="text-muted-foreground max-w-2xl mx-auto font-light text-base">
+      <h2 className="text-3xl md:text-4xl font-serif font-bold text-primary mb-3">Meet The Masters</h2>
+      <p className="text-muted-foreground max-w-2xl mx-auto font-light text-sm">
         Our barbers are more than just stylists; they are highly trained artisans dedicated to the perfection of their craft.
       </p>
-      <div className="flex items-center justify-center gap-2 mt-4">
-        
-        {selectedBranch !== 'all' && (
+      {selectedBranch !== 'all' && (
+        <div className="flex items-center justify-center gap-2 mt-3">
           <Badge className="bg-secondary/10 text-secondary border-secondary/30">
             <Building className="w-3 h-3 mr-1" />
             {currentBranchName}
           </Badge>
-        )}
-      </div>
+        </div>
+      )}
     </div>
 
     {filteredStaff.length === 0 ? (
@@ -1525,74 +1535,29 @@ export default function Home() {
         <h3 className="text-2xl font-serif font-bold text-gray-400 mb-2">No Staff Available</h3>
       </div>
     ) : (
-      <Carousel 
-        opts={{ 
-          align: "start", 
-          loop: true,
-          slidesToScroll: 1
-        }} 
-        className="w-full"
-      >
-        <CarouselContent className="-ml-6">
-          {filteredStaff.map((member) => (
-            <CarouselItem key={member.id} className="pl-6 md:basis-1/2 lg:basis-1/4">
-              <div className="group relative cursor-pointer">
-                {/* Image Container */}
-                <div className="relative aspect-[3/4] overflow-hidden rounded-[2rem] shadow-xl">
-                  <img 
-                    src={member.image} 
-                    alt={member.name}
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                    onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-                      e.currentTarget.src = '/default-avatar.png';
-                    }}
-                  />
-                  
-                  {/* Dark Gradient Overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
-                  
-                  {/* Content Overlay - Always Visible */}
-                  <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
-                    {/* Role Badge */}
-                    <div className="inline-block bg-secondary/90 backdrop-blur-sm text-primary text-[9px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-full mb-3">
-                      {member.role}
-                    </div>
-                    
-                    {/* Name */}
-                    <h3 className="text-2xl font-serif font-bold mb-2 group-hover:text-secondary transition-colors duration-300">
-                      {member.name}
-                    </h3>
-                    
-                    {/* Rating */}
-                    <div className="flex items-center gap-2">
-                      <div className="flex gap-0.5">
-                        {[1,2,3,4,5].map(s => (
-                          <Star key={s} className={cn(
-                            "w-3 h-3",
-                            s <= Math.floor(member.rating) ? "fill-secondary text-secondary" : "text-white/30"
-                          )} />
-                        ))}
-                      </div>
-                      <span className="text-sm font-bold text-white">{member.rating.toFixed(1)}</span>
-                      <span className="text-[8px] text-white/60 font-bold uppercase tracking-widest">
-                        ({member.reviews} reviews)
-                      </span>
-                    </div>
-                  </div>
-                  
-                 
-                </div>
-              </div>
-            </CarouselItem>
-          ))}
-        </CarouselContent>
-        
-        {/* Navigation Buttons */}
-        <div className="flex justify-center gap-4 mt-10">
-          <CarouselPrevious className="static translate-y-0 w-12 h-12 rounded-full border-2 border-secondary/30 text-secondary hover:bg-secondary hover:text-primary hover:border-secondary transition-all duration-300" />
-          <CarouselNext className="static translate-y-0 w-12 h-12 rounded-full border-2 border-secondary/30 text-secondary hover:bg-secondary hover:text-primary hover:border-secondary transition-all duration-300" />
-        </div>
-      </Carousel>
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+        {filteredStaff.map((member) => (
+          <div key={member.id} className="group cursor-pointer">
+            {/* Image */}
+            <div className="relative aspect-[3/4] overflow-hidden rounded-2xl shadow-md">
+              <img
+                src={member.image}
+                alt={member.name}
+                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+                  e.currentTarget.src = '/default-avatar.png';
+                }}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
+            </div>
+            {/* Info below image */}
+            <div className="mt-2 px-1">
+              <p className="font-serif font-bold text-primary text-sm leading-tight group-hover:text-secondary transition-colors truncate">{member.name}</p>
+              <p className="text-[11px] text-gray-500 mt-0.5 truncate">{member.role}</p>
+            </div>
+          </div>
+        ))}
+      </div>
     )}
   </div>
 </section>

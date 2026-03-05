@@ -23,11 +23,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, Building, FolderTree } from 'lucide-react';
+import { Search, Building, FolderTree, Sparkles, Tag } from 'lucide-react';
 
 interface Service {
   id: string;
   name: string;
+  description: string;
   duration: number;
   price: number;
   category: string;
@@ -53,6 +54,7 @@ export default function MenuPage() {
       const servicesData = querySnapshot.docs.map(doc => ({
         id: doc.id,
         name: doc.data().name || 'Unnamed Service',
+        description: doc.data().description || 'No description available.',
         duration: doc.data().duration || 0,
         price: doc.data().price || 0,
         category: doc.data().category || 'Uncategorized',
@@ -100,155 +102,86 @@ export default function MenuPage() {
     : branches.find(b => b.name === selectedBranch)?.name || selectedBranch;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
       <Header />
       
-      <div className="pt-24 pb-8 px-4">
-        <div className="max-w-4xl mx-auto">
-          {/* Header Section */}
-          <div className="mb-6">
-            <h1 className="text-4xl font-serif font-bold text-primary mb-2">
-              Our Services <span className="text-secondary">Menu</span>
+      <main className="pt-24 pb-12">
+        <div className="container mx-auto px-4">
+          
+          {/* Page Header */}
+          <header className="text-center mb-8">
+            <h1 className="text-4xl md:text-5xl font-serif font-bold text-primary mb-2">
+              Our Service <span className="text-secondary">Menu</span>
             </h1>
-            
-            {/* Filter Info */}
-            <div className="flex flex-wrap items-center gap-3 mt-2">
-              <Badge variant="outline" className="border-secondary/30 text-secondary px-4 py-2">
-                <Building className="w-4 h-4 mr-2" />
-                <span className="font-medium">Branch:</span>
-                <span className="ml-2 font-bold">{currentBranchName}</span>
-              </Badge>
-              
-              {selectedCategory !== 'all' && (
-                <Badge variant="outline" className="border-secondary/30 text-secondary px-4 py-2">
-                  <FolderTree className="w-4 h-4 mr-2" />
-                  <span className="font-medium">Category:</span>
-                  <span className="ml-2 font-bold">{selectedCategory}</span>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              Explore our curated list of premium grooming services, tailored for the modern gentleman.
+            </p>
+          </header>
+
+          {/* Filters Section */}
+          <div className="max-w-2xl mx-auto mb-8 p-4 bg-white/60 backdrop-blur-sm rounded-2xl shadow-sm border border-gray-200/80">
+            <div className="flex flex-col sm:flex-row items-center gap-4">
+              <div className="relative w-full">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Input
+                  placeholder="Search for any service..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-11 h-12 text-base rounded-xl border-gray-300 focus:border-secondary focus:ring-secondary"
+                />
+              </div>
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <Badge variant="outline" className="border-secondary/30 text-secondary px-3 py-1.5 h-12 rounded-xl whitespace-nowrap">
+                  <Building className="w-4 h-4 mr-2" />
+                  <span className="font-medium">{currentBranchName}</span>
                 </Badge>
-              )}
-              
-              <Badge className="bg-secondary text-primary">
-                {filteredServices.length} services
-              </Badge>
+                <Badge className="bg-secondary text-primary h-12 rounded-xl px-3 py-1.5 whitespace-nowrap">
+                  {filteredServices.length} Services
+                </Badge>
+              </div>
             </div>
           </div>
 
-          <Card>
-            <CardContent className="pt-6">
-              {/* Filters Row */}
-              <div className="flex flex-col md:flex-row gap-4 mb-6">
-                {/* Search Bar */}
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <Input
-                    placeholder="Search services..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-
-                {/* Category Dropdown */}
-                <div className="w-full md:w-64">
-                  <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories.map((cat) => (
-                        <SelectItem key={cat.id} value={cat.id}>
-                          {cat.name} {cat.id !== 'all' && 
-                            `(${services.filter(s => s.category === cat.id).length})`
-                          }
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {/* Services Table */}
-              <div className="border rounded-lg overflow-hidden">
+          {/* Services Table */}
+          {filteredServices.length > 0 ? (
+            <Card className="overflow-hidden rounded-2xl shadow-md border-gray-200/80">
+              <CardContent className="p-0">
                 <Table>
-                  <TableHeader className="bg-gray-100">
+                  <TableHeader className="bg-gray-50/50">
                     <TableRow>
-                      <TableHead className="font-bold">Service Name</TableHead>
-                      <TableHead className="font-bold">Category</TableHead>
-                      <TableHead className="font-bold text-right">Duration (min)</TableHead>
-                      <TableHead className="font-bold text-right">Price </TableHead>
+                      <TableHead className="p-4 font-bold text-primary">Service</TableHead>
+                      <TableHead className="p-4 font-bold text-primary text-right">Price</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredServices.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={4} className="text-center py-12">
-                          <div className="flex flex-col items-center gap-2">
-                            {selectedBranch !== 'all' ? (
-                              <Building className="w-12 h-12 text-gray-300" />
-                            ) : selectedCategory !== 'all' ? (
-                              <FolderTree className="w-12 h-12 text-gray-300" />
-                            ) : (
-                              <Search className="w-12 h-12 text-gray-300" />
-                            )}
-                            <p className="text-gray-500 font-medium">
-                              {selectedBranch !== 'all' 
-                                ? `No services available at ${selectedBranch}`
-                                : selectedCategory !== 'all'
-                                ? `No services in ${selectedCategory} category`
-                                : searchQuery
-                                ? 'No services match your search'
-                                : 'No services found'}
-                            </p>
-                            <p className="text-sm text-gray-400">
-                              Try adjusting your filters
-                            </p>
-                          </div>
+                    {filteredServices.map((service) => (
+                      <TableRow key={service.id} className="border-t border-gray-100 hover:bg-gray-50/50">
+                        <TableCell className="p-4">
+                          <p className="font-serif font-bold text-primary text-base">{service.name}</p>
+                          <p className="text-sm text-muted-foreground font-light mt-1 line-clamp-2">{service.description}</p>
+                        </TableCell>
+                        <TableCell className="p-4 text-right">
+                          <span className="text-lg font-bold text-secondary">
+                            AED {service.price}
+                          </span>
                         </TableCell>
                       </TableRow>
-                    ) : (
-                      filteredServices.map((service) => (
-                        <TableRow key={service.id} className="hover:bg-gray-50">
-                          <TableCell className="font-medium">{service.name}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className="text-xs">
-                              {service.category}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right">{service.duration}</TableCell>
-                          <TableCell className="text-right font-bold text-secondary">
-                            Aed {service.price}
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
+                    ))}
                   </TableBody>
                 </Table>
-              </div>
-
-              {/* Footer Stats */}
-              {filteredServices.length > 0 && (
-                <div className="mt-4 flex flex-wrap justify-between items-center gap-2 text-sm text-gray-500">
-                  <span>
-                    Showing {filteredServices.length} of {services.length} services
-                  </span>
-                  <div className="flex gap-3">
-                    {selectedBranch !== 'all' && (
-                      <span className="text-secondary">
-                        Branch: {currentBranchName}
-                      </span>
-                    )}
-                    {selectedCategory !== 'all' && (
-                      <span className="text-secondary">
-                        Category: {selectedCategory}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-gray-200">
+              <Sparkles className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-2xl font-serif font-bold text-gray-500 mb-2">No Services Found</h3>
+              <p className="text-muted-foreground">
+                Try adjusting your search or filter settings.
+              </p>
+            </div>
+          )}
         </div>
-      </div>
+      </main>
     </div>
   );
 }
