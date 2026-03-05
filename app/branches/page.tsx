@@ -587,52 +587,89 @@ export default function Branches() {
       className="absolute inset-0 w-full h-full object-cover"
     >
       {/* Pexels Video - Direct URL */}
-      <source src="https://videos.pexels.com/video-files/3997198/3997198-uhd_3840_2160_30fps.mp4" type="video/mp4" />
+      <source src="https://www.pexels.com/download/video/3997168/" type="video/mp4" />
       
       {/* Fallback for browsers that don't support video */}
       Your browser does not support the video tag.
     </video>
     
-    {/* Soft Overlay - Exactly like blog */}
-    <div className="absolute inset-0 bg-gradient-to-br from-[#FA9DB7]/30 via-white/40 to-[#FA9DB7]/30"></div>
+    {/* Soft Overlay - video visible rahega aur text readable */}
+    <div className="absolute inset-0 bg-gradient-to-br from-black/30 via-black/40 to-black/30"></div>
   </div>
 
   {/* Content Overlay - Centered with proper spacing */}
   <div className="absolute inset-0 z-10 flex flex-col items-center justify-center pointer-events-none">
     <div className="max-w-6xl mx-auto text-center px-4 -mt-16 md:-mt-20">
       {/* Main Heading - Large spacing from top */}
+
+
+
+
+ {/* Floating Elements */}
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute top-20 left-10 animate-bounce delay-500">
+            <Crown className="w-8 h-8 text-secondary/30" />
+          </div>
+          <div className="absolute top-40 right-20 animate-bounce delay-1000">
+            <Award className="w-6 h-6 text-secondary/20" />
+          </div>
+          <div className="absolute bottom-32 left-20 animate-bounce delay-1500">
+            <Shield className="w-7 h-7 text-secondary/25" />
+          </div>
+          <div className="absolute bottom-20 right-10 animate-bounce delay-2000">
+            <Zap className="w-5 h-5 text-secondary/20" />
+          </div>
+        </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      <div className="inline-flex items-center gap-2 bg-secondary/20 px-4 py-2 rounded-full mb-6 border border-secondary/30 backdrop-blur-sm">
+            <Sparkles className="w-4 h-4 text-secondary animate-pulse" />
+            <span className="text-white tracking-[0.3em] uppercase text-[10px]">Our Presence</span>
+            <Sparkles className="w-4 h-4 text-secondary animate-pulse" />
+          </div>
       <h1 className="text-5xl md:text-7xl lg:text-8xl font-serif font-bold text-white mb-8 leading-tight drop-shadow-lg">
-        Premium <span className="text-[#FA9DB7] italic">Locations</span>
+        Premium <span className="text-secondary italic">Locations</span>
       </h1>
       
       {/* Subheading - More breathing room */}
       <p className="text-white/90 max-w-3xl mx-auto text-lg md:text-xl lg:text-2xl font-light leading-relaxed mb-12 drop-shadow px-4">
-        Experience luxury grooming at any of our strategically located branches. 
-        Find the perfect salon near you.
+       Experience luxury grooming at any of our strategically located branches.
       </p>
       
-      {/* Stats Grid - With better spacing and visibility */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-5xl mx-auto pointer-events-auto px-4">
-        <div className="bg-white/90 backdrop-blur-md px-6 py-5 rounded-2xl border border-white/30 shadow-2xl hover:bg-white hover:scale-105 transition-all duration-300">
-          <div className="text-3xl md:text-4xl font-serif font-bold text-[#FA9DB7] mb-2">{totalBranches}</div>
-          <div className="text-gray-700 text-xs md:text-sm font-black uppercase tracking-widest">Total Locations</div>
-        </div>
-        
-        <div className="bg-white/90 backdrop-blur-md px-6 py-5 rounded-2xl border border-white/30 shadow-2xl hover:bg-white hover:scale-105 transition-all duration-300">
-          <div className="text-3xl md:text-4xl font-serif font-bold text-[#FA9DB7] mb-2">{activeBranches}</div>
-          <div className="text-gray-700 text-xs md:text-sm font-black uppercase tracking-widest">Active Branches</div>
-        </div>
-        
-        <div className="bg-white/90 backdrop-blur-md px-6 py-5 rounded-2xl border border-white/30 shadow-2xl hover:bg-white hover:scale-105 transition-all duration-300">
-          <div className="text-3xl md:text-4xl font-serif font-bold text-[#FA9DB7] mb-2">{totalManagers}</div>
-          <div className="text-gray-700 text-xs md:text-sm font-black uppercase tracking-widest">Expert Managers</div>
-        </div>
-        
-        <div className="bg-white/90 backdrop-blur-md px-6 py-5 rounded-2xl border border-white/30 shadow-2xl hover:bg-white hover:scale-105 transition-all duration-300">
-          <div className="text-3xl md:text-4xl font-serif font-bold text-[#FA9DB7] mb-2">{totalCities}</div>
-          <div className="text-gray-700 text-xs md:text-sm font-black uppercase tracking-widest">Cities Covered</div>
-        </div>
-      </div>
+      {/* Real-time Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl mx-auto">
+            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10 hover:bg-white/15 transition-all">
+              <div className="text-3xl font-serif font-bold text-secondary mb-2">{totalBranches}</div>
+              <div className="text-white/70 text-xs font-black uppercase tracking-widest">Premium Locations</div>
+            </div>
+            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10 hover:bg-white/15 transition-all">
+              <div className="text-3xl font-serif font-bold text-secondary mb-2">{activeBranches}</div>
+              <div className="text-white/70 text-xs font-black uppercase tracking-widest">Active Branches</div>
+              <div className="text-[10px] text-white/50 mt-1">Currently operational</div>
+            </div>
+            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10 hover:bg-white/15 transition-all">
+              <div className="text-3xl font-serif font-bold text-secondary mb-2">{totalManagers}</div>
+              <div className="text-white/70 text-xs font-black uppercase tracking-widest">Dedicated Managers</div>
+              <div className="text-[10px] text-white/50 mt-1">Professional team</div>
+            </div>
+            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10 hover:bg-white/15 transition-all">
+              <div className="text-3xl font-serif font-bold text-secondary mb-2">{totalCities}</div>
+              <div className="text-white/70 text-xs font-black uppercase tracking-widest">Cities Covered</div>
+              <div className="text-[10px] text-white/50 mt-1">Nationwide presence</div>
+            </div>
+          </div>
 
       {/* Optional: Decorative Scroll Indicator */}
       <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 animate-bounce pointer-events-auto">
@@ -716,9 +753,7 @@ export default function Branches() {
                   <MapPin className="w-12 h-12 text-gray-300" />
                 </div>
                 <h3 className="text-3xl font-serif font-bold text-primary mb-3">No Branches Available</h3>
-                <p className="text-gray-500 font-light mb-8 max-w-md mx-auto">
-                  No branches found in the database. Please add branches through Firebase console or contact administrator.
-                </p>
+              
                 <Button 
                   onClick={fetchBranches}
                   className="rounded-full px-8 bg-primary hover:bg-primary/90 text-white font-bold tracking-widest text-[10px]"
@@ -934,7 +969,7 @@ export default function Branches() {
             </div>
           )}
 
-          {/* Stats Summary - CODE1 STYLE */}
+            {/* Stats Summary */}
           {filteredBranches.length > 0 && (
             <div className="mt-12 pt-8 border-t border-gray-100">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -942,10 +977,10 @@ export default function Branches() {
                 <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                      <MapPin className="w-6 h-6 text-[#FA9DB7]" />
+                      <MapPin className="w-6 h-6 text-primary" />
                     </div>
                     <div>
-                      <p className="text-sm text-[#FA9DB7]">Total Branches</p>
+                      <p className="text-sm text-gray-500">Total Branches</p>
                       <p className="text-2xl font-bold text-primary">{branches.length}</p>
                     </div>
                   </div>
@@ -967,12 +1002,12 @@ export default function Branches() {
                 {/* Cities Covered */}
                 <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center">
-                      <Navigation className="w-6 h-6 " />
+                    <div className="w-12 h-12 rounded-xl bg-secondary/10 flex items-center justify-center">
+                      <Navigation className="w-6 h-6 text-secondary" />
                     </div>
                     <div>
-                      <p className="text-sm text-[#FA9DB7]">Cities Covered</p>
-                      <p className="text-2xl font-bold text-slate-500">{totalCities}</p>
+                      <p className="text-sm text-gray-500">Cities Covered</p>
+                      <p className="text-2xl font-bold text-secondary">{totalCities}</p>
                     </div>
                   </div>
                 </div>
@@ -991,8 +1026,8 @@ export default function Branches() {
                 </div>
               </div>
               
-              {/* Contact Info - CODE1 STYLE */}
-              <div className="mt-6  bg-white/80 border border-secondary/20 rounded-2xl p-6">
+              {/* Contact Info */}
+              <div className="mt-6 bg-secondary/10 border border-secondary/20 rounded-2xl p-6">
                 <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                   <div>
                     <p className="font-bold text-primary">Need Help Finding a Branch?</p>
@@ -1003,14 +1038,14 @@ export default function Branches() {
                   <div className="flex gap-3">
                     <Button
                       variant="outline"
-                      className="border-slate-500 text-gray-400 hover:bg-secondary hover:text-primary"
+                      className="border-secondary text-secondary"
                       onClick={() => window.open('mailto:support@largify.com', '_blank')}
                     >
                       <Mail className="w-4 h-4 mr-2" />
                       Email Support
                     </Button>
                     <Button
-                      className="bg-primary hover:bg-primary/90 text-white"
+                      className="bg-primary hover:bg-primary/90"
                       onClick={() => window.open('tel:+1234567890', '_blank')}
                     >
                       <Phone className="w-4 h-4 mr-2" />
@@ -1131,9 +1166,7 @@ export default function Branches() {
                       {branchServices.length === 0 ? (
                         <div className="text-center py-8 bg-gray-50 rounded-xl">
                           <p className="text-gray-500">No services available for this branch.</p>
-                          <p className="text-sm text-gray-400 mt-2">
-                            Please add services to this branch through Firebase console.
-                          </p>
+                         
                         </div>
                       ) : (
                         <div className="space-y-4">

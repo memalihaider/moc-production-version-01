@@ -8,9 +8,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import Autoplay from "embla-carousel-autoplay";
-import { Search, Star, ShoppingCart, Filter, Package, Check, Sparkles, ChevronRight, TrendingUp, Box, DollarSign, RefreshCw, Trash2 } from 'lucide-react';
+import { Search, Star, ShoppingCart, Filter, Package, Check, Sparkles, ChevronRight, TrendingUp, Box, DollarSign, RefreshCw, Trash2, Building } from 'lucide-react';
 import { create } from 'zustand';
 import { 
   collection, 
@@ -29,6 +30,9 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { cn } from '@/lib/utils';
+
+// ✅ IMPORT BRANCH STORE
+import { useBranchStore } from '@/stores/branchStore';
 
 // Types Definition
 interface Product {
@@ -286,6 +290,10 @@ function X(props: React.SVGProps<SVGSVGElement>) {
 // Main Component
 export default function ProductsPage() {
   const router = useRouter();
+  
+  // ✅ Branch store se values lo
+  const { selectedBranch, branches, loading: branchesLoading } = useBranchStore();
+  
   const { products, fetchProducts } = useProductsStore();
   const { staff, fetchStaff } = useStaffStore();
   const { addToCart, cartItems, loadCartFromStorage, clearCart } = useCartStore();
@@ -295,6 +303,9 @@ export default function ProductsPage() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [showClearCartConfirm, setShowClearCartConfirm] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>('newest');
+  
+  // ✅ Branch filter notification ke liye
+  const [showBranchFilter, setShowBranchFilter] = useState<boolean>(false);
 
   // ===== CHAT LOGIC (Copied from Home Page) =====
   const [showChatPopup, setShowChatPopup] = useState(false);
@@ -333,6 +344,13 @@ export default function ProductsPage() {
     fetchStaff();
   }, [fetchProducts, fetchStaff, loadCartFromStorage]);
 
+  // ✅ DEBUG: Log branch changes
+  useEffect(() => {
+    console.log('🔍 Products - Selected Branch:', selectedBranch);
+    console.log('🔍 Products - Total Products:', products.length);
+    console.log('🔍 Products - Filtered Products:', filteredAndSortedProducts.length);
+  }, [selectedBranch, products]);
+
   // Get unique categories from products
   const categories = [
     { id: 'all', name: 'All Products' },
@@ -344,6 +362,12 @@ export default function ProductsPage() {
       }))
   ];
 
+  // Get current selected branch name for display
+  const currentBranchName = selectedBranch === 'all' 
+    ? 'All Branches' 
+    : branches.find(b => b.name === selectedBranch)?.name || selectedBranch;
+
+  // ==================== FILTER PRODUCTS BY BRANCH ====================
   // Filter and sort products
   const filteredAndSortedProducts = products
     .filter(product => {
@@ -360,7 +384,21 @@ export default function ProductsPage() {
       // Staff filter (if applicable)
       const matchesStaff = selectedStaff === 'all';
       
-      return matchesCategory && matchesSearch && matchesStaff;
+      // ===== BRANCH FILTER - YEH MAIN LOGIC HAI =====
+      let matchesBranch = true;
+      
+      if (selectedBranch !== 'all') {
+        // Check if product is available in selected branch
+        if (product.branchNames && product.branchNames.length > 0) {
+          matchesBranch = product.branchNames.includes(selectedBranch);
+        } else if (product.branches && product.branches.length > 0) {
+          matchesBranch = product.branches.includes(selectedBranch);
+        } else {
+          matchesBranch = false; // Sirf unhen dikhao jin ki branch info ho
+        }
+      }
+      
+      return matchesCategory && matchesSearch && matchesStaff && matchesBranch;
     })
     .sort((a, b) => {
       switch (sortBy) {
@@ -467,6 +505,16 @@ export default function ProductsPage() {
   return (
     <div className="min-h-screen bg-[#fcfcfc]">
       <Header />
+
+      {/* ✅ Branch Filter Notification */}
+      {showBranchFilter && (
+        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 bg-secondary text-primary px-4 py-2 rounded-full shadow-lg animate-in fade-in slide-in-from-top-5">
+          <div className="flex items-center gap-2">
+            <Building className="w-4 h-4" />
+            <span className="font-bold text-sm">Showing products for: {currentBranchName}</span>
+          </div>
+        </div>
+      )}
 
       {/* ==================== 3 BUTTONS - EXACT COPY FROM HOME PAGE ==================== */}
       {/* Fixed bottom right buttons - WhatsApp, Call, Chatbot */}
@@ -612,63 +660,72 @@ export default function ProductsPage() {
         </div>
       )}
 
-{/* Premium Hero Section with Video Background */}
-<section className="relative h-[600px] md:h-[700px] lg:h-[800px] overflow-hidden">
-  {/* Video Background */}
-  <div className="absolute inset-0 w-full h-full">
-    <video
-      autoPlay
-      loop
-      muted
-      playsInline
-      className="absolute inset-0 w-full h-full object-cover"
-    >
-      {/* ✅ Fixed Direct Video URL */}
-      <source src="https://videos.pexels.com/video-files/6894271/6894271-uhd_3840_2160_30fps.mp4" type="video/mp4" />
-      
-      {/* Fallback for browsers that don't support video */}
-      Your browser does not support the video tag.
-    </video>
-    
-    {/* Soft Overlay - text readable with visible video */}
-    <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/20 to-primary/50"></div>
-  </div>
-
-  {/* Content Overlay - Centered with better spacing */}
-  <div className="absolute inset-0 z-10 flex flex-col items-center justify-center pointer-events-none">
-    <div className="max-w-6xl mx-auto text-center px-4 -mt-12 md:-mt-16">
-      {/* Badge with proper spacing from top */}
-      <div className="inline-flex items-center gap-3 bg-white/10 backdrop-blur-md px-6 py-3 rounded-full mb-8 border border-white/20 shadow-lg">
-        <Package className="w-4 h-4 text-white/80" />
-        <span className="text-white/90 font-black tracking-[0.5em] uppercase text-[10px] md:text-xs">THE BOUTIQUE</span>
-      </div>
-      
-      {/* Main Heading - Larger with better spacing */}
-      <h1 className="text-5xl md:text-7xl lg:text-8xl font-serif font-bold text-white mb-8 leading-[0.85] tracking-tighter drop-shadow-2xl">
-        Couture <br /><span className="text-[#FA9DB7] italic">Skincare</span>
-      </h1>
-      
-      {/* Quote - More breathing room */}
-      <p className="text-white/90 max-w-3xl mx-auto text-lg md:text-xl lg:text-2xl font-light leading-relaxed italic mb-12 drop-shadow-lg px-4">
-        "Beauty is science, curated for your skin."
-      </p>
-
-      {/* Optional: Call to Action Button */}
-      <div className="pointer-events-auto">
-        <button className="bg-white/20 backdrop-blur-md hover:bg-white/30 text-white font-semibold px-8 py-4 rounded-full border border-white/30 transition-all duration-300 hover:scale-105 shadow-xl">
-          Explore Collection
-        </button>
-      </div>
-
-      {/* Optional: Scroll Indicator */}
-      <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 animate-bounce pointer-events-auto">
-        <div className="w-8 h-12 rounded-full border-2 border-white/30 flex items-start justify-center p-2">
-          <div className="w-1 h-3 bg-white rounded-full animate-pulse"></div>
+      {/* Premium Hero Section with Video Background */}
+      <section className="relative h-[500px] md:h-[500px] lg:h-[600px] overflow-hidden">
+        {/* Video Background */}
+        <div className="absolute inset-0 w-full h-full">
+          <video
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="absolute inset-0 w-full h-full object-cover"
+          >
+            <source src="https://www.pexels.com/download/video/7291771/" type="video/mp4" />
+            
+            {/* Fallback for browsers that don't support video */}
+            Your browser does not support the video tag.
+          </video>
+          
+          {/* Light Overlay - text readable with visible video */}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/30 to-primary/70"></div>
         </div>
-      </div>
-    </div>
-  </div>
-</section>
+
+        {/* Content Overlay - Centered with better spacing */}
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center pointer-events-none">
+          <div className="max-w-6xl mx-auto text-center px-4 -mt-12 md:-mt-16">
+            {/* Badge with proper spacing from top */}
+            <div className="inline-flex items-center gap-3 bg-white/10 backdrop-blur-md px-6 py-3 rounded-full mb-8 border border-white/20 shadow-lg">
+              <Package className="w-4 h-4 text-secondary" />
+              <span className="text-secondary font-black tracking-[0.3em] uppercase text-[10px]">The Apothecary</span>
+            </div>
+            
+            <h1 className="text-5xl md:text-7xl font-serif font-bold text-white mb-6 leading-tight">
+              Grooming <span className="text-secondary italic">Collection</span>
+            </h1>
+            
+            {/* Branch count badge - Updated */}
+            <div className="flex items-center justify-center gap-4 text-white/80 text-sm mb-8">
+              <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full">
+                <Building className="w-4 h-4 text-secondary" />
+                <span>{branches.length} Branches</span>
+              </div>
+              <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full">
+                <Package className="w-4 h-4 text-secondary" />
+                <span>{products.length} Products</span>
+              </div>
+            </div>
+
+            <p className="text-gray-300 max-w-2xl mx-auto text-lg font-light leading-relaxed mb-8">
+              Professional-grade essentials for the modern gentleman. 
+            </p>
+
+            {/* Optional: Call to Action Button */}
+            <div className="pointer-events-auto">
+              <button className="bg-white/20 backdrop-blur-md hover:bg-white/30 text-white font-semibold px-8 py-4 rounded-full border border-white/30 transition-all duration-300 hover:scale-105 shadow-xl">
+                Explore Collection
+              </button>
+            </div>
+
+            {/* Optional: Scroll Indicator */}
+            <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 animate-bounce pointer-events-auto">
+              <div className="w-8 h-12 rounded-full border-2 border-white/30 flex items-start justify-center p-2">
+                <div className="w-1 h-3 bg-white rounded-full animate-pulse"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
     
       {/* Filters Section */}
       <section className="sticky top-16 z-30 bg-white/80 backdrop-blur-xl border-b border-gray-100 py-6 px-4 shadow-lg">
@@ -694,6 +751,49 @@ export default function ProductsPage() {
               )}
             </div>
 
+            {/* ✅ Branch Filter Dropdown */}
+            <div className="w-full lg:w-64">
+              <Select 
+                value={selectedBranch} 
+                onValueChange={(value) => {
+                  setShowBranchFilter(true);
+                  setTimeout(() => setShowBranchFilter(false), 3000);
+                }}
+                disabled={branchesLoading}
+              >
+                <SelectTrigger className="w-full h-12 border-secondary/20 text-primary focus:ring-secondary/30 rounded-2xl">
+                  <SelectValue placeholder={branchesLoading ? "Loading branches..." : "Select Branch"} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" className="text-primary/70">
+                    <div className="flex items-center gap-2">
+                      <Building className="w-4 h-4" />
+                      <span>All Branches ({branches.length})</span>
+                    </div>
+                  </SelectItem>
+                  {branches.map((branch) => (
+                    <SelectItem key={branch.id} value={branch.name} className="text-primary">
+                      <div className="flex items-center gap-2">
+                        {branch.image && (
+                          <div className="w-5 h-5 rounded-full overflow-hidden">
+                            <img 
+                              src={branch.image} 
+                              alt={branch.name} 
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = "https://via.placeholder.com/20";
+                              }}
+                            />
+                          </div>
+                        )}
+                        <span>{branch.name}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             {/* Sort Dropdown */}
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
@@ -712,85 +812,31 @@ export default function ProductsPage() {
               </div>
             </div>
 
-            {/* Category Filters */}
-            <div className="flex items-center gap-3 w-full lg:w-auto overflow-x-auto pb-2 lg:pb-0 no-scrollbar">
-              {categories.map((cat) => (
-                <button
-                  key={cat.id}
-                  onClick={() => setSelectedCategory(cat.id)}
-                  className={cn(
-                    "whitespace-nowrap px-5 py-2.5 text-[10px] font-black uppercase tracking-[0.2em] transition-all border rounded-2xl min-w-[120px] text-center",
-                    selectedCategory === cat.id 
-                      ? "bg-primary text-white border-primary shadow-xl scale-[1.02]" 
-                      : "bg-white text-black border-gray-200 hover:border-secondary hover:text-secondary hover:shadow-md"
-                  )}
-                >
-                  {cat.name}
-                </button>
-              ))}
-            </div>
+           
           </div>
 
-          {/* Staff Filter Section */}
-          <div className="flex items-center gap-6 overflow-x-auto no-scrollbar py-3 border-t border-gray-100">
-            <div className="flex items-center gap-2 shrink-0">
-              <Sparkles className="w-4 h-4 text-gray-600" />
-              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-600">Recommended by:</span>
-            </div>
-            
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setSelectedStaff('all')}
-                className={cn(
-                  "whitespace-nowrap px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all border flex items-center gap-2",
-                  selectedStaff === 'all' 
-                    ? "bg-gray-200 text-black border-gray-500 hover:border-gray-500 hover:shadow-sm" 
-                    : "bg-gray-50 text-gray-600 border-gray-200 hover:border-gray-300"
-                )}
-              >
-                <div className="w-6 h-6 rounded-full bg-[#FA9DB7] flex items-center justify-center text-white text-xs font-bold">
-                  All
-                </div>
-                All Barbers
-              </button>
-              
-              {staff.map((member) => {
-                // 🔥 Debug log for each staff member
-                console.log(`Rendering staff ${member.name} with image:`, member.image);
-                
-                return (
-                  <button
-                    key={member.id}
-                    onClick={() => setSelectedStaff(member.id)}
-                    className={cn(
-                      "whitespace-nowrap px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center gap-3 border min-w-[140px]",
-                      selectedStaff === member.id 
-                        ? "bg-gray-200 text-[#FA9DB7] border-gray-500 hover:border-gray-500 hover:shadow-sm" 
-                        : "bg-white text-[#FA9DB7] border-gray-200 hover:border-gray-300 hover:shadow-sm"
-                    )}
-                  >
-                    <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-200 border-2 border-white shadow-sm shrink-0">
-                      <img 
-                        src={member.image} 
-                        alt={member.name} 
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          console.log(`Image failed to load for ${member.name}:`, member.image);
-                          e.currentTarget.src = '/default-avatar.png';
-                        }}
-                        onLoad={() => {
-                          console.log(`Image loaded successfully for ${member.name}`);
-                        }}
-                      />
-                    </div>
-                    <div className="text-left">
-                      <div className="font-bold truncate">{member.name}</div>
-                      <div className="text-[9px] text-[#FA9DB7] truncate">{member.position || 'Barber'}</div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+          {/* ✅ Branch Filter Info */}
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-gray-500 flex items-center gap-1">
+              <Building className="w-3 h-3" />
+              Showing products for: <span className="font-bold text-secondary">{currentBranchName}</span>
+              {selectedBranch !== 'all' && (
+                <button 
+                  onClick={() => {
+                    setShowBranchFilter(true);
+                    setTimeout(() => setShowBranchFilter(false), 3000);
+                  }}
+                  className="ml-2 text-xs text-secondary underline"
+                >
+                  Show all
+                </button>
+              )}
+            </p>
+            {filteredAndSortedProducts.length > 0 && (
+              <Badge variant="outline" className="text-gray-600">
+                {filteredAndSortedProducts.length} products available
+              </Badge>
+            )}
           </div>
         </div>
       </section>
@@ -803,7 +849,7 @@ export default function ProductsPage() {
             <div>
               <h2 className="text-3xl font-serif font-bold text-primary">
                 Premium Products Collection
-                <span className="text-[#FA9DB7] ml-2">({filteredAndSortedProducts.length})</span>
+                <span className="text-secondary ml-2">({filteredAndSortedProducts.length})</span>
               </h2>
             </div>
             
@@ -829,25 +875,48 @@ export default function ProductsPage() {
           {filteredAndSortedProducts.length === 0 ? (
             <div className="text-center py-20 bg-white rounded-4xl shadow-sm border border-gray-100">
               <div className="w-24 h-24 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Search className="w-12 h-12 text-gray-300" />
+                {selectedBranch !== 'all' ? (
+                  <Building className="w-12 h-12 text-gray-300" />
+                ) : (
+                  <Search className="w-12 h-12 text-gray-300" />
+                )}
               </div>
-              <h3 className="text-3xl font-serif font-bold text-primary mb-3">No Matching Products</h3>
+              <h3 className="text-3xl font-serif font-bold text-primary mb-3">
+                {selectedBranch !== 'all' ? 'No Products in this Branch' : 'No Matching Products'}
+              </h3>
               <p className="text-gray-500 font-light mb-8 max-w-md mx-auto">
-                No products match your current filters. Try adjusting your search criteria.
+                {selectedBranch !== 'all' 
+                  ? `No products available at ${selectedBranch}. Please select a different branch.`
+                  : 'No products match your current filters. Try adjusting your search criteria.'}
               </p>
-              <Button 
-                variant="outline" 
-                onClick={() => {
-                  setSelectedCategory('all'); 
-                  setSearchQuery(''); 
-                  setSelectedStaff('all'); 
-                  setSortBy('newest');
-                }}
-                className="rounded-full px-8 border-secondary text-secondary hover:bg-secondary hover:text-primary font-bold tracking-widest text-[10px]"
-              >
-                <Filter className="w-4 h-4 mr-2" />
-                CLEAR ALL FILTERS
-              </Button>
+              <div className="flex gap-3 justify-center">
+                {selectedBranch !== 'all' && (
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      setShowBranchFilter(true);
+                      setTimeout(() => setShowBranchFilter(false), 3000);
+                    }}
+                    className="rounded-full px-8 border-secondary text-secondary hover:bg-secondary hover:text-primary font-bold tracking-widest text-[10px]"
+                  >
+                    <Building className="w-4 h-4 mr-2" />
+                    VIEW ALL BRANCHES
+                  </Button>
+                )}
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setSelectedCategory('all'); 
+                    setSearchQuery(''); 
+                    setSelectedStaff('all'); 
+                    setSortBy('newest');
+                  }}
+                  className="rounded-full px-8 border-secondary text-secondary hover:bg-secondary hover:text-primary font-bold tracking-widest text-[10px]"
+                >
+                  <Filter className="w-4 h-4 mr-2" />
+                  CLEAR ALL FILTERS
+                </Button>
+              </div>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-6">
@@ -938,6 +1007,31 @@ export default function ProductsPage() {
                       <p className="text-gray-500 text-[11px] font-light leading-relaxed line-clamp-2 min-h-8">
                         {product.description || 'Premium grooming product for the modern gentleman.'}
                       </p>
+                      
+                      {/* ✅ Branch Availability Badge */}
+                      {product.branchNames && product.branchNames.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {product.branchNames.slice(0, 2).map((branch, i) => (
+                            <Badge 
+                              key={i} 
+                              variant="outline" 
+                              className={cn(
+                                "text-[6px] px-1 py-0.5",
+                                branch === selectedBranch 
+                                  ? "bg-secondary/20 border-secondary text-secondary font-bold" 
+                                  : "border-gray-200 text-gray-500"
+                              )}
+                            >
+                              {branch}
+                            </Badge>
+                          ))}
+                          {product.branchNames.length > 2 && (
+                            <Badge variant="outline" className="text-[6px] px-1 py-0.5 border-gray-200 text-gray-500">
+                              +{product.branchNames.length - 2}
+                            </Badge>
+                          )}
+                        </div>
+                      )}
                       
                       {/* SKU and Stock Info */}
                       <div className="space-y-1 pt-2 border-t border-gray-50 mt-auto">
@@ -1041,52 +1135,22 @@ export default function ProductsPage() {
                       </div>
                     </div>
                     {/* This button also manually redirects to checkout */}
-                    <Button 
-                      onClick={() => router.push('/checkout')}
-                      className="bg-secondary hover:bg-secondary/90 text-primary font-bold"
-                    >
-                      Proceed to Checkout
-                    </Button>
-
-                    {cartItems.length > 0 && (
-                      <>
-                        <Button
-                          onClick={() => setShowClearCartConfirm(true)}
-                          variant="outline"
-                          className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 rounded-xl font-bold text-xs"
-                        >
-                          <Trash2 className="w-4 h-4 mr-2" />
-                          CLEAR CART ({cartItems.length})
-                        </Button>
-                        
-                        {/* Clear Cart Confirmation Modal */}
-                        {showClearCartConfirm && (
-                          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                            <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
-                              <h3 className="text-xl font-bold text-primary mb-2">Clear Cart?</h3>
-                              <p className="text-gray-600 mb-6">
-                                Are you sure you want to remove all {cartItems.length} items from your cart?
-                              </p>
-                              <div className="flex gap-3">
-                                <Button
-                                  onClick={handleClearCart}
-                                  className="flex-1 bg-red-600 hover:bg-red-700 text-white"
-                                >
-                                  Yes, Clear Cart
-                                </Button>
-                                <Button
-                                  onClick={() => setShowClearCartConfirm(false)}
-                                  variant="outline"
-                                  className="flex-1"
-                                >
-                                  Cancel
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </>
-                    )}
+                    <div className="flex gap-3">
+                      <Button 
+                        onClick={() => setShowClearCartConfirm(true)}
+                        variant="outline"
+                        className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 rounded-xl font-bold text-xs"
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        CLEAR CART ({cartItems.length})
+                      </Button>
+                      <Button 
+                        onClick={() => router.push('/checkout')}
+                        className="bg-secondary hover:bg-secondary/90 text-primary font-bold"
+                      >
+                        Proceed to Checkout
+                      </Button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -1095,29 +1159,32 @@ export default function ProductsPage() {
         </div>
       </section>
 
-      {/* Refresh Button - Below the 3 buttons (z-40) */}
-    
+      {/* Clear Cart Confirmation Modal */}
+      {showClearCartConfirm && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
+            <h3 className="text-xl font-bold text-primary mb-2">Clear Cart?</h3>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to remove all {cartItems.length} items from your cart?
+            </p>
+            <div className="flex gap-3">
+              <Button
+                onClick={handleClearCart}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+              >
+                Yes, Clear Cart
+              </Button>
+              <Button
+                onClick={() => setShowClearCartConfirm(false)}
+                variant="outline"
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

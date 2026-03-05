@@ -380,56 +380,53 @@ export default function BlogPage() {
   
   <div className="max-w-7xl mx-auto relative z-10">
     <div className="text-center space-y-8">
-      <div className="inline-flex items-center gap-2 bg-white/70 backdrop-blur-sm text-[#FA9DB7] px-6 py-3 rounded-full text-sm font-medium shadow-lg border border-white/20">
-        <Tag className="w-4 h-4" />
-        Beauty Insights & Tips
-      </div>
+      <div className="inline-flex items-center gap-2 bg-secondary/20 px-4 py-2 rounded-full mb-6 border border-secondary/30">
+            <BookOpen className="w-4 h-4 text-secondary" />
+            <span className="text-black font-black tracking-[0.3em] uppercase text-[10px]">The ManofCave Journal</span>
+          </div>
       
-      <h1 className="text-6xl md:text-8xl font-serif font-bold tracking-tighter text-white drop-shadow-lg">
-        Beauty Blog
-      </h1>
-      
-      <p className="text-xl text-white/90 max-w-3xl mx-auto leading-relaxed font-light drop-shadow">
-        Discover expert beauty advice, trending tips, and insider knowledge from JAM Beauty Lounge's
-        professional team. Your journey to radiant beauty starts here.
-      </p>
-      
-      {/* Stats - with better visibility on video */}
-      <div className="flex flex-wrap items-center justify-center gap-6 pt-8">
-        <div className="bg-white/90 backdrop-blur-sm px-6 py-3 rounded-2xl border border-white/30 shadow-xl hover:bg-white transition-all duration-300">
-          <div className="flex items-center gap-3">
-            <BookOpen className="w-5 h-5 text-[#FA9DB7]" />
-            <div>
-              <p className="text-xs text-gray-600 uppercase tracking-wider">Total Articles</p>
-              <p className="text-2xl font-bold text-gray-800">{blogs.length}</p>
+     <h1 className="text-5xl md:text-7xl font-serif font-bold text-white mb-6 leading-tight">
+            The Grooming <span className="text-secondary italic">Chronicles</span>
+          </h1>
+          <p className="text-gray-300 max-w-2xl mx-auto text-lg font-light leading-relaxed mb-8">
+            Expert insights, style guides, and timeless wisdom for the modern gentleman's journey to excellence.
+          </p>
+      {/* Stats */}
+          <div className="flex flex-wrap items-center justify-center gap-6">
+            <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl px-6 py-3">
+              <div className="flex items-center gap-3">
+                <BookOpen className="w-5 h-5 text-secondary" />
+                <div>
+                  <p className="text-xs text-gray-400 uppercase tracking-wider">Total Articles</p>
+                  <p className="text-2xl font-bold text-white">{blogs.length}</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl px-6 py-3">
+              <div className="flex items-center gap-3">
+                <MessageSquare className="w-5 h-5 text-secondary" />
+                <div>
+                  <p className="text-xs text-gray-400 uppercase tracking-wider">Total Comments</p>
+                  <p className="text-2xl font-bold text-white">
+                    {blogs.reduce((sum, post) => sum + post.comments, 0)}
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl px-6 py-3">
+              <div className="flex items-center gap-3">
+                <TrendingUp className="w-5 h-5 text-secondary" />
+                <div>
+                  <p className="text-xs text-gray-400 uppercase tracking-wider">Total Views</p>
+                  <p className="text-2xl font-bold text-white">
+                    {blogs.reduce((sum, post) => sum + post.views, 0).toLocaleString()}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-        
-        <div className="bg-white/90 backdrop-blur-sm px-6 py-3 rounded-2xl border border-white/30 shadow-xl hover:bg-white transition-all duration-300">
-          <div className="flex items-center gap-3">
-            <MessageSquare className="w-5 h-5 text-[#FA9DB7]" />
-            <div>
-              <p className="text-xs text-gray-600 uppercase tracking-wider">Total Comments</p>
-              <p className="text-2xl font-bold text-gray-800">
-                {blogs.reduce((sum, post) => sum + post.comments, 0)}
-              </p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="bg-white/90 backdrop-blur-sm px-6 py-3 rounded-2xl border border-white/30 shadow-xl hover:bg-white transition-all duration-300">
-          <div className="flex items-center gap-3">
-            <TrendingUp className="w-5 h-5 text-[#FA9DB7]" />
-            <div>
-              <p className="text-xs text-gray-600 uppercase tracking-wider">Total Views</p>
-              <p className="text-2xl font-bold text-gray-800">
-                {blogs.reduce((sum, post) => sum + post.views, 0).toLocaleString()}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   </div>
 </section>
@@ -862,33 +859,38 @@ export default function BlogPage() {
           </div>
         </section>
 
-         {/* Newsletter Signup */}
-      <section className="py-20 px-4 bg-gradient-to-r from-[#fa9bb6] to-[#FA9DB7] ">
-        <div className="max-w-4xl mx-auto text-center text-white">
-          <div className="space-y-8">
-            <h2 className="text-4xl font-serif font-bold text-[#FA9DB7]">Stay Beautiful</h2>
-            <p className="text-xl opacity-90 leading-relaxed">
-              Subscribe to our newsletter for exclusive beauty tips, early access to new treatments,
-              and special offers delivered to your inbox.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto">
-              <Input
-                placeholder="Enter your email address"
-                className="flex-1 bg-white/10 border-white/20 text-white placeholder:text-white/60 rounded-2xl px-6 py-4"
-              />
-              <Button className="bg-white text-primary hover:bg-white/90 px-8 py-4 rounded-2xl font-medium whitespace-nowrap">
-                Subscribe Now
-              </Button>
-            </div>
-            <p className="text-sm opacity-75 ">
-              By subscribing, you agree to our Privacy Policy and Terms of Service.
-            </p>
+          {/* Newsletter Section */}
+      <section className="py-20 px-4 bg-gradient-to-br from-primary to-primary/90">
+        <div className="max-w-4xl mx-auto text-center">
+          <div className="inline-flex items-center gap-2 bg-white/20 px-4 py-2 rounded-full mb-6">
+            <Sparkles className="w-4 h-4 text-white" />
+            <span className="text-white font-black tracking-[0.3em] uppercase text-[10px]">Stay Informed</span>
           </div>
+          <h2 className="text-4xl font-serif font-bold text-white mb-6">
+            Join The Gentleman's Newsletter
+          </h2>
+          <p className="text-white/80 max-w-2xl mx-auto text-lg mb-8">
+            Get weekly grooming tips, style insights, and exclusive content delivered to your inbox.
+          </p>
+          
+          <div className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto">
+            <Input 
+              placeholder="Enter your email address" 
+              className="flex-1 rounded-2xl border-white/20 bg-white/10 text-white placeholder:text-white/60 focus:ring-2 focus:ring-white focus:border-transparent"
+            />
+            <Button className="rounded-2xl bg-white text-primary hover:bg-white/90 font-black tracking-[0.2em] text-[10px] px-8 py-6">
+              SUBSCRIBE NOW
+            </Button>
+          </div>
+          
+          <p className="text-white/60 text-sm mt-4">
+            Join 15,000+ gentlemen who receive our weekly insights
+          </p>
         </div>
       </section>
       
       </main>
-      <Footer/>
+     
     </div>
   );
 }

@@ -600,15 +600,6 @@ export default function SuperAdminDashboard() {
       orderBy('timestamp', 'desc')
     );
 
-    // const unsubscribeMessages = onSnapshot(messagesQuery, (snapshot: QuerySnapshot) => {
-    //   snapshot.docChanges().forEach((change: DocumentChange) => {
-    //     if (change.type === 'added') {
-    //       const data = change.doc.data() as BranchMessageDocument;
-    //       const messageData = {
-    //         id: change.doc.id,
-    //         ...data
-    //       };
-
     const unsubscribeMessages = onSnapshot(messagesQuery, (snapshot: QuerySnapshot) => {
   snapshot.docChanges().forEach((change: DocumentChange) => {
     if (change.type === 'added') {
@@ -1240,7 +1231,7 @@ export default function SuperAdminDashboard() {
         }
       `}</style>
 
-    <div className="flex h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100/50 overflow-hidden">
+    <div className="flex h-screen bg-white overflow-hidden">
       {/* Sidebar */}
       <AdminSidebar
         role="super_admin"
@@ -1256,8 +1247,8 @@ export default function SuperAdminDashboard() {
           sidebarOpen ? "lg:ml-0" : "lg:ml-0",
         )}
       >
-        {/* Modern Header */}
-        <header className="bg-gradient-to-r from-[#FA9DB7] via-[#FA9DB7]/95 to-[#B84A68]/90 shadow-lg shadow-[#FA9DB7]/20 border-b border-[#FA9DB7]/30 shrink-0">
+        {/* Modern Header - Updated with code2 colors */}
+        <header className="bg-primary border-b border-secondary/10 shadow-lg shrink-0">
           <div className="flex items-center justify-between px-1 py-1">
             <div className="flex items-center gap-4">
               <AdminMobileSidebar
@@ -1267,20 +1258,20 @@ export default function SuperAdminDashboard() {
                 onToggle={() => setSidebarOpen(!sidebarOpen)}
               />
               <div className="flex items-center gap-4">
-                <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm">
-                  <Building className="h-7 w-7 text-white" />
+                <div className="p-3 bg-secondary rounded-2xl shadow-lg shadow-secondary/20">
+                  <Building className="h-7 w-7 text-primary" />
                 </div>
                 <div>
                   <div className="flex items-center gap-3">
                     <h1 className="text-2xl font-bold text-white font-serif">
                       Super Admin Dashboard
                     </h1>
-                    <Badge className="bg-gradient-to-r from-amber-500 to-amber-600 text-white border-0 px-3 py-1 rounded-full">
+                    <Badge className="bg-secondary text-primary border-0 px-3 py-1 rounded-full shadow-lg shadow-secondary/20">
                       👑 Super Admin
                     </Badge>
                   </div>
-                  <p className="text-sm text-white/90 mt-1 flex items-center gap-2">
-                    <Activity className="h-3 w-3 animate-pulse" />
+                  <p className="text-sm text-gray-300 mt-1 flex items-center gap-2">
+                    <Activity className="h-3 w-3 animate-pulse text-secondary" />
                     Multi-Branch Management System - All Data
                   </p>
                 </div>
@@ -1300,7 +1291,7 @@ export default function SuperAdminDashboard() {
                 >
                   <Bell className="h-5 w-5" />
                   {unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 h-5 w-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center animate-pulse">
+                    <span className="absolute -top-1 -right-1 h-5 w-5 bg-secondary text-primary text-xs rounded-full flex items-center justify-center animate-pulse">
                       {unreadCount > 9 ? '9+' : unreadCount}
                     </span>
                   )}
@@ -1315,7 +1306,7 @@ export default function SuperAdminDashboard() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-xs text-[#B84A68] hover:text-[#B84A68]/80 h-8"
+                          className="text-xs text-secondary hover:text-secondary/80 h-8"
                           onClick={markAllAsRead}
                         >
                           Mark all as read
@@ -1334,7 +1325,7 @@ export default function SuperAdminDashboard() {
                             key={notification.id}
                             className={cn(
                               "p-3 border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors relative group",
-                              !notification.read && "bg-[#FA9DB7]/5"
+                              !notification.read && "bg-secondary/5"
                             )}
                           >
                             <div className="flex items-start gap-3">
@@ -1379,7 +1370,7 @@ export default function SuperAdminDashboard() {
                                 </p>
                               </div>
                               {!notification.read && (
-                                <div className="w-2 h-2 bg-[#FA9DB7] rounded-full"></div>
+                                <div className="w-2 h-2 bg-secondary rounded-full"></div>
                               )}
                             </div>
                             
@@ -1406,8 +1397,8 @@ export default function SuperAdminDashboard() {
 
               {/* User Profile */}
               <div className="flex items-center gap-3 bg-white/10 px-4 py-2.5 rounded-2xl backdrop-blur-sm hover:bg-white/20 transition-colors cursor-pointer">
-                <Avatar className="h-10 w-10 border-2 border-white/30">
-                  <AvatarFallback className="bg-gradient-to-r from-[#FA9DB7] to-[#B84A68] text-white font-bold">
+                <Avatar className="h-10 w-10 border-2 border-secondary/30">
+                  <AvatarFallback className="bg-secondary text-primary font-bold">
                     {user?.email?.charAt(0).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
@@ -1422,7 +1413,7 @@ export default function SuperAdminDashboard() {
               {/* Logout Button */}
               <Button
                 onClick={handleLogout}
-                className="bg-white text-[#B84A68] hover:bg-gray-100 shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-4"
+                className="bg-secondary text-primary hover:bg-secondary/90 shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-4"
               >
                 <LogOut className="h-4 w-4 mr-2" />
                 Logout
@@ -1432,7 +1423,7 @@ export default function SuperAdminDashboard() {
         </header>
 
         {/* Content Area - Stats Cards and Tabs */}
-        <div className="flex-1 overflow-y-auto min-h-0">
+        <div className="flex-1 overflow-y-auto min-h-0 bg-white">
           <div className="h-full p-4 lg:p-6">
             {/* Dashboard Stats Section */}
             <div className="mb-8">
@@ -1547,14 +1538,14 @@ export default function SuperAdminDashboard() {
                 </Card>
 
                 {/* Total Branches Card */}
-                <Card className="border-none shadow-xl hover:shadow-2xl transition-all duration-300 bg-gradient-to-br from-white to-[#FA9DB7]/10 hover-lift group overflow-hidden">
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-[#FA9DB7]/10 rounded-full -translate-y-12 translate-x-12 group-hover:scale-110 transition-transform duration-500"></div>
+                <Card className="border-none shadow-xl hover:shadow-2xl transition-all duration-300 bg-gradient-to-br from-white to-primary/5 hover-lift group overflow-hidden">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-primary/10 rounded-full -translate-y-12 translate-x-12 group-hover:scale-110 transition-transform duration-500"></div>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 relative z-10">
                     <CardTitle className="text-sm font-semibold text-gray-600 uppercase tracking-wider">
                       Total Branches
                     </CardTitle>
-                    <div className="p-3 bg-gradient-to-r from-[#FA9DB7] to-[#B84A68] rounded-2xl shadow-lg">
-                      <Building className="h-5 w-5 text-white" />
+                    <div className="p-3 bg-secondary rounded-2xl shadow-lg shadow-secondary/20">
+                      <Building className="h-5 w-5 text-primary" />
                     </div>
                   </CardHeader>
                   <CardContent className="relative z-10">
@@ -1562,8 +1553,8 @@ export default function SuperAdminDashboard() {
                       <div className="text-3xl font-bold text-gray-900">
                         {overallStats.totalBranches}
                       </div>
-                      <div className="text-sm text-[#B84A68] font-semibold flex items-center mb-2 bg-[#FA9DB7]/10 px-2 py-1 rounded-full">
-                        <CheckCircle className="h-3 w-3 mr-1" />
+                      <div className="text-sm text-secondary font-semibold flex items-center mb-2 bg-secondary/10 px-2 py-1 rounded-full">
+                        <CheckCircle className="h-3 w-3 mr-1 text-secondary" />
                         Active
                       </div>
                     </div>
@@ -1572,7 +1563,7 @@ export default function SuperAdminDashboard() {
                     </p>
                     <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
                       <div 
-                        className="h-full bg-gradient-to-r from-[#FA9DB7] to-[#B84A68] rounded-full"
+                        className="h-full bg-secondary rounded-full"
                         style={{ width: '100%' }}
                       />
                     </div>
@@ -1686,12 +1677,12 @@ export default function SuperAdminDashboard() {
                     <TabsList className="grid grid-cols-4 w-full bg-gray-100/50 p-1 rounded-xl">
                       <TabsTrigger
                         value="bookings"
-                        className="data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-[#B84A68] rounded-lg transition-all"
+                        className="data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-secondary rounded-lg transition-all"
                       >
                         <Calendar className="h-4 w-4 mr-2" />
                         Bookings
                         {recentBookings.length > 0 && (
-                          <Badge className="ml-2 h-5 w-5 p-0 bg-[#B84A68] text-white">
+                          <Badge className="ml-2 h-5 w-5 p-0 bg-secondary text-primary">
                             {recentBookings.length}
                           </Badge>
                         )}
@@ -1753,7 +1744,7 @@ export default function SuperAdminDashboard() {
                         </p>
                         <Link
                           href="/admin/bookings"
-                          className="inline-flex items-center gap-2 px-4 py-2 bg-[#B84A68] text-white rounded-xl hover:bg-[#9C3852] transition-colors shadow-md"
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-secondary text-primary rounded-xl hover:bg-secondary/90 transition-colors shadow-md"
                         >
                           <Calendar className="h-4 w-4" />
                           View All Bookings
@@ -1764,7 +1755,7 @@ export default function SuperAdminDashboard() {
                         {recentBookings.map((booking) => (
                           <div
                             key={booking.id}
-                            className="flex items-center justify-between p-5 bg-gradient-to-r from-white to-gray-50/50 border border-gray-100 rounded-2xl hover:border-[#FA9DB7]/30 hover:shadow-lg transition-all duration-300 group"
+                            className="flex items-center justify-between p-5 bg-gradient-to-r from-white to-gray-50/50 border border-gray-100 rounded-2xl hover:border-secondary/30 hover:shadow-lg transition-all duration-300 group"
                           >
                             <div className="flex items-center gap-4">
                               <div className="p-3 bg-gradient-to-r from-blue-100 to-blue-50 rounded-xl">
@@ -1806,14 +1797,14 @@ export default function SuperAdminDashboard() {
                                   </div>
                                   <div>
                                     <p className="text-xs text-gray-500">Amount</p>
-                                    <p className="font-semibold text-lg text-green-600">
+                                    <p className="font-semibold text-lg text-secondary">
                                       ${booking.totalAmount}
                                     </p>
                                   </div>
                                 </div>
                               </div>
                             </div>
-                            <ChevronRight className="h-5 w-5 text-gray-300 group-hover:text-[#B84A68] transition-colors ml-4" />
+                            <ChevronRight className="h-5 w-5 text-gray-300 group-hover:text-secondary transition-colors ml-4" />
                           </div>
                         ))}
                       </div>
@@ -1874,7 +1865,7 @@ export default function SuperAdminDashboard() {
                             <div className="grid grid-cols-2 gap-4 mb-4">
                               <div>
                                 <p className="text-xs text-gray-500">Price</p>
-                                <p className="text-xl font-bold text-[#B84A68]">
+                                <p className="text-xl font-bold text-secondary">
                                   ${service.price}
                                 </p>
                               </div>
@@ -1949,7 +1940,7 @@ export default function SuperAdminDashboard() {
                             </div>
                             <div className="mb-4">
                               <p className="text-xs text-gray-500 mb-1">Price</p>
-                              <p className="text-2xl font-bold text-[#B84A68]">
+                              <p className="text-2xl font-bold text-secondary">
                                 ${product.price}
                               </p>
                             </div>
@@ -2064,7 +2055,7 @@ export default function SuperAdminDashboard() {
                         {branchPerformance.map((branch) => (
                           <div
                             key={branch.id}
-                            className="flex items-center justify-between p-5 bg-gradient-to-r from-white to-gray-50/50 border border-gray-100 rounded-2xl hover:border-[#FA9DB7]/30 hover:shadow-lg transition-all duration-300 group"
+                            className="flex items-center justify-between p-5 bg-gradient-to-r from-white to-gray-50/50 border border-gray-100 rounded-2xl hover:border-secondary/30 hover:shadow-lg transition-all duration-300 group"
                           >
                             <div className="flex-1">
                               <div className="flex items-center gap-3 mb-3">
@@ -2101,7 +2092,7 @@ export default function SuperAdminDashboard() {
                                 </div>
                                 <div>
                                   <p className="text-xs text-gray-500">Rating</p>
-                                  <p className="font-bold text-[#B84A68]">
+                                  <p className="font-bold text-secondary">
                                     ⭐ {branch.rating}
                                   </p>
                                 </div>
@@ -2143,17 +2134,17 @@ export default function SuperAdminDashboard() {
                   <CardContent className="p-6 space-y-3">
                     <Link
                       href="/super-admin/branches"
-                      className="flex items-center justify-between h-14 px-4 rounded-xl border-2 border-gray-100 hover:border-[#FA9DB7]/30 hover:bg-gradient-to-br hover:from-[#FA9DB7]/5 hover:to-white hover:shadow-lg transition-all duration-300 group"
+                      className="flex items-center justify-between h-14 px-4 rounded-xl border-2 border-gray-100 hover:border-secondary/30 hover:bg-gradient-to-br hover:from-secondary/5 hover:to-white hover:shadow-lg transition-all duration-300 group"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="p-2 bg-gradient-to-r from-[#FA9DB7] to-[#B84A68] rounded-lg">
-                          <Building className="h-4 w-4 text-white" />
+                        <div className="p-2 bg-secondary rounded-lg">
+                          <Building className="h-4 w-4 text-primary" />
                         </div>
                         <span className="text-sm font-semibold text-gray-900">
                           Manage Branches
                         </span>
                       </div>
-                      <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-[#B84A68] transition-colors" />
+                      <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-secondary transition-colors" />
                     </Link>
 
                     <Link

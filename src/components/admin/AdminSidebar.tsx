@@ -6,7 +6,7 @@
 // import { cn } from '@/lib/utils';
 // import { Button } from '@/components/ui/button';
 // import { ScrollArea } from '@/components/ui/scroll-area';
-// import { ChevronDown, ChevronRight } from 'lucide-react';
+// import { ChevronDown, ChevronRight, Menu } from 'lucide-react';
 // import {
 //   BarChart3,
 //   Calendar,
@@ -21,26 +21,13 @@
 //   Tag,
 //   MessageCircle,
 //   PieChart,
-//   Phone,
 //   FileText,
-//   CreditCard,
 //   ShoppingCart,
 //   Star,
 //   TrendingUp,
-//   Activity,
-//   Target,
-//   Bell,
-//   Image,
-//   UserPlus,
-//   Clock,
-//   CheckCircle,
-//   XCircle,
-//   Menu,
-//   ChevronLeft,
-//   ChevronRight as ChevronRightIcon,
-//   MapPin,
-//   Mail,
-//   Wrench // Added for Admin Tools icon
+//   Wrench,
+//   Sparkles,
+//   XCircle
 // } from 'lucide-react';
 
 // interface SidebarProps {
@@ -131,13 +118,19 @@
 //     icon: Award,
 //     pageKey: 'membership'
 //   },
- 
 //   {
-//     title: 'Messages',
+//     title: 'Admin chat',
 //     href: '/admin/messages',
 //     icon: MessageCircle,
 //     pageKey: 'messages'
 //   },
+//    {
+//     title: 'Customer chat',
+//     href: '/admin/customer-chats',
+//     icon: MessageCircle,
+//     pageKey: 'messages'
+//   },
+
 //   {
 //     title: 'Custom Invoice',
 //     href: '/admin/custominvoice',
@@ -196,15 +189,9 @@
 //       }
 //     ]
 //   },
-
-
-
-
-
-
-//  {
+//   {
 //     title: 'Finance Report',
-//     icon: Wrench, // Changed to Wrench icon
+//     icon: FileText,
 //     pageKey: 'finance_report',
 //     children: [
 //       {
@@ -219,36 +206,14 @@
 //         icon: FileText,
 //         pageKey: 'sales'
 //       },
-     
 //     ]
 //   },
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-//  {
+//   {
 //     title: 'Attendance',
 //     href: '/super-admin/attendance',
 //     icon: Award,
 //     pageKey: 'Attendance'
 //   },
-
-
 //   {
 //     title: 'Clients',
 //     href: '/super-admin/clients',
@@ -266,12 +231,6 @@
 //     href: '/super-admin/feedback',
 //     icon: Star,
 //     pageKey: 'feedbacks'
-//   },
-//   {
-//     title: 'Categories',
-//     href: '/super-admin/categories',
-//     icon: Tag,
-//     pageKey: 'categories'
 //   },
 //   {
 //     title: 'Analytics',
@@ -303,17 +262,15 @@
 //     icon: Building,
 //     pageKey: 'branches'
 //   },
-  
 //   {
 //     title: 'Users',
 //     href: '/super-admin/users',
 //     icon: Users,
 //     pageKey: 'users'
 //   },
-
 //   {
 //     title: 'Admin Tools',
-//     icon: Wrench, // Changed to Wrench icon
+//     icon: Wrench,
 //     pageKey: 'admin_tools',
 //     children: [
 //       {
@@ -334,57 +291,55 @@
 //         icon: SettingsIcon,
 //         pageKey: 'settings'
 //       },
-      
 //     ]
 //   },
 //   {
-//     title: 'Messages',
+//     title: 'Branch Chat',
 //     href: '/super-admin/messages',
+//     icon: MessageCircle,
+//     pageKey: 'messages'
+//   },
+
+//    {
+//     title: 'Customer Chat',
+//     href: '/super-admin/customer-chat',
 //     icon: MessageCircle,
 //     pageKey: 'messages'
 //   },
 // ];
 
-// interface SidebarContentProps extends Omit<SidebarProps, 'isOpen'> {
-//   isCollapsed?: boolean;
-// }
-
-// function SidebarContent({ 
+// export function AdminSidebar({ 
 //   role, 
 //   onLogout, 
-//   onToggle, 
-//   isCollapsed = false,
+//   isOpen = true, 
+//   onToggle,
 //   allowedPages = []
-// }: SidebarContentProps & { isCollapsed?: boolean }) {
+// }: SidebarProps) {
 //   const pathname = usePathname();
 //   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({
 //     'catalog': false,
-//     'admin_tools': false
+//     'admin_tools': false,
+//     'finance_report': false
 //   });
   
-//   // Base navigation items based on role
+//   // ✅ Base navigation items based on role
 //   let baseNavItems = role === 'super_admin' ? superAdminNavItems : branchAdminNavItems;
   
-//   // Filter navigation items based on allowedPages
+//   // ✅ Filter navigation items based on allowedPages
 //   let navItems = baseNavItems;
   
 //   if (role === 'branch_admin' && allowedPages && allowedPages.length > 0) {
 //     const allowedPagesLower = allowedPages.map(page => page.toLowerCase());
     
 //     navItems = baseNavItems.filter(item => {
-//       if (item.pageKey === 'dashboard') {
-//         return allowedPagesLower.includes('dashboard') || allowedPages.length === 0;
-//       }
-      
 //       if (item.pageKey) {
 //         return allowedPagesLower.includes(item.pageKey.toLowerCase());
 //       }
-      
 //       return true;
 //     });
 //   }
   
-//   // If no items to show (edge case), show a message
+//   // ✅ If no items to show
 //   if (navItems.length === 0) {
 //     navItems = [{
 //       title: 'No Access',
@@ -394,7 +349,7 @@
 //     }];
 //   }
 
-//   // Function to toggle expansion
+//   // ✅ Toggle expansion
 //   const toggleExpand = (pageKey: string) => {
 //     setExpandedItems(prev => ({
 //       ...prev,
@@ -403,191 +358,180 @@
 //   };
 
 //   return (
-//     <div className="flex h-full flex-col bg-primary border-r border-secondary/10 ">
-//       {/* Logo */}
-//       <div className="flex h-16 items-center px-4 lg:px-6">
-//         <div className="flex items-center justify-between w-full">
-         
-//           <Link href="/" className="flex items-center gap-2 group">
-           
-//             {!isCollapsed && (
-//               <span className="text-lg font-serif font-bold text-white tracking-tighter mt-1">
-//                 JAM<span className="text-gray-400">Beauty Lounge</span>
-//               </span>
-//             )}
-//           </Link>
-//         </div>
-//       </div>
-
-//       {/* Navigation */}
-//       <ScrollArea className="flex-1 px-3 h-full -mt-2">
-//         <div className="space-y-1 py-4">
-//           {navItems.map((item) => {
-//             const isActive = pathname === item.href;
-//             const isDisabled = item.title === 'No Access';
-            
-//             // Check if item has children
-//             if ((item as any).children) {
-//               const isExpanded = expandedItems[item.pageKey] && !isCollapsed;
-              
-//               // Check if any child is active for parent highlight
-//               const isChildActive = (item as any).children?.some((child: any) => pathname === child.href);
-              
-//               return (
-//                 <div key={`parent-${item.pageKey || item.title}`} className="space-y-1">
-//                   {/* Parent item (Dropdown) - Clickable to expand/collapse */}
-//                   <Button
-//                     variant="ghost"
-//                     onClick={() => toggleExpand(item.pageKey)}
-//                     className={cn(
-//                       "w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200",
-//                       isCollapsed && "justify-center px-0",
-//                       isChildActive
-//                         ? "bg-slate-500 text-secondary"
-//                         : "text-gray-400 hover:text-gray-300 hover:bg-white/5"
-//                     )}
-//                   >
-//                     <item.icon className={cn(
-//                       "h-5 w-5",
-//                       isChildActive && "text-secondary"
-//                     )} />
-//                     {!isCollapsed && (
-//                       <>
-//                         <span className="text-sm flex-1 text-left">{item.title}</span>
-//                         {isExpanded ? (
-//                           <ChevronDown className="h-4 w-4" />
-//                         ) : (
-//                           <ChevronRight className="h-4 w-4" />
-//                         )}
-//                       </>
-//                     )}
-//                   </Button>
-                  
-//                   {/* Children items - Show only when expanded */}
-//                   {isExpanded && (
-//                     <div className="ml-6 space-y-1">
-//                       {((item as any).children || []).map((child: any) => {
-//                         const isChildActive = pathname === child.href;
-//                         return (
-//                           <Link 
-//                             key={`child-${child.href || child.pageKey}`} 
-//                             href={child.href}
-//                           >
-//                             <Button
-//                               variant="ghost"
-//                               className={cn(
-//                                 "w-full justify-start gap-3 h-9 rounded-lg transition-all duration-200",
-//                                 isChildActive 
-//                                   ? "bg-slate-500 text-primary font-semibold shadow-lg shadow-secondary/20" 
-//                                   : "text-gray-400 hover:text-slate-300 hover:bg-white/5"
-//                               )}
-//                             >
-//                               <child.icon className={cn(
-//                                 "h-4 w-4", 
-//                                 isChildActive ? "text-primary" : "text-gray-400 group-hover:text-slate-300"
-//                               )} />
-//                               <span className="text-sm">
-//                                 {child.title}
-//                               </span>
-//                             </Button>
-//                           </Link>
-//                         );
-//                       })}
-//                     </div>
-//                   )}
-//                 </div>
-//               );
-//             }
-            
-//             // Normal items (without children)
-//             return (
-//               <Link 
-//                 key={item.href || `item-${item.pageKey}`} 
-//                 href={isDisabled ? '#' : (item.href || '/')}
-//                 className={isDisabled ? 'pointer-events-none cursor-not-allowed' : ''}
-//               >
-//                 <Button
-//                   variant="ghost"
-//                   disabled={isDisabled}
-//                   className={cn(
-//                     "w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200",
-//                     isCollapsed && "justify-center px-0",
-//                     isActive 
-//                       ? "bg-slate-500  text-primary font-semibold shadow-lg shadow-secondary/20" 
-//                       : "text-gray-400 hover:text-slate-300 hover:bg-white/5",
-//                     isDisabled && "opacity-50 cursor-not-allowed"
-//                   )}
-//                 >
-//                   <item.icon className={cn(
-//                     "h-5 w-5", 
-//                     isActive ? "text-primary" : "text-gray-400 group-hover:text-slate-300",
-//                     isDisabled && "text-gray-500"
-//                   )} />
-//                   {!isCollapsed && (
-//                     <span className={cn(
-//                       "text-sm",
-//                       isDisabled && "text-gray-500"
-//                     )}>
-//                       {item.title}
-//                     </span>
-//                   )}
-//                 </Button>
-//               </Link>
-//             );
-//           })}
-//         </div>
-//       </ScrollArea>
-
-//       {/* Logout */}
-//       <div className="p-4 -mt-7 ml-7">
-//         <Button
-//           variant="ghost"
-//           className={cn(
-//             "w-full justify-start gap-3 text-gray-400 hover:text-red-400 hover:bg-red-400/10",
-//             isCollapsed && "justify-center px-0"
-//           )}
-//           onClick={onLogout}
-//         >
-//           <LogOut className="h-5 w-5" />
-//           {!isCollapsed && "Logout"}
-//         </Button>
-//       </div>
-//     </div>
-//   );
-// }
-
-// export function AdminSidebar({ 
-//   role, 
-//   onLogout, 
-//   isOpen = true, 
-//   onToggle,
-//   allowedPages = []
-// }: SidebarProps) {
-//   return (
 //     <>
-//       {/* Mobile/Tablet Overlay */}
+//       {/* ✅ Mobile/Tablet Overlay - Only when sidebar is open on mobile */}
 //       {isOpen && (
 //         <div
-//           className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+//           className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm lg:hidden"
 //           onClick={onToggle}
 //         />
 //       )}
 
-//       {/* Sidebar */}
+//       {/* ✅ Sidebar - Single instance */}
 //       <div className={cn(
-//         "h-full shrink-0 bg-white border-r transition-all duration-300 ease-in-out",
-//         "fixed inset-y-0 left-0 z-50 lg:relative lg:z-auto lg:translate-x-0",
-//         isOpen ? "translate-x-0 w-64" : "-translate-x-full w-64",
-//         "lg:static lg:w-16",
-//         isOpen && "lg:w-64"
+//         "h-full shrink-0 bg-white border-r border-gray-200 transition-all duration-300 ease-in-out",
+//         "fixed inset-y-0 left-0 z-50 lg:relative lg:z-auto",
+//         isOpen ? "translate-x-0 w-64" : "-translate-x-full w-64 lg:translate-x-0 lg:w-16",
+//         "lg:static"
 //       )}>
-//         <SidebarContent 
-//           role={role} 
-//           onLogout={onLogout} 
-//           onToggle={onToggle} 
-//           isCollapsed={!isOpen}
-//           allowedPages={allowedPages}
-//         />
+//         <div className="flex flex-col h-full bg-white">
+//           {/* Pink Top Border */}
+//           <div className="h-1 w-full bg-[#FA9DB7]"></div>
+          
+//           {/* Logo */}
+//           <div className="flex h-20 items-center px-4 lg:px-6 border-b border-gray-100">
+//             <div className="flex items-center justify-between w-full">
+//               <Link href="/" className="flex items-center gap-2 group">
+//                 <div className="w-8 h-8 rounded-lg bg-[#FA9DB7]/10 flex items-center justify-center">
+//                   <Sparkles className="w-4 h-4 text-[#FA9DB7]" />
+//                 </div>
+//                 {isOpen && (
+//                   <span className="text-lg font-serif font-bold tracking-tighter">
+//                     <span className="text-[#f48aa8]">Jam</span>
+//                     <span className="text-gray-500">Beauty</span>
+//                       <span className="text-gray-800">Lounge</span>
+//                   </span>
+//                 )}
+//               </Link>
+//             </div>
+//           </div>
+
+//           {/* Navigation */}
+//           <ScrollArea className="flex-1 px-3 overflow-y-auto">
+//             <div className="space-y-1 py-4">
+//               {navItems.map((item) => {
+//                 const isActive = pathname === item.href;
+//                 const isDisabled = item.title === 'No Access';
+                
+//                 // ✅ Check if item has children
+//                 if ((item as any).children) {
+//                   const isExpanded = expandedItems[item.pageKey] && isOpen;
+                  
+//                   // ✅ Check if any child is active
+//                   const isChildActive = (item as any).children?.some((child: any) => pathname === child.href);
+                  
+//                   return (
+//                     <div key={`parent-${item.pageKey || item.title}`} className="space-y-1">
+//                       {/* Parent item (Dropdown) */}
+//                       <Button
+//                         variant="ghost"
+//                         onClick={() => toggleExpand(item.pageKey)}
+//                         className={cn(
+//                           "w-full justify-start gap-3 h-11 rounded-xl transition-all duration-200",
+//                           !isOpen && "justify-center px-0",
+//                           isChildActive
+//                             ? "bg-[#FA9DB7]/10 text-[#B84A68] font-medium"
+//                             : "text-gray-600 hover:text-[#FA9DB7] hover:bg-[#FA9DB7]/5"
+//                         )}
+//                       >
+//                         <item.icon className={cn(
+//                           "h-5 w-5",
+//                           isChildActive ? "text-[#FA9DB7]" : "text-gray-400"
+//                         )} />
+//                         {isOpen && (
+//                           <>
+//                             <span className="text-sm flex-1 text-left">{item.title}</span>
+//                             {isExpanded ? (
+//                               <ChevronDown className="h-4 w-4 text-gray-400" />
+//                             ) : (
+//                               <ChevronRight className="h-4 w-4 text-gray-400" />
+//                             )}
+//                           </>
+//                         )}
+//                       </Button>
+                      
+//                       {/* Children items */}
+//                       {isExpanded && isOpen && (
+//                         <div className="ml-6 space-y-1 pl-3 border-l-2 border-[#FA9DB7]/20">
+//                           {((item as any).children || []).map((child: any) => {
+//                             const isChildActive = pathname === child.href;
+//                             return (
+//                               <Link 
+//                                 key={`child-${child.href || child.pageKey}`} 
+//                                 href={child.href}
+//                               >
+//                                 <Button
+//                                   variant="ghost"
+//                                   className={cn(
+//                                     "w-full justify-start gap-3 h-10 rounded-xl transition-all duration-200",
+//                                     isChildActive 
+//                                       ? "bg-[#FA9DB7]/10 text-[#B84A68] font-medium" 
+//                                       : "text-gray-500 hover:text-[#FA9DB7] hover:bg-[#FA9DB7]/5"
+//                                   )}
+//                                 >
+//                                   <child.icon className={cn(
+//                                     "h-4 w-4", 
+//                                     isChildActive ? "text-[#FA9DB7]" : "text-gray-400"
+//                                   )} />
+//                                   <span className="text-sm">
+//                                     {child.title}
+//                                   </span>
+//                                 </Button>
+//                               </Link>
+//                             );
+//                           })}
+//                         </div>
+//                       )}
+//                     </div>
+//                   );
+//                 }
+                
+//                 // ✅ Normal items (without children)
+//                 return (
+//                   <Link 
+//                     key={item.href || `item-${item.pageKey}`} 
+//                     href={isDisabled ? '#' : (item.href || '/')}
+//                     className={isDisabled ? 'pointer-events-none cursor-not-allowed' : ''}
+//                   >
+//                     <Button
+//                       variant="ghost"
+//                       disabled={isDisabled}
+//                       className={cn(
+//                         "w-full justify-start gap-3 h-11 rounded-xl transition-all duration-200",
+//                         !isOpen && "justify-center px-0",
+//                         isActive 
+//                           ? "bg-[#FA9DB7]/10 text-[#B84A68] font-medium shadow-sm" 
+//                           : "text-gray-600 hover:text-[#FA9DB7] hover:bg-[#FA9DB7]/5",
+//                         isDisabled && "opacity-50 cursor-not-allowed"
+//                       )}
+//                     >
+//                       <item.icon className={cn(
+//                         "h-5 w-5", 
+//                         isActive ? "text-[#FA9DB7]" : "text-gray-400",
+//                         isDisabled && "text-gray-300"
+//                       )} />
+//                       {isOpen && (
+//                         <span className={cn(
+//                           "text-sm",
+//                           isDisabled && "text-gray-400"
+//                         )}>
+//                           {item.title}
+//                         </span>
+//                       )}
+//                     </Button>
+//                   </Link>
+//                 );
+//               })}
+//             </div>
+//           </ScrollArea>
+
+//           {/* Logout */}
+//           <div className="p-4 border-t border-gray-100">
+//             <Button
+//               variant="ghost"
+//               className={cn(
+//                 "w-full justify-start gap-3 h-11 rounded-xl text-gray-600 hover:text-red-600 hover:bg-red-50 transition-all duration-200",
+//                 !isOpen && "justify-center px-0"
+//               )}
+//               onClick={onLogout}
+//             >
+//               <LogOut className="h-5 w-5 text-gray-400 group-hover:text-red-500" />
+//               {isOpen && (
+//                 <span className="text-sm font-medium">Logout</span>
+//               )}
+//             </Button>
+//           </div>
+//         </div>
 //       </div>
 //     </>
 //   );
@@ -599,14 +543,14 @@
 //       variant="outline"
 //       size="icon"
 //       onClick={onToggle}
-//       className="lg:hidden"
+//       className="lg:hidden border-gray-200 hover:border-[#FA9DB7] hover:bg-[#FA9DB7]/5 transition-all duration-200"
 //     >
-//       <Menu className="h-5 w-5" />
+//       <Menu className="h-5 w-5 text-gray-600" />
 //     </Button>
 //   );
 // }
 
-// // Helper function to get page key from href
+// // ✅ Helper function to get page key from href
 // export function getPageKeyFromHref(href: string): string {
 //   const pageMap: Record<string, string> = {
 //     '/admin': 'dashboard',
@@ -626,11 +570,32 @@
 //     '/admin/messages': 'messages',
 //     '/admin/custominvoice': 'custom invoice',
 //     '/admin/settings': 'settings',
+//     '/super-admin': 'dashboard',
+//     '/super-admin/appointments': 'appointments',
+//     '/super-admin/bookingcalender': 'booking calender',
+//     '/super-admin/services': 'services',
+//     '/super-admin/products': 'products',
+//     '/super-admin/categories': 'categories',
+//     '/super-admin/report': 'report',
+//     '/super-admin/sales': 'sales',
+//     '/super-admin/attendance': 'attendance',
+//     '/super-admin/clients': 'clients',
+//     '/super-admin/staff': 'staff',
+//     '/super-admin/feedback': 'feedbacks',
+//     '/super-admin/analytics': 'analytics',
+//     '/super-admin/expenses': 'expenses',
+//     '/super-admin/orders': 'orders',
+//     '/super-admin/membership': 'membership',
+//     '/super-admin/branches': 'branches',
+//     '/super-admin/users': 'users',
+//     '/super-admin/blogs': 'blogs',
+//     '/super-admin/custom-invoice': 'custom_invoice',
+//     '/super-admin/settings': 'settings',
+//     '/super-admin/messages': 'messages',
 //   };
   
 //   return pageMap[href] || '';
 // }
-
 
 // new code
 'use client';
@@ -765,7 +730,6 @@ const branchAdminNavItems = [
     icon: MessageCircle,
     pageKey: 'messages'
   },
-
   {
     title: 'Custom Invoice',
     href: '/admin/custominvoice',
@@ -821,6 +785,12 @@ const superAdminNavItems = [
         href: '/super-admin/categories',
         icon: Tag,
         pageKey: 'categories'
+      },
+       {
+        title: 'menu',
+        href: '/super-admin/menu',
+        icon: Tag,
+        pageKey: 'menu'
       }
     ]
   },
@@ -934,8 +904,7 @@ const superAdminNavItems = [
     icon: MessageCircle,
     pageKey: 'messages'
   },
-
-   {
+  {
     title: 'Customer Chat',
     href: '/super-admin/customer-chat',
     icon: MessageCircle,
@@ -1002,29 +971,26 @@ export function AdminSidebar({
         />
       )}
 
-      {/* ✅ Sidebar - Single instance */}
+      {/* ✅ Sidebar - Single instance with code2 colors */}
       <div className={cn(
-        "h-full shrink-0 bg-white border-r border-gray-200 transition-all duration-300 ease-in-out",
+        "h-full shrink-0 transition-all duration-300 ease-in-out",
         "fixed inset-y-0 left-0 z-50 lg:relative lg:z-auto",
         isOpen ? "translate-x-0 w-64" : "-translate-x-full w-64 lg:translate-x-0 lg:w-16",
         "lg:static"
       )}>
-        <div className="flex flex-col h-full bg-white">
-          {/* Pink Top Border */}
-          <div className="h-1 w-full bg-[#FA9DB7]"></div>
-          
+        <div className="flex flex-col h-full bg-primary border-r border-secondary/10">
           {/* Logo */}
-          <div className="flex h-20 items-center px-4 lg:px-6 border-b border-gray-100">
+          <div className="flex h-20 items-center px-4 lg:px-6">
             <div className="flex items-center justify-between w-full">
               <Link href="/" className="flex items-center gap-2 group">
-                <div className="w-8 h-8 rounded-lg bg-[#FA9DB7]/10 flex items-center justify-center">
-                  <Sparkles className="w-4 h-4 text-[#FA9DB7]" />
+                <div className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center shadow-lg shadow-secondary/20">
+                  <Scissors className="h-4 w-4 text-primary" />
                 </div>
                 {isOpen && (
-                  <span className="text-lg font-serif font-bold tracking-tighter">
-                    <span className="text-[#f48aa8]">Jam</span>
-                    <span className="text-gray-500">Beauty</span>
-                      <span className="text-gray-800">Lounge</span>
+                  <span className="text-lg font-serif font-bold tracking-tighter text-white mt-1">
+                    <span className="text-secondary">MAN</span>
+                    <span className="text-gray-300">OF</span>
+                    <span className="text-white">CAVE</span>
                   </span>
                 )}
               </Link>
@@ -1052,16 +1018,16 @@ export function AdminSidebar({
                         variant="ghost"
                         onClick={() => toggleExpand(item.pageKey)}
                         className={cn(
-                          "w-full justify-start gap-3 h-11 rounded-xl transition-all duration-200",
+                          "w-full justify-start gap-3 h-11 rounded-lg transition-all duration-200",
                           !isOpen && "justify-center px-0",
                           isChildActive
-                            ? "bg-[#FA9DB7]/10 text-[#B84A68] font-medium"
-                            : "text-gray-600 hover:text-[#FA9DB7] hover:bg-[#FA9DB7]/5"
+                            ? "bg-secondary/20 text-secondary"
+                            : "text-gray-400 hover:text-secondary hover:bg-white/5"
                         )}
                       >
                         <item.icon className={cn(
                           "h-5 w-5",
-                          isChildActive ? "text-[#FA9DB7]" : "text-gray-400"
+                          isChildActive ? "text-secondary" : "text-gray-400"
                         )} />
                         {isOpen && (
                           <>
@@ -1077,7 +1043,7 @@ export function AdminSidebar({
                       
                       {/* Children items */}
                       {isExpanded && isOpen && (
-                        <div className="ml-6 space-y-1 pl-3 border-l-2 border-[#FA9DB7]/20">
+                        <div className="ml-6 space-y-1 pl-3 border-l-2 border-secondary/20">
                           {((item as any).children || []).map((child: any) => {
                             const isChildActive = pathname === child.href;
                             return (
@@ -1088,15 +1054,15 @@ export function AdminSidebar({
                                 <Button
                                   variant="ghost"
                                   className={cn(
-                                    "w-full justify-start gap-3 h-10 rounded-xl transition-all duration-200",
+                                    "w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200",
                                     isChildActive 
-                                      ? "bg-[#FA9DB7]/10 text-[#B84A68] font-medium" 
-                                      : "text-gray-500 hover:text-[#FA9DB7] hover:bg-[#FA9DB7]/5"
+                                      ? "bg-secondary text-primary font-semibold shadow-lg shadow-secondary/20" 
+                                      : "text-gray-400 hover:text-secondary hover:bg-white/5"
                                   )}
                                 >
                                   <child.icon className={cn(
                                     "h-4 w-4", 
-                                    isChildActive ? "text-[#FA9DB7]" : "text-gray-400"
+                                    isChildActive ? "text-primary" : "text-gray-400"
                                   )} />
                                   <span className="text-sm">
                                     {child.title}
@@ -1122,23 +1088,23 @@ export function AdminSidebar({
                       variant="ghost"
                       disabled={isDisabled}
                       className={cn(
-                        "w-full justify-start gap-3 h-11 rounded-xl transition-all duration-200",
+                        "w-full justify-start gap-3 h-11 rounded-lg transition-all duration-200",
                         !isOpen && "justify-center px-0",
                         isActive 
-                          ? "bg-[#FA9DB7]/10 text-[#B84A68] font-medium shadow-sm" 
-                          : "text-gray-600 hover:text-[#FA9DB7] hover:bg-[#FA9DB7]/5",
+                          ? "bg-secondary text-primary font-semibold shadow-lg shadow-secondary/20" 
+                          : "text-gray-400 hover:text-secondary hover:bg-white/5",
                         isDisabled && "opacity-50 cursor-not-allowed"
                       )}
                     >
                       <item.icon className={cn(
                         "h-5 w-5", 
-                        isActive ? "text-[#FA9DB7]" : "text-gray-400",
-                        isDisabled && "text-gray-300"
+                        isActive ? "text-primary" : "text-gray-400",
+                        isDisabled && "text-gray-500"
                       )} />
                       {isOpen && (
                         <span className={cn(
                           "text-sm",
-                          isDisabled && "text-gray-400"
+                          isDisabled && "text-gray-500"
                         )}>
                           {item.title}
                         </span>
@@ -1151,16 +1117,16 @@ export function AdminSidebar({
           </ScrollArea>
 
           {/* Logout */}
-          <div className="p-4 border-t border-gray-100">
+          <div className="p-4 border-t border-secondary/10">
             <Button
               variant="ghost"
               className={cn(
-                "w-full justify-start gap-3 h-11 rounded-xl text-gray-600 hover:text-red-600 hover:bg-red-50 transition-all duration-200",
+                "w-full justify-start gap-3 h-11 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-400/10 transition-all duration-200",
                 !isOpen && "justify-center px-0"
               )}
               onClick={onLogout}
             >
-              <LogOut className="h-5 w-5 text-gray-400 group-hover:text-red-500" />
+              <LogOut className="h-5 w-5" />
               {isOpen && (
                 <span className="text-sm font-medium">Logout</span>
               )}
@@ -1178,7 +1144,7 @@ export function AdminMobileSidebar({ role, onLogout, isOpen, onToggle, allowedPa
       variant="outline"
       size="icon"
       onClick={onToggle}
-      className="lg:hidden border-gray-200 hover:border-[#FA9DB7] hover:bg-[#FA9DB7]/5 transition-all duration-200"
+      className="lg:hidden border-gray-200 hover:border-secondary hover:bg-secondary/10 transition-all duration-200"
     >
       <Menu className="h-5 w-5 text-gray-600" />
     </Button>

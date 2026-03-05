@@ -839,7 +839,7 @@ function CustomerChatPage() {
                           className={cn(
                             "w-full flex items-start gap-3 p-3 rounded-xl transition-all",
                             selectedBranchId === chat.id
-                              ? "bg-[#FA9DB7]/10 border border-[#FA9DB7]/30"
+                              ? "bg-secondary/10 border border-secondary/30"
                               : "hover:bg-gray-50"
                           )}
                         >
@@ -847,8 +847,8 @@ function CustomerChatPage() {
                             <AvatarFallback className={cn(
                               "text-white text-lg font-serif",
                               selectedBranchId === chat.id
-                                ? "bg-gradient-to-br from-[#FA9DB7] to-[#B84A68]"
-                                : "bg-gradient-to-br from-gray-400 to-gray-600"
+                                ? "bg-secondary"
+                                : "bg-secondary"
                             )}>
                               {chat.name.charAt(0)}
                             </AvatarFallback>
@@ -858,7 +858,7 @@ function CustomerChatPage() {
                             <div className="flex items-center justify-between mb-1">
                               <h3 className={cn(
                                 "font-medium truncate",
-                                selectedBranchId === chat.id ? "text-[#B84A68]" : "text-gray-900"
+                                selectedBranchId === chat.id ? "text-secondary" : "text-gray-900"
                               )}>
                                 {chat.name}
                               </h3>
@@ -932,7 +932,7 @@ function CustomerChatPage() {
                 
                 <div>
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#FA9DB7] to-[#B84A68] flex items-center justify-center shadow-lg">
+                    <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center shadow-lg">
                       <MessageCircle className="w-5 h-5 text-white" />
                     </div>
                     <div>
@@ -946,7 +946,7 @@ function CustomerChatPage() {
               </div>
               
               <div className="flex items-center gap-3">
-                <Badge variant="outline" className="px-4 py-2 border-[#FA9DB7]/30 text-[#B84A68] bg-white rounded-full">
+                <Badge variant="outline" className="px-4 py-2 border-secondary text-secondary bg-white rounded-full">
                   <Sparkles className="w-3.5 h-3.5 mr-2" />
                   {branches.length} Branches
                 </Badge>
@@ -955,8 +955,8 @@ function CustomerChatPage() {
                   size="icon" 
                   className="rounded-full hover:bg-red-50 hover:text-red-600"
                 >
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-                    <span className="text-xs font-bold text-gray-700">
+                  <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center">
+                    <span className="text-xs font-bold text-secondary-700">
                       {user?.email?.charAt(0)?.toUpperCase() || 'C'}
                     </span>
                   </div>
@@ -980,10 +980,10 @@ function CustomerChatPage() {
                         value={selectedBranchId} 
                         onValueChange={setSelectedBranchId}
                       >
-                        <SelectTrigger className="w-full md:w-[400px] h-14 border-2 border-gray-200/80 hover:border-[#FA9DB7]/50 focus:ring-2 focus:ring-[#FA9DB7]/30 rounded-2xl bg-white/80">
+                        <SelectTrigger className="w-full md:w-[400px] h-14 border-2 border-secondary  rounded-2xl bg-white/80">
                           <SelectValue placeholder={
                             <div className="flex items-center gap-3 text-gray-500">
-                              <Building className="w-5 h-5 text-[#FA9DB7]" />
+                              <Building className="w-5 h-5 text-secondary" />
                               <span>Choose a branch to start conversation</span>
                             </div>
                           } />
@@ -1009,8 +1009,8 @@ function CustomerChatPage() {
                                   className="rounded-xl py-3 px-3 cursor-pointer hover:bg-[#FA9DB7]/5"
                                 >
                                   <div className="flex items-start gap-3">
-                                    <div className="w-8 h-8 mt-1 rounded-xl bg-gradient-to-br from-[#FA9DB7]/20 to-[#B84A68]/10 flex items-center justify-center">
-                                      <Building className="w-5 h-5 text-[#B84A68]" />
+                                    <div className="w-8 h-8 mt-1 rounded-xl bg-secondary/10 flex items-center justify-center">
+                                      <Building className="w-5 h-5 text-secondary" />
                                     </div>
                                     <div className="flex-1">
                                       <div className="font-semibold text-gray-900">{branch.name}</div>
@@ -1079,26 +1079,26 @@ function CustomerChatPage() {
                             <h2 className="text-2xl font-serif font-bold text-gray-900">
                               {displayBranchDetails.name}
                             </h2>
-                            <Badge className="bg-[#FA9DB7]/10 text-[#B84A68] border-0 rounded-full px-4 py-1">
+                            <Badge className="bg-secondary/20 text-secondary order-0 rounded-full px-4 py-1">
                               Branch
                             </Badge>
                           </div>
                           <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
                             {displayBranchDetails.address && (
                               <>
-                                <MapPin className="w-4 h-4 text-[#FA9DB7]" />
+                                <MapPin className="w-4 h-4 text-secondary" />
                                 <span>{displayBranchDetails.address}, {displayBranchDetails.city}</span>
                               </>
                             )}
                             {displayBranchDetails.phone && (
                               <>
-                                <Phone className="w-4 h-4 text-[#FA9DB7]" />
+                                <Phone className="w-4 h-4 text-secondary" />
                                 <span>{displayBranchDetails.phone}</span>
                               </>
                             )}
                             {displayBranchDetails.email && (
                               <>
-                                <Mail className="w-4 h-4 text-[#FA9DB7]" />
+                                <Mail className="w-4 h-4 text-secondary" />
                                 <span>{displayBranchDetails.email}</span>
                               </>
                             )}
@@ -1115,8 +1115,8 @@ function CustomerChatPage() {
                         <div className="px-6 py-6">
                           {visibleMessages.length === 0 ? (
                             <div className="flex flex-col items-center justify-center h-[300px]">
-                              <div className="w-24 h-24 bg-gradient-to-br from-[#FA9DB7]/20 to-[#B84A68]/10 rounded-3xl flex items-center justify-center mb-4">
-                                <MessageCircle className="w-12 h-12 text-[#B84A68]" />
+                              <div className="w-24 h-24 bg-secondary rounded-3xl flex items-center justify-center mb-4">
+                                <MessageCircle className="w-12 h-12 text-white" />
                               </div>
                               <h3 className="text-xl font-serif font-bold text-gray-900 mb-2">No messages yet</h3>
                               <p className="text-gray-500 text-center max-w-md">
@@ -1421,7 +1421,7 @@ function CustomerChatPage() {
                             "h-12 px-6 bg-gradient-to-r rounded-2xl shadow-lg disabled:opacity-50 shrink-0",
                             replyingTo 
                               ? "from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800" 
-                              : "from-[#FA9DB7] to-[#B84A68] hover:from-[#E87A9B] hover:to-[#9C3852]"
+                              : "bg-secondary"
                           )}
                         >
                           <Send className="w-4 h-4 mr-2" />

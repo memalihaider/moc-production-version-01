@@ -6,13 +6,13 @@ import { getStorage } from "firebase/storage"; // ✅ Storage import karein
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyCtS7JJROenakgAtcxpZiCBk119xM7gwt4",
-  authDomain: "jambeauty-6937b.firebaseapp.com",
-  projectId: "jambeauty-6937b",
-  storageBucket: "jambeauty-6937b.firebasestorage.app",
-  messagingSenderId: "728063190282",
-  appId: "1:728063190282:web:43222b154e195a0dfc46f3",
-  measurementId: "G-XQEMTM7SSJ"
+  apiKey: "AIzaSyAHY1jsIzEBwyJTQ6RRUiVDXRQ9CYEXqNU",
+  authDomain: "manofcave-v1.firebaseapp.com",
+  projectId: "manofcave-v1",
+  storageBucket: "manofcave-v1.firebasestorage.app", // ✅ Storage bucket hai
+  messagingSenderId: "886275055938",
+  appId: "1:886275055938:web:15926c5f0c5d967e04e8db",
+  measurementId: "G-5EBK1WG97T"
 };
 
 // Initialize Firebase
