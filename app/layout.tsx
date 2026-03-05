@@ -53,8 +53,8 @@ import { Providers } from "@/components/providers"; // ✅ Bas yeh import
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Your App",
-  description: "Description",
+  title: "Man Of Cave",
+  description: "Man Of Cave – Premium grooming services for the modern gentleman.",
 };
 
 export default function RootLayout({

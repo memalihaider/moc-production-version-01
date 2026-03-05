@@ -874,7 +874,7 @@ export default function Home() {
             <span className="text-[10px] tracking-[0.3em] uppercase font-bold text-secondary">For The Modern Caveman</span>
           </div>
           
-          <h1 className="text-6xl md:text-8xl font-serif font-bold mb-6 leading-[1.1] tracking-tight drop-shadow-2xl">
+          <h1 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-serif font-bold mb-6 leading-[1.1] tracking-tight drop-shadow-2xl">
             Unleash Your <br />
             <span className="text-secondary italic">Raw</span> Potential
           </h1>
@@ -891,11 +891,11 @@ export default function Home() {
             Primal grooming for the modern man. Embrace your inner strength with bold, authentic style.
           </p>
           
-          <div className="flex flex-col sm:flex-row gap-5 justify-center items-center">
-            <Button size="lg" asChild className="bg-secondary hover:bg-secondary/90 text-primary font-bold px-10 py-7 text-base rounded-xl transition-all duration-500 shadow-[0_0_30px_rgba(197,160,89,0.3)] hover:shadow-[0_0_50px_rgba(197,160,89,0.5)] hover:scale-105 active:scale-95">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center w-full">
+            <Button size="lg" asChild className="w-full sm:w-auto bg-secondary hover:bg-secondary/90 text-primary font-bold px-8 py-5 sm:px-10 sm:py-7 text-sm sm:text-base rounded-xl transition-all duration-500 shadow-[0_0_30px_rgba(197,160,89,0.3)] hover:shadow-[0_0_50px_rgba(197,160,89,0.5)] hover:scale-105 active:scale-95">
               <Link href="/services">RESERVE YOUR SERVICE</Link>
             </Button>
-            <Button size="lg" variant="outline" asChild className="border-white/30 text-primary hover:bg-white hover:text-primary px-10 py-7 text-base rounded-xl transition-all duration-500 backdrop-blur-sm hover:scale-105 active:scale-95">
+            <Button size="lg" variant="outline" asChild className="w-full sm:w-auto border-white/30 text-primary hover:bg-white hover:text-primary px-8 py-5 sm:px-10 sm:py-7 text-sm sm:text-base rounded-xl transition-all duration-500 backdrop-blur-sm hover:scale-105 active:scale-95">
               <Link href="/services">VIEW OUR MENU</Link>
             </Button>
           </div>
@@ -909,9 +909,9 @@ export default function Home() {
       </section>
 
       {/* Stats Section */}
-      <section className="py-10 border-b border-gray-100 bg-white relative z-20 -mt-10 mx-4 md:mx-10 rounded-2xl shadow-2xl">
+      <section className="py-8 md:py-10 border-b border-gray-100 bg-white relative z-20 -mt-6 md:-mt-10 mx-3 md:mx-10 rounded-2xl shadow-2xl">
         <div className="max-w-7xl mx-auto px-4">
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-3 gap-4 md:gap-8">
             {[
               { 
                 icon: Award, 
@@ -956,12 +956,12 @@ export default function Home() {
       </section>
 
       {/* Featured In Section */}
-      <section className="py-12 bg-white border-b border-gray-50">
+      <section className="py-10 md:py-12 bg-white border-b border-gray-50">
         <div className="max-w-7xl mx-auto px-4">
-          <p className="text-center text-[10px] uppercase tracking-[0.4em] text-muted-foreground mb-8 font-bold">As Featured In</p>
-          <div className="flex flex-wrap justify-center items-center gap-12 md:gap-20 opacity-40 grayscale hover:grayscale-0 transition-all duration-700">
+          <p className="text-center text-[10px] uppercase tracking-[0.4em] text-muted-foreground mb-6 md:mb-8 font-bold">As Featured In</p>
+          <div className="flex flex-wrap justify-center items-center gap-6 sm:gap-10 md:gap-20 opacity-40 grayscale hover:grayscale-0 transition-all duration-700">
             {['GQ', 'VOGUE', 'ESQUIRE', 'FORBES', 'MEN\'S HEALTH'].map((brand) => (
-              <span key={brand} className="text-2xl md:text-3xl font-serif font-black tracking-tighter text-primary">{brand}</span>
+              <span key={brand} className="text-xl sm:text-2xl md:text-3xl font-serif font-black tracking-tighter text-primary">{brand}</span>
             ))}
           </div>
         </div>
@@ -1563,7 +1563,7 @@ export default function Home() {
 </section>
 
      {/* Branches Section */}
-<section className="py-20 px-4 bg-white relative overflow-hidden">
+<section className="py-12 md:py-20 px-4 bg-white relative overflow-hidden">
   <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-[0.02] pointer-events-none"></div>
   <div className="max-w-7xl mx-auto relative z-10">
     <div className="flex flex-col md:flex-row items-end justify-between mb-12 gap-6">
@@ -1571,7 +1571,7 @@ export default function Home() {
         <div className="inline-block bg-secondary/10 px-3 py-1 rounded-full">
           <span className="text-secondary font-bold tracking-[0.2em] uppercase text-[10px]">Our Global Presence</span>
         </div>
-        <h2 className="text-4xl md:text-5xl font-serif font-bold text-primary leading-[1.1]">
+        <h2 className="text-3xl sm:text-4xl md:text-5xl font-serif font-bold text-primary leading-[1.1]">
           Luxury Grooming, <br /><span className="text-secondary italic">Everywhere.</span>
         </h2>
         <div className="flex items-center gap-2">
@@ -1705,60 +1705,60 @@ export default function Home() {
 </section>
 
       {/* Newsletter Section */}
-      <section className="py-32 px-4 bg-primary relative overflow-hidden">
+      <section className="py-16 md:py-32 px-4 bg-primary relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
           <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] rounded-full bg-secondary blur-[150px] animate-pulse"></div>
           <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] rounded-full bg-secondary blur-[150px] animate-pulse"></div>
         </div>
         
         <div className="max-w-5xl mx-auto text-center relative z-10">
-          <div className="inline-block bg-secondary/20 px-4 py-1.5 rounded-full mb-8 border border-secondary/30">
+          <div className="inline-block bg-secondary/20 px-4 py-1.5 rounded-full mb-6 md:mb-8 border border-secondary/30">
             <span className="text-secondary font-black tracking-[0.3em] uppercase text-[10px]">The Inner Circle</span>
           </div>
-          <h2 className="text-5xl md:text-7xl font-serif font-bold text-white mb-10 leading-tight">
+          <h2 className="text-4xl sm:text-5xl md:text-7xl font-serif font-bold text-white mb-6 md:mb-10 leading-tight">
             Join The <span className="text-secondary italic">Elite</span>
           </h2>
-          <p className="text-xl text-gray-400 mb-16 font-light max-w-2xl mx-auto leading-relaxed">
+          <p className="text-base md:text-xl text-gray-400 mb-8 md:mb-16 font-light max-w-2xl mx-auto leading-relaxed">
             Subscribe to receive exclusive invitations, grooming insights, and priority access to our most sought-after events.
           </p>
           
-          <div className="flex flex-col sm:flex-row gap-5 max-w-3xl mx-auto bg-white/5 p-3 rounded-[2.5rem] border border-white/10 backdrop-blur-xl shadow-2xl">
+          <div className="flex flex-col sm:flex-row gap-3 max-w-3xl mx-auto bg-white/5 p-3 rounded-2xl sm:rounded-[2.5rem] border border-white/10 backdrop-blur-xl shadow-2xl">
             <input 
               placeholder="Your prestigious email address" 
-              className="h-16 bg-transparent text-white rounded-2xl px-8 focus:outline-none transition-all w-full font-light text-lg"
+              className="h-12 sm:h-16 bg-transparent text-white rounded-xl px-5 sm:px-8 focus:outline-none transition-all w-full font-light text-base sm:text-lg"
             />
-            <Button size="lg" className="h-16 bg-secondary text-primary hover:bg-white hover:scale-105 transition-all font-black px-12 rounded-[1.8rem] shrink-0 tracking-[0.2em] text-xs">
+            <Button size="lg" className="h-12 sm:h-16 bg-secondary text-primary hover:bg-white hover:scale-105 transition-all font-black px-8 sm:px-12 rounded-xl sm:rounded-[1.8rem] shrink-0 tracking-[0.2em] text-xs">
               SUBSCRIBE NOW
             </Button>
           </div>
-          <p className="text-[10px] text-gray-500 mt-10 uppercase tracking-[0.3em] font-bold">
+          <p className="text-[10px] text-gray-500 mt-6 md:mt-10 uppercase tracking-[0.3em] font-bold">
             Privacy is our priority. Unsubscribe at any time.
           </p>
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="relative py-40 px-4 overflow-hidden">
+      <section className="relative py-20 sm:py-32 md:py-40 px-4 overflow-hidden">
         <div 
-          className="absolute inset-0 bg-cover bg-fixed bg-center scale-110"
+          className="absolute inset-0 bg-cover bg-center scale-110"
           style={{ backgroundImage: "url('https://images.unsplash.com/photo-1512690196222-7c7d3f993c1b?q=80&w=2070&auto=format&fit=crop')" }}
         >
           <div className="absolute inset-0 bg-linear-to-b from-primary/95 via-primary/80 to-primary/95"></div>
         </div>
         
-        <div className="relative z-10 max-w-5xl mx-auto text-center text-white space-y-12">
-          <h2 className="text-6xl md:text-8xl font-serif font-bold leading-[1.1] tracking-tight">
+        <div className="relative z-10 max-w-5xl mx-auto text-center text-white space-y-8 md:space-y-12">
+          <h2 className="text-4xl sm:text-6xl md:text-8xl font-serif font-bold leading-[1.1] tracking-tight">
             Your Chair <br />
             <span className="text-secondary italic">Awaits.</span>
           </h2>
-          <p className="text-xl md:text-2xl text-gray-300 max-w-3xl mx-auto font-light leading-relaxed">
+          <p className="text-base sm:text-xl md:text-2xl text-gray-300 max-w-3xl mx-auto font-light leading-relaxed">
             Step into a world where time slows down and style takes center stage. Experience the pinnacle of luxury grooming today.
           </p>
-          <div className="flex flex-col sm:flex-row gap-8 justify-center pt-8">
-            <Button size="lg" asChild className="bg-secondary hover:bg-white text-primary font-black px-14 py-10 text-sm rounded-2xl shadow-[0_20px_50px_rgba(197,160,89,0.3)] transition-all duration-500 hover:scale-110 tracking-[0.2em]">
+          <div className="flex flex-col sm:flex-row gap-4 sm:gap-8 justify-center pt-4 sm:pt-8">
+            <Button size="lg" asChild className="w-full sm:w-auto bg-secondary hover:bg-white text-primary font-black px-8 py-6 sm:px-14 sm:py-10 text-sm rounded-2xl shadow-[0_20px_50px_rgba(197,160,89,0.3)] transition-all duration-500 hover:scale-110 tracking-[0.2em]">
               <Link href="/services">BOOK APPOINTMENT</Link>
             </Button>
-            <Button size="lg" variant="outline" asChild className="border-white/30 text-primary hover:bg-white hover:text-primary px-14 py-10 text-sm rounded-2xl backdrop-blur-md transition-all duration-500 hover:scale-110 tracking-[0.2em]">
+            <Button size="lg" variant="outline" asChild className="w-full sm:w-auto border-white/30 text-primary hover:bg-white hover:text-primary px-8 py-6 sm:px-14 sm:py-10 text-sm rounded-2xl backdrop-blur-md transition-all duration-500 hover:scale-110 tracking-[0.2em]">
               <Link href="/login">JOIN THE CLUB</Link>
             </Button>
           </div>
@@ -1766,10 +1766,10 @@ export default function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-[#050505] text-white py-32 px-4 border-t border-white/5 relative overflow-hidden">
+      <footer className="bg-[#050505] text-white py-16 md:py-32 px-4 border-t border-white/5 relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-[0.03] pointer-events-none"></div>
         <div className="max-w-7xl mx-auto relative z-10">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-20">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 md:gap-16 lg:gap-20">
             <div className="space-y-10">
               <Link href="/" className="inline-block">
                 <h3 className="text-3xl font-serif font-bold tracking-tighter">
@@ -1870,7 +1870,7 @@ export default function Home() {
             </div>
           </div>
           
-          <div className="mt-32 pt-10 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-8 text-gray-600 text-[9px] tracking-[0.4em] font-black uppercase">
+          <div className="mt-12 md:mt-32 pt-10 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4 md:gap-8 text-gray-600 text-[9px] tracking-[0.4em] font-black uppercase">
             <p>&copy; 2026 PREMIUM CUTS LUXURY GROOMING. ALL RIGHTS RESERVED.</p>
             <div className="flex gap-12">
               <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
