@@ -498,6 +498,25 @@ export default function ServicesPage() {
     return matchesCategory && matchesSearch && matchesStaff && matchesBranch;
   });
 
+  // Deduplicate services by name (same service offered at multiple branches) and sort alphabetically
+  const displayServices = (() => {
+    const seen = new Map<string, Service>();
+    filteredServices.forEach(service => {
+      const key = service.name.toLowerCase().trim();
+      if (seen.has(key)) {
+        const existing = seen.get(key)!;
+        seen.set(key, {
+          ...existing,
+          branchNames: [...new Set([...existing.branchNames, ...service.branchNames])],
+          branches: [...new Set([...existing.branches, ...service.branches])],
+        });
+      } else {
+        seen.set(key, { ...service });
+      }
+    });
+    return Array.from(seen.values()).sort((a, b) => a.name.localeCompare(b.name));
+  })();
+
   // Get current selected branch name for display
   const currentBranchName = selectedBranch === 'all' 
     ? 'All Branches' 
@@ -652,19 +671,19 @@ export default function ServicesPage() {
 
       {/* Chat Login Popup */}
       {showChatPopup && (
-        <div className="fixed inset-0 flex items-center justify-center z-[60]">
+        <div className="fixed inset-0 flex items-center justify-center z-60">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowChatPopup(false)} />
           <div className="relative bg-white rounded-2xl shadow-2xl p-8 max-w-md mx-4 w-full animate-in fade-in zoom-in duration-300">
             <button onClick={() => setShowChatPopup(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
               <X className="w-5 h-5" />
             </button>
-            <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-blue-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <div className="w-16 h-16 bg-linear-to-br from-purple-500 to-blue-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
               <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
               </svg>
             </div>
             <h3 className="text-2xl font-serif font-bold text-center text-gray-900 mb-2">Create Account First! ✋</h3>
-            <Link href="/customer/login" className="block w-full text-center bg-gradient-to-r from-purple-500 to-blue-500 text-white font-semibold py-3 px-6 rounded-xl hover:shadow-lg hover:scale-[1.02] transition-all duration-300" onClick={() => setShowChatPopup(false)}>
+            <Link href="/customer/login" className="block w-full text-center bg-linear-to-r from-purple-500 to-blue-500 text-white font-semibold py-3 px-6 rounded-xl hover:shadow-lg hover:scale-[1.02] transition-all duration-300" onClick={() => setShowChatPopup(false)}>
               Login / Sign Up
             </Link>
             <button onClick={() => setShowChatPopup(false)} className="block w-full text-center text-gray-500 text-sm mt-4 hover:text-gray-700">
@@ -680,7 +699,7 @@ export default function ServicesPage() {
           <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover">
             <source src="https://www.pexels.com/download/video/7291771/" type="video/mp4" />
           </video>
-          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/30 to-primary/70"></div>
+          <div className="absolute inset-0 bg-linear-to-b from-black/40 via-black/30 to-primary/70"></div>
         </div>
 
         <div className="max-w-7xl mx-auto text-center relative z-10 h-full flex flex-col justify-center items-center">
@@ -840,7 +859,7 @@ export default function ServicesPage() {
             <div>
               <h2 className="text-xl font-serif font-bold text-primary">
                 Premium Services
-                <span className="text-secondary ml-2 text-sm">({filteredServices.length})</span>
+                <span className="text-secondary ml-2 text-sm">({displayServices.length})</span>
               </h2>
               
             </div>
@@ -867,7 +886,7 @@ export default function ServicesPage() {
                 REFRESH
               </Button>
             </div>
-          ) : filteredServices.length === 0 ? (
+          ) : displayServices.length === 0 ? (
             <div className="text-center py-12 bg-white rounded-xl shadow-sm border border-gray-100">
               <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3">
                 <Building className="w-8 h-8 text-gray-300" />
@@ -902,7 +921,7 @@ export default function ServicesPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {filteredServices.map((service) => {
+              {displayServices.map((service) => {
                 const isServiceAdded = isServiceInCart(service.id);
                 // Truncate description to 8 words
                 const shortDescription = truncateDescription(service.description, 8);
@@ -918,7 +937,7 @@ export default function ServicesPage() {
                     className="group border border-gray-100 bg-white shadow-sm hover:shadow-md transition-all duration-500 rounded-lg overflow-hidden flex flex-col hover:border-secondary/20 h-full"
                   >
                     {/* Service Image - Further Compressed */}
-                    <div className="relative aspect-[3/2] overflow-hidden">
+                    <div className="relative aspect-3/2 overflow-hidden">
                       <img 
                         src={service.imageUrl} 
                         alt={service.name} 
@@ -1058,7 +1077,7 @@ export default function ServicesPage() {
             alt={selectedService.name}
             className="w-full h-full object-cover"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
+          <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/40 to-transparent"></div>
           
           {/* Close Button */}
           <Button
@@ -1092,7 +1111,7 @@ export default function ServicesPage() {
         {/* Content Area - Rest remains exactly the same */}
         <div className="p-6 space-y-6">
           {/* Price Card */}
-          <div className="bg-gradient-to-r from-secondary/20 to-secondary/5 p-4 rounded-xl border border-secondary/20">
+          <div className="bg-linear-to-r from-secondary/20 to-secondary/5 p-4 rounded-xl border border-secondary/20">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-secondary font-bold uppercase tracking-wider">Price</p>

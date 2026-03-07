@@ -144,6 +144,8 @@ interface AdvancedCalendarProps {
   staff?: StaffMember[];
   showFullDetails?: boolean;
   formatCurrency?: (amount: number) => string;
+  /** When set, locks the calendar to this branch and hides the branch filter dropdown */
+  lockedBranch?: string;
 }
 
 // INVOICE INTERFACES
@@ -1307,7 +1309,7 @@ if (amounts.Check > 0 || amounts.check > 0) {
               </div>
               
               {/* Summary */}
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border rounded-xl p-6">
+              <div className="bg-linear-to-r from-blue-50 to-indigo-50 border rounded-xl p-6">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                   <div className="text-center">
                     <p className="text-sm text-gray-600">Subtotal</p>
@@ -2152,12 +2154,13 @@ export function AdvancedCalendar({
   onCreateBooking,
   staff: propStaff,
   showFullDetails = true,
-  formatCurrency = (amount) => `AED ${amount.toFixed(2)}`
+  formatCurrency = (amount) => `AED ${amount.toFixed(2)}`,
+  lockedBranch
 }: AdvancedCalendarProps) {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedBarber, setSelectedBarber] = useState<string>('all');
-  // NEW: Selected branch for filtering
-  const [selectedBranch, setSelectedBranch] = useState<string>('all');
+  // NEW: Selected branch for filtering - locked for branch admins
+  const [selectedBranch, setSelectedBranch] = useState<string>(lockedBranch || 'all');
   const [branches, setBranches] = useState<Branch[]>([]);
   const [timeSlotGap, setTimeSlotGap] = useState(30);
   const [layoutMode, setLayoutMode] = useState<'time-top' | 'employee-top'>('time-top');
@@ -2176,14 +2179,18 @@ export function AdvancedCalendar({
     const loadStaffData = async () => {
       if (propStaff && propStaff.length > 0) {
         setStaffMembers(propStaff);
-      } else {
+      } else if (!lockedBranch) {
+        // Only fetch all staff when NOT locked to a specific branch
+        // (for super admin). Branch admins always rely on propStaff from parent.
         const staffData = await fetchStaffFromFirebase();
         setStaffMembers(staffData);
       }
+      // If lockedBranch is set and propStaff is empty, keep empty —
+      // parent will provide filtered staff once loaded.
     };
     
     loadStaffData();
-  }, [propStaff]);
+  }, [propStaff, lockedBranch]);
 
   // NEW: Load branches data
   useEffect(() => {
@@ -2195,7 +2202,22 @@ export function AdvancedCalendar({
     loadBranches();
   }, []);
 
-  const barbers = useMemo(() => staffMembers.map(staff => staff.name), [staffMembers]);
+  // Filter staff by selected branch for columns and dropdown
+  const branchFilteredStaff = useMemo(() => {
+    // When locked to a branch, always show only that branch's staff
+    const activeBranch = lockedBranch || (selectedBranch !== 'all' ? selectedBranch : null);
+    if (!activeBranch) return staffMembers;
+    return staffMembers.filter(s =>
+      (s.branch || '').toLowerCase().trim() === activeBranch.toLowerCase().trim()
+    );
+  }, [staffMembers, selectedBranch, lockedBranch]);
+
+  // Reset barber filter when branch changes
+  useEffect(() => {
+    setSelectedBarber('all');
+  }, [selectedBranch]);
+
+  const barbers = useMemo(() => branchFilteredStaff.map(staff => staff.name), [branchFilteredStaff]);
 
   const generateTimeSlots = () => {
     const slots = [];
@@ -2449,13 +2471,14 @@ const filteredAppointments = useMemo(() => {
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
            <CardTitle className="flex items-center gap-2">
   <Calendar className="w-6 h-6 text-pink-600 " />
-  <span className="text-xl font-extrabold bg-gradient-to-r from-pink-600 to-pink-600 bg-clip-text text-pink-600">
+  <span className="text-xl font-extrabold bg-linear-to-r from-pink-600 to-pink-600 bg-clip-text text-pink-600">
      Booking Calendar
   </span>
  
 </CardTitle>
             <div className="flex flex-wrap items-center gap-2">
-              {/* NEW: Branch Filter Dropdown */}
+              {/* Branch Filter Dropdown - hidden for locked (branch admin) */}
+              {!lockedBranch && (
               <Select value={selectedBranch} onValueChange={setSelectedBranch}>
                 <SelectTrigger className="w-40">
                   <SelectValue placeholder="Select Branch" />
@@ -2472,6 +2495,7 @@ const filteredAppointments = useMemo(() => {
                   ))}
                 </SelectContent>
               </Select>
+              )}
 
 
 
@@ -2489,8 +2513,8 @@ const filteredAppointments = useMemo(() => {
                       <SelectValue placeholder="Select Staff" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Staff ({staffMembers.length})</SelectItem>
-                      {staffMembers.map(staff => (
+                      <SelectItem value="all">All Staff ({branchFilteredStaff.length})</SelectItem>
+                      {branchFilteredStaff.map(staff => (
                         <SelectItem key={staff.id} value={staff.name}>
                           <div className="flex items-center gap-2">
                             <div className="relative w-4 h-4 rounded-full overflow-hidden">
@@ -2697,7 +2721,7 @@ const filteredAppointments = useMemo(() => {
                         rowElements.push(
                           <div
                             key={`${barber}-${currentSlot}`}
-                            className={`p-1 border rounded cursor-pointer hover:shadow-md transition-all duration-200 min-h-[60px] flex items-center justify-center border-2 border-primary/50 bg-primary/5`}
+                            className={`p-1 rounded cursor-pointer hover:shadow-md transition-all duration-200 min-h-[60px] flex items-center justify-center border-2 border-primary/50 bg-primary/5`}
                             style={{ gridColumn: `span ${span}` }}
                             onClick={() => handleAdvanceAppointmentClick(appointment)}
                           >
@@ -2783,7 +2807,7 @@ const filteredAppointments = useMemo(() => {
                     const staffRole = getStaffRole(barber);
                     
                     return (
-                      <div key={barber} className="p-2 text-xs text-center font-medium text-muted-foreground border rounded bg-muted/50 flex flex-col items-center justify-center gap-1 sticky top-0 bg-background z-20 border-b">
+                      <div key={barber} className="p-2 text-xs text-center font-medium text-muted-foreground border rounded flex flex-col items-center justify-center gap-1 sticky top-0 bg-background z-20 border-b">
                         <div className="relative w-8 h-8 rounded-full overflow-hidden shrink-0 border border-gray-300 mb-1">
                           <img 
                             src={staffAvatar} 
@@ -2805,7 +2829,7 @@ const filteredAppointments = useMemo(() => {
 
                   {timeSlots.map((slot, slotIndex) => (
                     <React.Fragment key={slot}>
-                      <div className="p-2 sm:p-3 bg-muted rounded flex items-center gap-2 sticky left-0 z-20 border-r min-h-[80px]">
+                      <div className="p-2 sm:p-3 bg-muted rounded flex items-center gap-2 sticky left-0 z-20 border-r min-h-20">
                         <Clock className="w-3 h-3 sm:w-4 sm:h-4" />
                         <span className="font-medium text-xs sm:text-sm">{slot}</span>
                       </div>
@@ -2818,7 +2842,7 @@ const filteredAppointments = useMemo(() => {
                           return (
                             <div
                               key={`${slot}-${barber}`}
-                              className="p-1 border rounded cursor-pointer hover:shadow-md transition-all duration-200 flex items-center justify-center border-2 border-primary/50 bg-primary/5"
+                              className="p-1 rounded cursor-pointer hover:shadow-md transition-all duration-200 flex items-center justify-center border-2 border-primary/50 bg-primary/5"
                               style={{ gridRow: `span ${span}` }}
                               onClick={() => handleAdvanceAppointmentClick(appointment)}
                             >
@@ -2845,7 +2869,7 @@ const filteredAppointments = useMemo(() => {
                           return (
                             <div
                               key={`${slot}-${barber}`}
-                              className="p-1 border rounded cursor-pointer hover:shadow-md transition-all duration-200 flex items-center justify-center border-dashed border-muted-foreground/30 hover:border-muted-foreground/50 hover:bg-green-50 min-h-[80px]"
+                              className="p-1 border rounded cursor-pointer hover:shadow-md transition-all duration-200 flex items-center justify-center border-dashed border-muted-foreground/30 hover:border-muted-foreground/50 hover:bg-green-50 min-h-20"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 onCreateBooking && onCreateBooking(barber, format(selectedDate, 'yyyy-MM-dd'), slot);
@@ -2908,11 +2932,11 @@ const filteredAppointments = useMemo(() => {
               </div>
             </div>
 
-            {staffMembers.length > 0 && (
+            {branchFilteredStaff.length > 0 && (
               <div className="text-xs text-muted-foreground bg-muted/50 p-3 rounded-lg">
                 
                 <div className="flex flex-wrap gap-2">
-                  {staffMembers.slice(0, 3).map(staff => (
+                  {branchFilteredStaff.slice(0, 3).map(staff => (
                     <div key={staff.id} className="flex items-center gap-1 text-xs px-2 py-1 bg-background rounded">
                       <div className="relative w-3 h-3 rounded-full overflow-hidden">
                         <img 
@@ -2928,8 +2952,8 @@ const filteredAppointments = useMemo(() => {
                       <span>{staff.name.split(' ')[0]}</span>
                     </div>
                   ))}
-                  {staffMembers.length > 3 && (
-                    <span className="text-xs">+{staffMembers.length - 3} more</span>
+                  {branchFilteredStaff.length > 3 && (
+                    <span className="text-xs">+{branchFilteredStaff.length - 3} more</span>
                   )}
                 </div>
               </div>

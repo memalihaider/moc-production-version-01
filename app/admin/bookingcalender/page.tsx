@@ -1532,6 +1532,20 @@ export default function AdminAppointments() {
     branch: ''
   });
 
+  // Auto-set branch for branch admins once branches are loaded
+  useEffect(() => {
+    if (user?.role === 'admin' && user?.branchName && branches.length > 0) {
+      const adminBranch = branches.find(b => b.name === user.branchName);
+      if (adminBranch) {
+        setSelectedBranch(adminBranch);
+        setBookingData(prev => ({
+          ...prev,
+          branch: user.branchName || ''
+        }));
+      }
+    }
+  }, [branches, user]);
+
   // ✅ FIXED: Load data from Firebase with branch filtering and NO orderBy
   useEffect(() => {
     let isMounted = true;
@@ -1680,10 +1694,24 @@ export default function AdminAppointments() {
         
         if (isMounted) {
           setProductOrders(ordersData);
-          setStaffMembers(staffData);
-          setServices(servicesData);
-          setCategories(categoriesData);
-          setBranches(branchesData);
+
+          // Filter staff, services, categories for branch admins
+          if (userBranch) {
+            setStaffMembers(staffData.filter(s => s.branch === userBranch));
+            setServices(servicesData.filter(s =>
+              s.branchNames?.includes(userBranch) || s.branches?.includes(userBranch)
+            ));
+            setCategories(categoriesData.filter(c => c.branchName === userBranch));
+            // For branch admin, show only their branch
+            const adminBranch = branchesData.find(b => b.name === userBranch);
+            setBranches(adminBranch ? [adminBranch] : branchesData);
+          } else {
+            setStaffMembers(staffData);
+            setServices(servicesData);
+            setCategories(categoriesData);
+            setBranches(branchesData);
+          }
+
           setLoading({ 
             orders: false, 
             bookings: false, 
@@ -3061,13 +3089,21 @@ export default function AdminAppointments() {
 
   return (
     <ProtectedRoute requiredRole="admin">
-      <div className="flex h-screen ">
-       
-
+      <div className="flex h-screen overflow-hidden">
+        {/* Sidebar */}
         <div className={cn(
-          "flex-1 flex flex-col transition-all duration-300 ease-in-out min-h-0",
-          sidebarOpen ? "lg:ml-0" : "lg:ml-1"
+          "h-screen overflow-y-auto shrink-0 sticky top-0 hidden lg:block",
+          sidebarOpen ? "w-64" : "w-16"
         )}>
+          <AdminSidebar
+            role={user?.role === 'admin' ? 'branch_admin' : 'super_admin'}
+            isOpen={sidebarOpen}
+            onToggle={() => setSidebarOpen(!sidebarOpen)}
+            onLogout={handleLogout}
+          />
+        </div>
+
+        <div className="flex-1 flex flex-col min-h-0 overflow-auto">
           <header className="bg-white shadow-sm border-b shrink-0">
             <div className="flex items-center justify-between px-4 py-4 lg:px-8">
               <div className="flex items-center gap-4">
@@ -3208,11 +3244,11 @@ export default function AdminAppointments() {
                             />
                           </div>
                           
+                          {user?.role !== 'admin' && (
                           <div className="space-y-2">
                             <label className="text-sm font-medium text-gray-700">Filter by Branch</label>
                             <Select 
                               onValueChange={(value) => {}}
-                              disabled={user?.role === 'admin'}
                             >
                               <SelectTrigger className="h-11">
                                 <SelectValue placeholder="All Branches" />
@@ -3227,6 +3263,7 @@ export default function AdminAppointments() {
                               </SelectContent>
                             </Select>
                           </div>
+                          )}
                         </CardContent>
                       </Card>
                       
@@ -3412,7 +3449,13 @@ export default function AdminAppointments() {
                                   }}
                                   onStatusChange={(appointmentId, newStatus) => handleStatusChange(appointmentId.toString(), newStatus)}
                                   onCreateBooking={handleCreateBooking}
-                                  staff={staffMembers as any}
+                                  staff={
+                                    (user?.role === 'admin' && user?.branchName
+                                      ? staffMembers.filter(s => s.branch === user.branchName)
+                                      : staffMembers
+                                    ) as any
+                                  }
+                                  lockedBranch={user?.role === 'admin' ? user.branchName : undefined}
                                   showFullDetails={true}
                                 />
                               </TabsContent>
@@ -3447,7 +3490,7 @@ export default function AdminAppointments() {
                             <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
                               <div className="md:col-span-3">
                                 <div className="flex items-center gap-3 mb-2">
-                                  <div className="w-10 h-10 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-full flex items-center justify-center">
+                                  <div className="w-10 h-10 bg-linear-to-br from-primary/20 to-secondary/20 rounded-full flex items-center justify-center">
                                     <User className="w-5 h-5 text-primary" />
                                   </div>
                                   <div className="min-w-0">
@@ -3574,7 +3617,7 @@ export default function AdminAppointments() {
 
           {selectedAppointment && (
             <div className="space-y-6">
-              <div className="p-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl">
+              <div className="p-6 bg-linear-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                   <div>
                     <h3 className="text-lg font-semibold text-blue-900">Booking Status</h3>
@@ -3621,7 +3664,7 @@ export default function AdminAppointments() {
                     </div>
                   </div>
 
-                  <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-xl shadow-sm">
+                  <div className="p-4 bg-linear-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-xl shadow-sm">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
                         <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
@@ -3649,7 +3692,7 @@ export default function AdminAppointments() {
                     </div>
                   </div>
 
-                  <div className="p-4 bg-gradient-to-r from-blue-50 to-cyan-50 border-2 border-blue-300 rounded-xl shadow-sm">
+                  <div className="p-4 bg-linear-to-r from-blue-50 to-cyan-50 border-2 border-blue-300 rounded-xl shadow-sm">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
                         <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
@@ -3737,7 +3780,7 @@ export default function AdminAppointments() {
                   </div>
 
                   {selectedAppointment.paymentAmounts && (
-                    <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl">
+                    <div className="p-4 bg-linear-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl">
                       <h4 className="font-bold text-gray-900 mb-3">Payment Distribution</h4>
                       <div className="space-y-3">
                         {Object.entries(selectedAppointment.paymentAmounts).map(([method, amount]) => {
@@ -3760,7 +3803,7 @@ export default function AdminAppointments() {
                     </div>
                   )}
 
-                  <div className="p-5 bg-gradient-to-r from-primary/10 to-secondary/10 border-2 border-primary/20 rounded-xl">
+                  <div className="p-5 bg-linear-to-r from-primary/10 to-secondary/10 border-2 border-primary/20 rounded-xl">
                     <h4 className="font-bold text-gray-900 mb-4 text-lg">Price Summary</h4>
                     
                     <div className="space-y-3">
@@ -3987,7 +4030,7 @@ export default function AdminAppointments() {
       </Sheet>
 
       <Sheet open={showBookingDialog} onOpenChange={setShowBookingDialog}>
-        <SheetContent className="sm:max-w-[900px] w-full z-[60] overflow-y-auto">
+        <SheetContent className="sm:max-w-[900px] w-full z-60 overflow-y-auto">
           <SheetHeader className="border-b pb-4 mb-6">
             <SheetTitle className="text-xl font-semibold">Create New Booking</SheetTitle>
             <SheetDescription className="text-base">
@@ -4122,6 +4165,11 @@ export default function AdminAppointments() {
                     <Building className="w-4 h-4" />
                     Branch
                   </label>
+                  {user?.role === 'admin' && user?.branchName ? (
+                    <div className="h-11 px-3 flex items-center border rounded-md bg-gray-50 text-sm font-medium text-gray-700">
+                      🏢 {user.branchName}
+                    </div>
+                  ) : (
                   <Select 
                     value={bookingData.branch} 
                     onValueChange={handleBranchChange}
@@ -4154,6 +4202,7 @@ export default function AdminAppointments() {
                       )}
                     </SelectContent>
                   </Select>
+                  )}
                 </div>
               </div>
             </div>
@@ -4232,7 +4281,7 @@ export default function AdminAppointments() {
                 </div>
                 
                 {selectedServices.length > 0 ? (
-                  <div className="mt-4 p-5 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl">
+                  <div className="mt-4 p-5 bg-linear-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl">
                     <h4 className="font-bold text-green-900 mb-3 flex items-center gap-2">
                       <CheckCircle className="w-5 h-5" />
                       Selected Services Summary
@@ -4888,7 +4937,7 @@ export default function AdminAppointments() {
       </Sheet>
 
       <Sheet open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <SheetContent className="sm:max-w-[900px] w-full z-[70] ">
+        <SheetContent className="sm:max-w-[900px] w-full z-70 ">
           <SheetHeader className="border-b pb-4 mb-6">
             <SheetTitle className="text-xl font-semibold flex items-center gap-2">
               <Edit className="w-5 h-5 text-primary" />
@@ -5020,6 +5069,11 @@ export default function AdminAppointments() {
                       <Building className="w-4 h-4" />
                       Branch
                     </label>
+                    {user?.role === 'admin' && user?.branchName ? (
+                      <div className="h-11 px-3 flex items-center border rounded-md bg-gray-50 text-sm font-medium text-gray-700">
+                        🏢 {user.branchName}
+                      </div>
+                    ) : (
                     <Select 
                       value={editBookingData.branch} 
                       onValueChange={(value) => {
@@ -5044,6 +5098,7 @@ export default function AdminAppointments() {
                           ))}
                       </SelectContent>
                     </Select>
+                    )}
                   </div>
                 </div>
               </div>
@@ -5508,7 +5563,7 @@ export default function AdminAppointments() {
 
           {invoiceData && selectedAppointmentForInvoice && (
             <div className="space-y-6">
-              <div className="bg-gradient-to-r from-primary/5 to-secondary/5 p-6 rounded-lg border">
+              <div className="bg-linear-to-r from-primary/5 to-secondary/5 p-6 rounded-lg border">
                 <div className="flex justify-between items-center">
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900">Invoice Preview</h3>
