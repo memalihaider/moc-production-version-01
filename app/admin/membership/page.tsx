@@ -1696,7 +1696,7 @@ export default function SuperAdminMembership() {
                               <div className="flex items-center gap-4">
                                 <div className="flex items-center gap-1 text-sm">
                                   <DollarSign className="w-4 h-4 text-green-600" />
-                                  <span className="font-semibold">${membership.price}</span>
+                                  <span className="font-semibold">AED {membership.price}</span>
                                 </div>
                                 <div className="flex items-center gap-1 text-sm">
                                   <Calendar className="w-4 h-4 text-blue-600" />
@@ -2164,7 +2164,7 @@ export default function SuperAdminMembership() {
                                 </div>
                                 <div className="flex items-center gap-1 text-sm">
                                   <DollarSign className="w-4 h-4 text-green-600" />
-                                  <span>${loyalty.redemptionRate}/point</span>
+                                  <span>AED {loyalty.redemptionRate}/point</span>
                                 </div>
                               </div>
                             </div>

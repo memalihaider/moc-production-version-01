@@ -395,7 +395,7 @@ const BookingModal = ({ isOpen, onClose, booking }: BookingModalProps) => {
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               <div className="bg-gray-50 p-3 rounded-lg">
                 <p className="text-sm text-gray-500">Total Amount</p>
-                <p className="text-lg font-bold">${booking.totalAmount?.toFixed(2) || '0.00'}</p>
+                <p className="text-lg font-bold">AED {booking.totalAmount?.toFixed(2) || '0.00'}</p>
               </div>
               <div className="bg-gray-50 p-3 rounded-lg">
                 <p className="text-sm text-gray-500">Payment Method</p>
@@ -954,7 +954,7 @@ export default function SuperAdminAppointments() {
                         {/* Service Name */}
                         <td className="px-4 py-3 whitespace-nowrap">
                           <div className="text-sm">{booking.serviceName}</div>
-                          <div className="text-xs text-gray-500">${booking.servicePrice.toFixed(2)}</div>
+                          <div className="text-xs text-gray-500">AED {booking.servicePrice.toFixed(2)}</div>
                         </td>
                         
                         {/* Staff Name */}

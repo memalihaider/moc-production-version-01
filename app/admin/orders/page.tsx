@@ -888,7 +888,7 @@ export default function SuperAdminOrders() {
                     <DollarSign className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">${stats.totalRevenue}</div>
+                    <div className="text-2xl font-bold">AED {stats.totalRevenue}</div>
                     <p className="text-xs text-muted-foreground">
                       From delivered orders
                     </p>

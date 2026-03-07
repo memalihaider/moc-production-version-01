@@ -788,9 +788,9 @@ export default function SuperAdminExpensesPage() {
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('ar-AE', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'AED',
       minimumFractionDigits: 2
     }).format(amount);
   };
@@ -1201,7 +1201,7 @@ ${expenseSummary.branchWiseData.map(b =>
                           <BarChart data={expenseSummary.monthWiseData}>
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis dataKey="month" />
-                            <YAxis tickFormatter={(value) => `$${value}`} />
+                            <YAxis tickFormatter={(value) => `AED ${value}`} />
                             <Tooltip formatter={(value) => formatCurrency(value as number)} />
                             <Legend />
                             <Bar dataKey="productsCost" fill="#0088FE" name="Products Cost" />

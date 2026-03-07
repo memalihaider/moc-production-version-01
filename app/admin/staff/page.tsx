@@ -685,7 +685,7 @@ export default function SuperAdminStaff() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">
-                      ${avgSalary}k
+                      AED {avgSalary}k
                     </div>
                     <p className="text-xs text-muted-foreground">
                       Annual salary
@@ -711,6 +711,7 @@ export default function SuperAdminStaff() {
                       </div>
                     </div>
                     <div className="grid grid-cols-2 md:flex gap-4">
+                      {user?.role !== 'admin' && (
                       <Select value={branchFilter} onValueChange={setBranchFilter} disabled={loading}>
                         <SelectTrigger className="w-full md:w-40">
                           <SelectValue placeholder="Branch" />
@@ -724,10 +725,11 @@ export default function SuperAdminStaff() {
                           ) : user?.branchName ? (
                             <SelectItem value={user.branchName}>{user.branchName}</SelectItem>
                           ) : (
-                            <SelectItem value="" disabled>No branch assigned</SelectItem>
+                            <SelectItem value="__none__" disabled>No branch assigned</SelectItem>
                           )}
                         </SelectContent>
                       </Select>
+                      )}
                       <Select value={roleFilter} onValueChange={setRoleFilter} disabled={loading}>
                         <SelectTrigger className="w-full md:w-40">
                           <SelectValue placeholder="Role" />
@@ -940,7 +942,7 @@ export default function SuperAdminStaff() {
                               <h4 className="font-medium text-gray-900 mb-2">Employment</h4>
                               <div className="space-y-1 text-sm text-gray-600">
                                 <p>Experience: {member.experience}</p>
-                                <p>Salary: ${member.salary.toLocaleString()}/year</p>
+                                <p>Salary: AED {member.salary.toLocaleString()}/year</p>
                                 <p>Hired: {new Date(member.hireDate).toLocaleDateString()}</p>
                               </div>
                             </div>

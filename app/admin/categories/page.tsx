@@ -138,14 +138,15 @@ export default function SuperAdminCategories() {
             });
           });
           
-          // BRANCH ADMIN FILTER - Client side filter
+          // BRANCH ADMIN FILTER - Client side filter (check both branchId and branchName)
           let filteredCategories = categoriesData;
           
-          if (user?.role === 'admin' && user?.branchId) {
-            // Branch admin sirf apni branch ke categories dekhe
-            // INCLUDING global categories (jo kisi branch se assign nahi hain)
-            filteredCategories = categoriesData.filter(category => 
-              !category.branchId || category.branchId === user.branchId
+          if (user?.role === 'admin' && (user?.branchId || user?.branchName)) {
+            filteredCategories = categoriesData.filter(category =>
+              // Global categories (no branch assigned) are always visible
+              (!category.branchId && !category.branchName) ||
+              (user.branchId && category.branchId === user.branchId) ||
+              (user.branchName && category.branchName === user.branchName)
             );
             console.log(`🏢 Branch Filter: ${categoriesData.length} → ${filteredCategories.length} categories`);
           }
@@ -501,7 +502,7 @@ export default function SuperAdminCategories() {
               </div>
               <Button
                 onClick={() => handleAddDialogOpen(true)}
-                className="bg-gradient-to-r from-[#FA9DB7] via-[#FA9DB7]/95 to-[#B84A68]/90 shadow-lg shadow-[#FA9DB7]/20 border-b border-[#FA9DB7]/30"
+                className="bg-linear-to-r from-[#FA9DB7] via-[#FA9DB7]/95 to-[#B84A68]/90 shadow-lg shadow-[#FA9DB7]/20 border-b border-[#FA9DB7]/30"
                 disabled={loading}
               >
                 <Plus className="w-4 h-4 mr-2" />
@@ -783,7 +784,7 @@ export default function SuperAdminCategories() {
         <SheetContent className="sm:max-w-lg h-[700px] m-auto rounded-3xl p-4 w-full">
           <div className="flex flex-col h-full">
             {/* Header */}
-            <div className="shrink-0 px-6 py-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+            <div className="shrink-0 px-6 py-6 border-b border-gray-200 bg-linear-to-r from-blue-50 to-indigo-50">
               <SheetHeader className="space-y-3">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center shadow-sm">
@@ -1068,7 +1069,7 @@ export default function SuperAdminCategories() {
         <SheetContent className="sm:max-w-lg h-[700px] m-auto rounded-3xl p-4 w-full">
           <div className="flex flex-col h-full">
             {/* Header */}
-            <div className="shrink-0 px-6 py-6 border-b border-gray-200 bg-gradient-to-r from-amber-50 to-orange-50">
+            <div className="shrink-0 px-6 py-6 border-b border-gray-200 bg-linear-to-r from-amber-50 to-orange-50">
               <SheetHeader className="space-y-3">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center shadow-sm">
@@ -1323,7 +1324,7 @@ export default function SuperAdminCategories() {
                 <Button
                   onClick={handleEditCategory}
                   disabled={isEditing || !formData.name.trim()}
-                  className="w-full sm:w-auto bg-gradient-to-r from-[#FA9DB7] via-[#FA9DB7]/95 to-[#B84A68]/90 shadow-lg shadow-[#FA9DB7]/20 border-b border-[#FA9DB7]/30 transition-all duration-200"
+                  className="w-full sm:w-auto bg-linear-to-r from-[#FA9DB7] via-[#FA9DB7]/95 to-[#B84A68]/90 shadow-lg shadow-[#FA9DB7]/20 border-b border-[#FA9DB7]/30 transition-all duration-200"
                 >
                   {isEditing ? (
                     <>
@@ -1353,7 +1354,7 @@ export default function SuperAdminCategories() {
         <SheetContent className="sm:max-w-lg h-[700px] m-auto rounded-3xl p-4 w-full">
           <div className="flex flex-col h-full">
             {/* Header */}
-            <div className="shrink-0 px-6 py-6 border-b border-gray-200 bg-gradient-to-r from-red-50 to-pink-50">
+            <div className="shrink-0 px-6 py-6 border-b border-gray-200 bg-linear-to-r from-red-50 to-pink-50">
               <SheetHeader className="space-y-3">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center shadow-sm">

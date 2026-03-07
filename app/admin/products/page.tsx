@@ -173,13 +173,15 @@ export default function SuperAdminProducts() {
             });
           });
           
-          // BRANCH ADMIN FILTER - Client side filter
+          // BRANCH ADMIN FILTER - Client side filter (check both branchId and branchName)
           let filteredProducts = productsData;
           
-          if (user?.role === 'admin' && user?.branchId) {
-            filteredProducts = productsData.filter(product => 
-              product.branches && product.branches.includes(user.branchId!)
-            );
+          if (user?.role === 'admin' && (user?.branchId || user?.branchName)) {
+            filteredProducts = productsData.filter(product => {
+              if (user.branchId && product.branches?.includes(user.branchId)) return true;
+              if (user.branchName && product.branchNames?.includes(user.branchName)) return true;
+              return false;
+            });
             console.log(`🏢 Branch Filter: ${productsData.length} → ${filteredProducts.length} products`);
           }
           
@@ -742,7 +744,7 @@ export default function SuperAdminProducts() {
               </div>
               <div className="flex items-center gap-4">
                 <Button 
-                  className="bg-gradient-to-r from-[#FA9DB7] via-[#FA9DB7]/95 to-[#B84A68]/90 shadow-lg shadow-[#FA9DB7]/20 border-b border-[#FA9DB7]/30"
+                  className="bg-linear-to-r from-[#FA9DB7] via-[#FA9DB7]/95 to-[#B84A68]/90 shadow-lg shadow-[#FA9DB7]/20 border-b border-[#FA9DB7]/30"
                   onClick={() => {
                     setSelectedProduct(null);
                     resetProductForm();
@@ -914,7 +916,7 @@ export default function SuperAdminProducts() {
                             className="w-full h-full object-cover"
                           />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
+                          <div className="w-full h-full flex items-center justify-center bg-linear-to-br from-gray-100 to-gray-200">
                             <Package className="w-12 h-12 text-gray-400" />
                           </div>
                         )}
@@ -988,7 +990,7 @@ export default function SuperAdminProducts() {
                             <div className="flex items-center gap-4">
                               <div className="flex items-center gap-1 text-sm">
                                 <DollarSign className="w-4 h-4 text-green-600" />
-                                <span className="font-semibold">${product.price}</span>
+                                <span className="font-semibold">AED {product.price}</span>
                               </div>
                               <div className="flex items-center gap-1 text-sm">
                                 <Package className="w-4 h-4 text-blue-600" />
@@ -1000,7 +1002,7 @@ export default function SuperAdminProducts() {
                           <div className="grid grid-cols-2 gap-4 text-sm">
                             <div>
                               <span className="text-gray-500">Cost:</span>
-                              <span className="font-medium ml-1">${product.cost}</span>
+                              <span className="font-medium ml-1">AED {product.cost}</span>
                             </div>
                             <div>
                               <span className="text-gray-500">Margin:</span>
@@ -1338,7 +1340,7 @@ export default function SuperAdminProducts() {
               {/* Save Button */}
               <Button
                 onClick={selectedProduct ? handleEditProduct : handleAddProduct}
-                className="bg-gradient-to-r from-[#FA9DB7] via-[#FA9DB7]/95 to-[#B84A68]/90 shadow-lg shadow-[#FA9DB7]/20 border-b border-[#FA9DB7]/30 font-bold mt-6"
+                className="bg-linear-to-r from-[#FA9DB7] via-[#FA9DB7]/95 to-[#B84A68]/90 shadow-lg shadow-[#FA9DB7]/20 border-b border-[#FA9DB7]/30 font-bold mt-6"
                 disabled={isAdding || isEditing}
               >
                 {isAdding || isEditing ? (
@@ -1371,7 +1373,7 @@ export default function SuperAdminProducts() {
         }}>
           <SheetContent className="sm:max-w-lg">
             <div className="flex flex-col h-full">
-              <div className="shrink-0 px-6 py-6 border-b border-gray-200 bg-gradient-to-r from-red-50 to-pink-50">
+              <div className="shrink-0 px-6 py-6 border-b border-gray-200 bg-linear-to-r from-red-50 to-pink-50">
                 <SheetHeader className="space-y-3">
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center">

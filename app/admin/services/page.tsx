@@ -163,13 +163,15 @@ export default function SuperAdminServices() {
             });
           });
           
-          // BRANCH ADMIN FILTER - Client side filter
+          // BRANCH ADMIN FILTER - Client side filter (check both branchId and branchName)
           let filteredServices = servicesData;
           
-          if (user?.role === 'admin' && user?.branchId) {
-            filteredServices = servicesData.filter(service => 
-              service.branches && service.branches.includes(user.branchId!)
-            );
+          if (user?.role === 'admin' && (user?.branchId || user?.branchName)) {
+            filteredServices = servicesData.filter(service => {
+              if (user.branchId && service.branches?.includes(user.branchId)) return true;
+              if (user.branchName && service.branchNames?.includes(user.branchName)) return true;
+              return false;
+            });
             console.log(`🏢 Branch Filter: ${servicesData.length} → ${filteredServices.length} services`);
           }
           
@@ -859,7 +861,7 @@ export default function SuperAdminServices() {
                             <div className="flex items-center gap-4">
                               <div className="flex items-center gap-1 text-sm">
                                 <DollarSign className="w-4 h-4 text-green-600" />
-                                <span className="font-semibold">${service.price}</span>
+                                <span className="font-semibold">AED {service.price}</span>
                               </div>
                               <div className="flex items-center gap-1 text-sm">
                                 <Clock className="w-4 h-4 text-blue-600" />
@@ -1180,7 +1182,7 @@ export default function SuperAdminServices() {
         }}>
           <SheetContent className="sm:max-w-lg">
             <div className="flex flex-col h-full">
-              <div className="shrink-0 px-6 py-6 border-b border-gray-200 bg-gradient-to-r from-red-50 to-pink-50">
+              <div className="shrink-0 px-6 py-6 border-b border-gray-200 bg-linear-to-r from-red-50 to-pink-50">
                 <SheetHeader className="space-y-3">
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center">
