@@ -614,11 +614,7 @@ export default function SuperAdminAppointments() {
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2
-    }).format(amount);
+    return `AED ${amount.toFixed(2)}`;
   };
 
   return (

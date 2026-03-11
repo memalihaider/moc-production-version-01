@@ -692,7 +692,7 @@ export default function Home() {
     if (offer.discountType === 'percentage') {
       return `${offer.discountValue}% OFF`;
     } else {
-      return `$${offer.discountValue} OFF`;
+      return `AED ${offer.discountValue} OFF`;
     }
   };
 
@@ -845,7 +845,7 @@ export default function Home() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
               </svg>
             </div>
-            <h3 className="text-2xl font-serif font-bold text-center text-gray-900 mb-2">Create Account First! ✋</h3>
+            <h3 className="text-2xl font-sans font-bold text-center text-gray-900 mb-2">Create Account First! ✋</h3>
             <Link href="/customer/login" className="block w-full text-center bg-gradient-to-r from-purple-500 to-blue-500 text-white font-semibold py-3 px-6 rounded-xl hover:shadow-lg hover:scale-[1.02] transition-all duration-300" onClick={() => setShowChatPopup(false)}>
               Login / Sign Up
             </Link>
@@ -874,7 +874,7 @@ export default function Home() {
             <span className="text-[10px] tracking-[0.3em] uppercase font-bold text-secondary">For The Modern Caveman</span>
           </div>
           
-          <h1 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-serif font-bold mb-6 leading-[1.1] tracking-tight drop-shadow-2xl">
+          <h1 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-sans font-bold mb-6 leading-[1.1] tracking-tight drop-shadow-2xl">
             Unleash Your <br />
             <span className="text-secondary italic">Raw</span> Potential
           </h1>
@@ -940,7 +940,7 @@ export default function Home() {
                 <div className="w-12 h-12 rounded-2xl bg-secondary/10 flex items-center justify-center mb-3 group-hover:bg-secondary group-hover:text-primary transition-all duration-500">
                   <stat.icon className="w-6 h-6 text-secondary group-hover:text-primary transition-colors" />
                 </div>
-                <span className="text-2xl font-serif font-bold text-primary mb-0.5">{stat.value}</span>
+                <span className="text-2xl font-sans font-bold text-primary mb-0.5">{stat.value}</span>
                 <span className="text-[10px] uppercase tracking-[0.2em] text-primary font-bold mb-1">{stat.label}</span>
                 <span className="text-[9px] text-muted-foreground font-medium">{stat.desc}</span>
                 <div className="w-16 h-1 bg-secondary/20 rounded-full mt-2">
@@ -961,7 +961,7 @@ export default function Home() {
           <p className="text-center text-[10px] uppercase tracking-[0.4em] text-muted-foreground mb-6 md:mb-8 font-bold">As Featured In</p>
           <div className="flex flex-wrap justify-center items-center gap-6 sm:gap-10 md:gap-20 opacity-40 grayscale hover:grayscale-0 transition-all duration-700">
             {['GQ', 'VOGUE', 'ESQUIRE', 'FORBES', 'MEN\'S HEALTH'].map((brand) => (
-              <span key={brand} className="text-xl sm:text-2xl md:text-3xl font-serif font-black tracking-tighter text-primary">{brand}</span>
+              <span key={brand} className="text-xl sm:text-2xl md:text-3xl font-sans font-black tracking-tighter text-primary">{brand}</span>
             ))}
           </div>
         </div>
@@ -976,7 +976,7 @@ export default function Home() {
         <div className="inline-block bg-secondary/10 px-3 py-1 rounded-full">
           <span className="text-secondary font-bold tracking-[0.2em] uppercase text-[10px]">Our Signature Menu</span>
         </div>
-        <h2 className="text-3xl md:text-4xl font-serif font-bold text-primary">Bespoke Services</h2>
+        <h2 className="text-3xl md:text-4xl font-sans font-bold text-primary">Bespoke Services</h2>
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="text-xs border-secondary/30 text-secondary">
             {filteredServices.length} Services Available
@@ -999,7 +999,7 @@ export default function Home() {
     {filteredServices.length === 0 ? (
       <div className="text-center py-16 bg-white rounded-2xl border border-dashed border-gray-200">
         <Scissors className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-        <h3 className="text-xl font-serif font-bold text-gray-400 mb-2">
+        <h3 className="text-xl font-sans font-bold text-gray-400 mb-2">
           {selectedBranch !== 'all' ? 'No Services in this Branch' : 'No Services Available'}
         </h3>
       </div>
@@ -1033,7 +1033,7 @@ export default function Home() {
                   {/* Price Badge - Always visible */}
                   <div className="absolute top-3 right-3">
                     <div className="bg-white/90 backdrop-blur-sm text-primary px-3 py-1 rounded-full text-sm font-bold shadow-md">
-                      ${service.price}
+                      AED {service.price}
                     </div>
                   </div>
                   
@@ -1061,7 +1061,7 @@ export default function Home() {
                 {/* Service Info */}
                 <div className="p-4">
                   <div className="flex items-start justify-between mb-2">
-                    <h3 className="text-lg font-serif font-bold text-primary line-clamp-1">
+                    <h3 className="text-lg font-sans font-bold text-primary line-clamp-1">
                       {service.name}
                     </h3>
                     <Badge variant="outline" className="text-[9px] uppercase tracking-wider text-secondary border-secondary/30">
@@ -1103,7 +1103,7 @@ export default function Home() {
         <div className="inline-block bg-secondary/20 px-3 py-1 rounded-full border border-secondary/30">
           <span className="text-secondary font-bold tracking-[0.2em] uppercase text-[10px]">Premium Apothecary</span>
         </div>
-        <h2 className="text-3xl md:text-4xl font-serif font-bold text-white">Grooming Essentials</h2>
+        <h2 className="text-3xl md:text-4xl font-sans font-bold text-white">Grooming Essentials</h2>
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="border-white/20 text-white text-xs">
             {filteredProducts.length} Premium Products
@@ -1126,7 +1126,7 @@ export default function Home() {
     {filteredProducts.length === 0 ? (
       <div className="text-center py-16 bg-white/5 rounded-3xl border border-dashed border-white/10">
         <Package className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-        <h3 className="text-xl font-serif font-bold text-gray-300 mb-2">
+        <h3 className="text-xl font-sans font-bold text-gray-300 mb-2">
           {selectedBranch !== 'all' ? 'No Products in this Branch' : 'No Products Available'}
         </h3>
       </div>
@@ -1171,10 +1171,10 @@ export default function Home() {
                     <Badge variant="outline" className="text-[8px] uppercase tracking-[0.2em] text-gray-500 font-black border-gray-700 px-2 py-0.5">
                       {product.category}
                     </Badge>
-                    <span className="text-secondary font-black text-base">${product.price}</span>
+                    <span className="text-secondary font-black text-base">AED {product.price}</span>
                   </div>
                   
-                  <h4 className="text-lg font-serif font-bold group-hover:text-secondary transition-colors duration-300 truncate">
+                  <h4 className="text-lg font-sans font-bold group-hover:text-secondary transition-colors duration-300 truncate">
                     {product.name}
                   </h4>
                   
@@ -1221,7 +1221,7 @@ export default function Home() {
         <div className="inline-block bg-secondary/10 px-3 py-1 rounded-full">
           <span className="text-secondary font-bold tracking-[0.2em] uppercase text-[10px]">Exclusive Privileges</span>
         </div>
-        <h2 className="text-3xl md:text-4xl font-serif font-bold text-primary">Member Rewards</h2>
+        <h2 className="text-3xl md:text-4xl font-sans font-bold text-primary">Member Rewards</h2>
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="border-secondary/30 text-secondary text-xs">
             {filteredOffers.length} Active Offers
@@ -1242,7 +1242,7 @@ export default function Home() {
     {filteredOffers.length === 0 ? (
       <div className="text-center py-16 bg-white rounded-3xl border border-dashed border-gray-200">
         <Ticket className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-        <h3 className="text-xl font-serif font-bold text-gray-400 mb-2">
+        <h3 className="text-xl font-sans font-bold text-gray-400 mb-2">
           {selectedBranch !== 'all' ? 'No Offers in this Branch' : 'No Offers Available'}
         </h3>
       </div>
@@ -1308,7 +1308,7 @@ export default function Home() {
                           ? `${offer.branchNames[0]}${offer.branchNames.length > 1 ? ` +${offer.branchNames.length - 1}` : ''}`
                           : 'All Branches'}
                       </span>
-                      <h4 className="text-3xl font-serif font-bold">{discountText}</h4>
+                      <h4 className="text-3xl font-sans font-bold">{discountText}</h4>
                       <h5 className="text-base font-semibold mt-1 line-clamp-1">{offer.title}</h5>
                     </div>
                     
@@ -1364,7 +1364,7 @@ export default function Home() {
         <div className="inline-block bg-secondary/10 px-3 py-1 rounded-full">
           <span className="text-secondary font-bold tracking-[0.2em] uppercase text-[10px]">Elite Access</span>
         </div>
-        <h2 className="text-3xl md:text-4xl font-serif font-bold text-primary">Exclusive Memberships</h2>
+        <h2 className="text-3xl md:text-4xl font-sans font-bold text-primary">Exclusive Memberships</h2>
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="border-secondary/30 text-secondary text-xs">
             {filteredMemberships.length} Premium Plans
@@ -1385,7 +1385,7 @@ export default function Home() {
     {filteredMemberships.length === 0 ? (
       <div className="text-center py-16 bg-gray-50/50 rounded-3xl border border-dashed border-gray-200">
         <Crown className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-        <h3 className="text-xl font-serif font-bold text-gray-400 mb-2">
+        <h3 className="text-xl font-sans font-bold text-gray-400 mb-2">
           {selectedBranch !== 'all' ? 'No Memberships in this Branch' : 'No Memberships Available'}
         </h3>
       </div>
@@ -1441,7 +1441,7 @@ export default function Home() {
                       <span className="text-[9px] font-bold tracking-widest opacity-70 uppercase block mb-1">
                         {durationText} • {branchName}
                       </span>
-                      <h4 className="text-3xl font-serif font-bold">${membership.price}</h4>
+                      <h4 className="text-3xl font-sans font-bold">AED {membership.price}</h4>
                       <h5 className="text-base font-semibold mt-1 line-clamp-1">{membership.name}</h5>
                     </div>
                     
@@ -1515,7 +1515,7 @@ export default function Home() {
       <div className="inline-block bg-secondary/10 px-3 py-1 rounded-full mb-4">
         <span className="text-secondary font-bold tracking-[0.2em] uppercase text-[10px]">The Artisans</span>
       </div>
-      <h2 className="text-3xl md:text-4xl font-serif font-bold text-primary mb-3">Meet The Masters</h2>
+      <h2 className="text-3xl md:text-4xl font-sans font-bold text-primary mb-3">Meet The Masters</h2>
       <p className="text-muted-foreground max-w-2xl mx-auto font-light text-sm">
         Our barbers are more than just stylists; they are highly trained artisans dedicated to the perfection of their craft.
       </p>
@@ -1532,7 +1532,7 @@ export default function Home() {
     {filteredStaff.length === 0 ? (
       <div className="text-center py-16 bg-white rounded-3xl border border-dashed border-gray-200">
         <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-        <h3 className="text-2xl font-serif font-bold text-gray-400 mb-2">No Staff Available</h3>
+        <h3 className="text-2xl font-sans font-bold text-gray-400 mb-2">No Staff Available</h3>
       </div>
     ) : (
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
@@ -1552,7 +1552,7 @@ export default function Home() {
             </div>
             {/* Info below image */}
             <div className="mt-2 px-1">
-              <p className="font-serif font-bold text-primary text-sm leading-tight group-hover:text-secondary transition-colors truncate">{member.name}</p>
+              <p className="font-sans font-bold text-primary text-sm leading-tight group-hover:text-secondary transition-colors truncate">{member.name}</p>
               <p className="text-[11px] text-gray-500 mt-0.5 truncate">{member.role}</p>
             </div>
           </div>
@@ -1571,7 +1571,7 @@ export default function Home() {
         <div className="inline-block bg-secondary/10 px-3 py-1 rounded-full">
           <span className="text-secondary font-bold tracking-[0.2em] uppercase text-[10px]">Our Global Presence</span>
         </div>
-        <h2 className="text-3xl sm:text-4xl md:text-5xl font-serif font-bold text-primary leading-[1.1]">
+        <h2 className="text-3xl sm:text-4xl md:text-5xl font-sans font-bold text-primary leading-[1.1]">
           Luxury Grooming, <br /><span className="text-secondary italic">Everywhere.</span>
         </h2>
         <div className="flex items-center gap-2">
@@ -1592,7 +1592,7 @@ export default function Home() {
     {branches.length === 0 ? (
       <div className="text-center py-16 bg-gray-50/50 rounded-3xl border border-dashed border-gray-200">
         <Building className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-        <h3 className="text-2xl font-serif font-bold text-gray-400 mb-2">No Branches Available</h3>
+        <h3 className="text-2xl font-sans font-bold text-gray-400 mb-2">No Branches Available</h3>
       </div>
     ) : (
       <>
@@ -1715,7 +1715,7 @@ export default function Home() {
           <div className="inline-block bg-secondary/20 px-4 py-1.5 rounded-full mb-6 md:mb-8 border border-secondary/30">
             <span className="text-secondary font-black tracking-[0.3em] uppercase text-[10px]">The Inner Circle</span>
           </div>
-          <h2 className="text-4xl sm:text-5xl md:text-7xl font-serif font-bold text-white mb-6 md:mb-10 leading-tight">
+          <h2 className="text-4xl sm:text-5xl md:text-7xl font-sans font-bold text-white mb-6 md:mb-10 leading-tight">
             Join The <span className="text-secondary italic">Elite</span>
           </h2>
           <p className="text-base md:text-xl text-gray-400 mb-8 md:mb-16 font-light max-w-2xl mx-auto leading-relaxed">
@@ -1747,7 +1747,7 @@ export default function Home() {
         </div>
         
         <div className="relative z-10 max-w-5xl mx-auto text-center text-white space-y-8 md:space-y-12">
-          <h2 className="text-4xl sm:text-6xl md:text-8xl font-serif font-bold leading-[1.1] tracking-tight">
+          <h2 className="text-4xl sm:text-6xl md:text-8xl font-sans font-bold leading-[1.1] tracking-tight">
             Your Chair <br />
             <span className="text-secondary italic">Awaits.</span>
           </h2>
@@ -1772,7 +1772,7 @@ export default function Home() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 md:gap-16 lg:gap-20">
             <div className="space-y-10">
               <Link href="/" className="inline-block">
-                <h3 className="text-3xl font-serif font-bold tracking-tighter">
+                <h3 className="text-3xl font-sans font-bold tracking-tighter">
                   PREMIUM<span className="text-secondary">CUTS</span>
                 </h3>
               </Link>

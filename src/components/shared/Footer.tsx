@@ -79,7 +79,7 @@ export function Footer() {
                     className="object-contain"
                   />
                 </div>
-                <h3 className="text-3xl font-serif font-bold tracking-tighter group-hover:text-gray-500 transition-colors">
+                <h3 className="text-3xl font-sans font-bold tracking-tighter group-hover:text-gray-500 transition-colors">
                   JAM <span className=" text-[#FA9DB7]">BEAUTY</span>
                 </h3>
               </div>
@@ -164,7 +164,7 @@ export function Footer() {
               ].map(s => (
                 <div key={s.label} className="flex items-end justify-between border-b border-white/5 pb-4">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#FA9DB7]">{s.label}</span>
-                  <span className="font-serif italic text-2xl text-[#FA9DB7]">{s.count}</span>
+                  <span className="font-sans italic text-2xl text-[#FA9DB7]">{s.count}</span>
                 </div>
               ))}
             </div>
@@ -187,15 +187,15 @@ export function Footer() {
                   <Phone className="w-6 h-6" />
                 </div>
                 <a href="tel:+1234567890" className="text-xs text-[#FA9DB7] transition-colors">
-                  +1 (234) 567-8900
+                  +971 54 535 4361
                 </a>
               </li>
               <li className="flex items-center gap-5 group">
                 <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-[#FA9DB7] group-hover:bg-secondary group-hover:text-white transition-all duration-700 shadow-xl border border-white/5">
                   <Mail className="w-6 h-6" />
                 </div>
-                <a href="mailto:hello@jambeautylounge.com" className="text-xs text-[#FA9DB7] transition-colors">
-                  hello@jambeautylounge.com
+                <a href="mailto:Manofcave2020@gmail.com" className="text-xs text-[#FA9DB7] transition-colors">
+                  manofcave2020@gmail.com
                 </a>
               </li>
             </ul>
@@ -203,7 +203,7 @@ export function Footer() {
         </div>
         
         <div className="mt-40 pt-12 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-10 text-[#FA9DB7] text-[9px] tracking-[0.5em] font-black uppercase">
-          <p>&copy; 2026 JAM BEAUTY LOUNGE. ALL RIGHTS RESERVED.</p>
+          <p>&copy; 2015-2026 MAN OF CAVE. ALL RIGHTS RESERVED.</p>
           <div className="flex gap-16">
             <Link href="/blogs" className="hover:text-white transition-colors">Blog</Link>
             <Link href="/terms-and-conditions" className="hover:text-white transition-colors">Terms</Link>

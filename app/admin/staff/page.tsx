@@ -38,6 +38,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Unsubscribe } from 'firebase/firestore';
+import { ImageField } from '@/components/ui/image-field';
 
 export interface Staff {
   id: string;
@@ -1598,16 +1599,14 @@ export default function SuperAdminStaff() {
                   </div>
 
                   <div>
-                    <Label htmlFor="avatar" className="text-sm font-medium text-gray-700">
-                      Profile Image URL
-                    </Label>
-                    <Input
-                      id="avatar"
+                    <ImageField
+                      label="Profile Image"
                       value={formData.avatar}
-                      onChange={(e) => setFormData(prev => ({ ...prev, avatar: e.target.value }))}
+                      onChange={(url) => setFormData(prev => ({ ...prev, avatar: url }))}
+                      folder="images/staff"
                       placeholder="Enter image URL (optional)"
-                      className="mt-1"
                       disabled={isAdding}
+                      inputId="avatar"
                     />
                   </div>
                 </div>
@@ -2234,16 +2233,14 @@ export default function SuperAdminStaff() {
                   </div>
 
                   <div>
-                    <Label htmlFor="edit-avatar" className="text-sm font-medium text-gray-700">
-                      Profile Image URL
-                    </Label>
-                    <Input
-                      id="edit-avatar"
+                    <ImageField
+                      label="Profile Image"
                       value={formData.avatar}
-                      onChange={(e) => setFormData(prev => ({ ...prev, avatar: e.target.value }))}
+                      onChange={(url) => setFormData(prev => ({ ...prev, avatar: url }))}
+                      folder="images/staff"
                       placeholder="Enter image URL (optional)"
-                      className="mt-1"
                       disabled={isEditing}
+                      inputId="edit-avatar"
                     />
                   </div>
                 </div>

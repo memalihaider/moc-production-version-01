@@ -531,7 +531,7 @@ export default function Branches() {
             </div>
 
             {/* Title */}
-            <h3 className="text-2xl font-serif font-bold text-center text-gray-900 mb-2">
+            <h3 className="text-2xl font-sans font-bold text-center text-gray-900 mb-2">
               Create Account First! ✋
             </h3>
 
@@ -639,7 +639,7 @@ export default function Branches() {
             <span className="text-white tracking-[0.3em] uppercase text-[10px]">Our Presence</span>
             <Sparkles className="w-4 h-4 text-secondary animate-pulse" />
           </div>
-      <h1 className="text-5xl md:text-7xl lg:text-8xl font-serif font-bold text-white mb-8 leading-tight drop-shadow-lg">
+      <h1 className="text-5xl md:text-7xl lg:text-8xl font-sans font-bold text-white mb-8 leading-tight drop-shadow-lg">
         Premium <span className="text-secondary italic">Locations</span>
       </h1>
       
@@ -651,21 +651,21 @@ export default function Branches() {
       {/* Real-time Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl mx-auto">
             <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10 hover:bg-white/15 transition-all">
-              <div className="text-3xl font-serif font-bold text-secondary mb-2">{totalBranches}</div>
+              <div className="text-3xl font-sans font-bold text-secondary mb-2">{totalBranches}</div>
               <div className="text-white/70 text-xs font-black uppercase tracking-widest">Premium Locations</div>
             </div>
             <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10 hover:bg-white/15 transition-all">
-              <div className="text-3xl font-serif font-bold text-secondary mb-2">{activeBranches}</div>
+              <div className="text-3xl font-sans font-bold text-secondary mb-2">{activeBranches}</div>
               <div className="text-white/70 text-xs font-black uppercase tracking-widest">Active Branches</div>
               <div className="text-[10px] text-white/50 mt-1">Currently operational</div>
             </div>
             <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10 hover:bg-white/15 transition-all">
-              <div className="text-3xl font-serif font-bold text-secondary mb-2">{totalManagers}</div>
+              <div className="text-3xl font-sans font-bold text-secondary mb-2">{totalManagers}</div>
               <div className="text-white/70 text-xs font-black uppercase tracking-widest">Dedicated Managers</div>
               <div className="text-[10px] text-white/50 mt-1">Professional team</div>
             </div>
             <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10 hover:bg-white/15 transition-all">
-              <div className="text-3xl font-serif font-bold text-secondary mb-2">{totalCities}</div>
+              <div className="text-3xl font-sans font-bold text-secondary mb-2">{totalCities}</div>
               <div className="text-white/70 text-xs font-black uppercase tracking-widest">Cities Covered</div>
               <div className="text-[10px] text-white/50 mt-1">Nationwide presence</div>
             </div>
@@ -752,7 +752,7 @@ export default function Branches() {
                 <div className="w-24 h-24 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6">
                   <MapPin className="w-12 h-12 text-gray-300" />
                 </div>
-                <h3 className="text-3xl font-serif font-bold text-primary mb-3">No Branches Available</h3>
+                <h3 className="text-3xl font-sans font-bold text-primary mb-3">No Branches Available</h3>
               
                 <Button 
                   onClick={fetchBranches}
@@ -770,7 +770,7 @@ export default function Branches() {
                 <div className="w-24 h-24 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6">
                   <Search className="w-12 h-12 text-gray-300" />
                 </div>
-                <h3 className="text-3xl font-serif font-bold text-primary mb-3">No Matching Branches</h3>
+                <h3 className="text-3xl font-sans font-bold text-primary mb-3">No Matching Branches</h3>
                 <p className="text-gray-500 font-light mb-8 max-w-md mx-auto">
                   No branches match your current filters. Try adjusting your search criteria.
                 </p>
@@ -858,7 +858,7 @@ export default function Branches() {
                               <Award className="w-2.5 h-2.5" />
                             {branch.country.toUpperCase()}
                             </div>
-                            <h3 className="text-2xl font-serif font-bold text-primary group-hover:text-secondary transition-colors duration-300">
+                            <h3 className="text-2xl font-sans font-bold text-primary group-hover:text-secondary transition-colors duration-300">
                               {branch.name}
                             </h3>
                             <p className="text-sm text-gray-600 flex items-center gap-2 mt-2">
@@ -1090,7 +1090,7 @@ export default function Branches() {
                     <X className="w-4 h-4" />
                   </Button>
                   <div className="absolute bottom-4 left-4 right-4">
-                    <h2 className="text-3xl font-serif font-bold text-white mb-2">
+                    <h2 className="text-3xl font-sans font-bold text-white mb-2">
                       {selectedBranch.name}
                     </h2>
                     <div className="flex items-center gap-2 text-white/90">
@@ -1204,7 +1204,7 @@ export default function Branches() {
                                     </div>
                                     <div className="flex items-center gap-4 mt-3">
                                       <div className="text-sm text-gray-500">
-                                        <span className="font-bold text-primary text-lg">${service.price}</span>
+                                        <span className="font-bold text-primary text-lg">AED {service.price}</span>
                                       </div>
                                       <div className="text-sm text-gray-500 flex items-center">
                                         <Clock className="w-3 h-3 mr-1" />

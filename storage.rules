@@ -1,0 +1,39 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Helper: check if the request is from an authenticated user
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Helper: validate image upload constraints
+    function isValidImage() {
+      return request.resource.contentType.matches('image/.*')
+          && request.resource.size < 5 * 1024 * 1024; // 5 MB max
+    }
+
+    // Images uploaded via the admin / super-admin portals
+    match /images/{category}/{fileName} {
+      // Authenticated users can read any image
+      allow read: if true;
+      // Only authenticated users can upload images up to 5 MB
+      allow write: if isAuthenticated() && isValidImage();
+      // Authenticated users can delete images they manage
+      allow delete: if isAuthenticated();
+    }
+
+    // Chat attachments (messages pages)
+    match /chat/{conversationId}/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isValidImage();
+      allow delete: if isAuthenticated();
+    }
+
+    // Catch-all: deny everything else by default
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1004,7 +1004,7 @@ export default function BookingCheckout() {
             <div className="w-20 h-20 bg-secondary/10 rounded-full flex items-center justify-center mx-auto mb-6">
               <CheckCircle className="w-10 h-10 text-secondary" />
             </div>
-            <h1 className="text-4xl font-serif font-bold text-primary">Booking Confirmed!</h1>
+            <h1 className="text-4xl font-sans font-bold text-primary">Booking Confirmed!</h1>
             <p className="text-lg text-muted-foreground font-light">
               Your booking has been successfully created.
             </p>
@@ -1012,7 +1012,7 @@ export default function BookingCheckout() {
               <div className="space-y-4">
                 <div className="border-b border-gray-100 pb-3">
                   <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Booking Reference</p>
-                  <p className="text-xl font-serif font-bold text-primary">{confirmedBookingId}</p>
+                  <p className="text-xl font-sans font-bold text-primary">{confirmedBookingId}</p>
                 </div>
                 <div className="grid grid-cols-2 gap-6 text-left">
                   <div>
@@ -1088,7 +1088,7 @@ export default function BookingCheckout() {
               {/* Customer Information */}
               <Card className="border-none shadow-sm rounded-none">
                 <CardHeader className="border-b border-gray-50 py-4">
-                  <CardTitle className="text-xl font-serif font-bold flex items-center gap-2">
+                  <CardTitle className="text-xl font-sans font-bold flex items-center gap-2">
                     <User className="w-5 h-5 text-secondary" /> Customer Information
                   </CardTitle>
                 </CardHeader>
@@ -1190,7 +1190,7 @@ export default function BookingCheckout() {
               {/* Schedule */}
               <Card className="border-none shadow-sm rounded-none">
                 <CardHeader className="border-b border-gray-50 py-4">
-                  <CardTitle className="text-xl font-serif font-bold flex items-center gap-2">
+                  <CardTitle className="text-xl font-sans font-bold flex items-center gap-2">
                     <Calendar className="w-5 h-5 text-secondary" /> Schedule
                   </CardTitle>
                 </CardHeader>
@@ -1246,7 +1246,7 @@ export default function BookingCheckout() {
               {/* Staff Selection - 🔥 UPDATED: Only show staff from selected branch */}
               <Card className="border-none shadow-sm rounded-none">
                 <CardHeader className="border-b border-gray-50 py-4">
-                  <CardTitle className="text-xl font-serif font-bold flex items-center gap-2">
+                  <CardTitle className="text-xl font-sans font-bold flex items-center gap-2">
                     <User className="w-5 h-5 text-secondary" /> Select Staff
                   </CardTitle>
                 </CardHeader>
@@ -1346,7 +1346,7 @@ export default function BookingCheckout() {
               {/* Payment Options */}
               <Card className="border-none shadow-sm rounded-none">
                 <CardHeader className="border-b border-gray-50 py-4">
-                  <CardTitle className="text-xl font-serif font-bold flex items-center gap-2">
+                  <CardTitle className="text-xl font-sans font-bold flex items-center gap-2">
                     <CreditCard className="w-5 h-5 text-secondary" /> Payment Options
                   </CardTitle>
                 </CardHeader>
@@ -1617,7 +1617,7 @@ export default function BookingCheckout() {
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-primary via-transparent to-transparent"></div>
                       <div className="absolute bottom-0 left-0 right-0 p-4 text-center">
-                        <p className="font-serif font-bold text-lg text-white">{selectedStaff}</p>
+                        <p className="font-sans font-bold text-lg text-white">{selectedStaff}</p>
                         <p className="text-sm text-white/80">
                           {staffMembers.find(s => s.name === selectedStaff)?.role || 'Staff'}
                         </p>
@@ -1632,7 +1632,7 @@ export default function BookingCheckout() {
                 </div>
 
                 <CardHeader className="border-b border-white/10 py-4">
-                  <CardTitle className="text-xl font-serif font-bold">Booking Summary</CardTitle>
+                  <CardTitle className="text-xl font-sans font-bold">Booking Summary</CardTitle>
                 </CardHeader>
                 <CardContent className="pt-6 space-y-6">
                   <div className="space-y-4">
@@ -1652,7 +1652,7 @@ export default function BookingCheckout() {
                         >
                           <div className="flex justify-between items-start group">
                             <div className="space-y-0.5">
-                              <p className="font-serif font-bold text-sm">{item.name}</p>
+                              <p className="font-sans font-bold text-sm">{item.name}</p>
                               <div className="flex items-center gap-2 text-[10px] text-white/60">
                                 <Clock className="w-3 h-3" />
                                 <span>{item.duration} min</span>
@@ -1695,10 +1695,10 @@ export default function BookingCheckout() {
                         </div>
 
                         <div className="flex justify-between items-center pt-3 border-t border-white/10">
-                          <span className="text-sm font-serif font-bold">
+                          <span className="text-sm font-sans font-bold">
                             Final Amount
                           </span>
-                          <span className="text-2xl font-serif font-bold text-secondary">
+                          <span className="text-2xl font-sans font-bold text-secondary">
                             AED {finalTotal.toFixed(2)}
                           </span>
                         </div>

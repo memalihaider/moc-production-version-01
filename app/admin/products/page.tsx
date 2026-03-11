@@ -33,6 +33,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Unsubscribe } from 'firebase/firestore';
+import { ImageField } from '@/components/ui/image-field';
 
 // Types
 export interface Product {
@@ -788,7 +789,7 @@ export default function SuperAdminProducts() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">
-                      ${totalStockValue.toLocaleString()}
+                      AED {totalStockValue.toLocaleString()}
                     </div>
                     <p className="text-xs text-muted-foreground">
                       Current stock value
@@ -803,7 +804,7 @@ export default function SuperAdminProducts() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">
-                      ${totalRevenue.toLocaleString()}
+                      AED {totalRevenue.toLocaleString()}
                     </div>
                     <p className="text-xs text-muted-foreground">
                       From product sales
@@ -860,9 +861,9 @@ export default function SuperAdminProducts() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Prices</SelectItem>
-                        <SelectItem value="under-20">Under $20</SelectItem>
-                        <SelectItem value="20-50">$20 - $50</SelectItem>
-                        <SelectItem value="over-50">Over $50</SelectItem>
+                        <SelectItem value="under-20">Under AED 20</SelectItem>
+                        <SelectItem value="20-50">AED 20 - AED 50</SelectItem>
+                        <SelectItem value="over-50">Over AED 50</SelectItem>
                       </SelectContent>
                     </Select>
                     <Select value={stockFilter} onValueChange={setStockFilter} disabled={loading}>
@@ -1064,39 +1065,17 @@ export default function SuperAdminProducts() {
             </SheetHeader>
             
             <div className="space-y-4 mt-6">
-              {/* Product Image URL */}
+              {/* Product Image */}
               <div>
-                <Label className="text-xs font-bold uppercase">
-                  Product Image URL
-                </Label>
-                <div className="flex items-center gap-2 mt-1">
-                  <ImageIcon className="w-4 h-4 text-gray-400" />
-                  <Input
-                    placeholder="https://example.com/product-image.jpg"
-                    value={productForm.imageUrl}
-                    onChange={(e) => setProductForm({...productForm, imageUrl: e.target.value})}
-                    className="rounded-lg"
-                    disabled={isAdding || isEditing}
-                  />
-                </div>
-                {productForm.imageUrl && (
-                  <div className="mt-2">
-                    <p className="text-xs text-gray-500 mb-1">Image Preview:</p>
-                    <div className="w-full h-32 rounded-lg overflow-hidden border">
-                      <img 
-                        src={productForm.imageUrl} 
-                        alt="Preview"
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDIwMCAyMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjIwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNlNWU1ZTUiLz48cmVjdCB4PSI0MCIgeT0iNDAiIHdpZHRoPSIxMjAiIGhlaWdodD0iODAiIHJ4PSI4IiBmaWxsPSIjY2NjIi8+PHJlY3QgeD0iNjUiIHk9IjU1IiB3aWR0aD0iNzAiIGhlaWdodD0iMTAiIHJ4PSI1IiBmaWxsPSIjZWVlIi8+PHJlY3QgeD0iNjUiIHk9IjcwIiB3aWR0aD0iNTAiIGhlaWdodD0iOCIgb3BhY2l0eT0iMC42IiBmaWxsPSIjZWVlIi8+PHJlY3QgeD0iNjUiIHk9Ijg1IiB3aWR0aD0iMzAiIGhlaWdodD0iOCIgb3BhY2l0eT0iMC40IiBmaWxsPSIjZWVlIi8+PC9zdmc+';
-                        }}
-                      />
-                    </div>
-                  </div>
-                )}
-                <p className="text-xs text-gray-500 mt-1">
-                  Paste a direct image URL (optional)
-                </p>
+                <ImageField
+                  label="Product Image"
+                  value={productForm.imageUrl}
+                  onChange={(url) => setProductForm({ ...productForm, imageUrl: url })}
+                  folder="images/products"
+                  placeholder="https://example.com/product-image.jpg"
+                  disabled={isAdding || isEditing}
+                  inputId="product-imageUrl"
+                />
               </div>
 
               {/* Product Name */}
@@ -1188,7 +1167,7 @@ export default function SuperAdminProducts() {
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <Label className="text-xs font-bold uppercase">
-                    Price ($) *
+                    Price (AED) *
                   </Label>
                   <Input
                     type="number"
@@ -1203,7 +1182,7 @@ export default function SuperAdminProducts() {
                 </div>
                 <div>
                   <Label className="text-xs font-bold uppercase">
-                    Cost ($) *
+                    Cost (AED) *
                   </Label>
                   <Input
                     type="number"
@@ -1242,7 +1221,7 @@ export default function SuperAdminProducts() {
                     Margin: {calculateMargin(parseFloat(productForm.price), parseFloat(productForm.cost))}%
                   </p>
                   <p className="text-xs text-green-600 mt-1">
-                    Profit per unit: ${(parseFloat(productForm.price) - parseFloat(productForm.cost)).toFixed(2)}
+                    Profit per unit: AED {(parseFloat(productForm.price) - parseFloat(productForm.cost)).toFixed(2)}
                   </p>
                 </div>
               )}
@@ -1423,7 +1402,7 @@ export default function SuperAdminProducts() {
                                 {selectedProduct?.status?.replace('-', ' ')}
                               </span>
                               <span className="px-2 py-1 rounded-md text-xs border border-gray-300">
-                                ${selectedProduct?.price}
+                                AED {selectedProduct?.price}
                               </span>
                               <span className="px-2 py-1 rounded-md text-xs border border-gray-300">
                                 Stock: {selectedProduct?.totalStock}

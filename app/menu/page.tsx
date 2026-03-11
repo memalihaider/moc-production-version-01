@@ -110,7 +110,7 @@ export default function MenuPage() {
           
           {/* Page Header */}
           <header className="text-center mb-8">
-            <h1 className="text-4xl md:text-5xl font-serif font-bold text-primary mb-2">
+            <h1 className="text-4xl md:text-5xl font-sans font-bold text-primary mb-2">
               Our Service <span className="text-secondary">Menu</span>
             </h1>
             <p className="text-muted-foreground max-w-2xl mx-auto">
@@ -157,7 +157,7 @@ export default function MenuPage() {
                     {filteredServices.map((service) => (
                       <TableRow key={service.id} className="border-t border-gray-100 hover:bg-gray-50/50">
                         <TableCell className="p-4">
-                          <p className="font-serif font-bold text-primary text-base">{service.name}</p>
+                          <p className="font-sans font-bold text-primary text-base">{service.name}</p>
                           <p className="text-sm text-muted-foreground font-light mt-1 line-clamp-2">{service.description}</p>
                         </TableCell>
                         <TableCell className="p-4 text-right">
@@ -174,7 +174,7 @@ export default function MenuPage() {
           ) : (
             <div className="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-gray-200">
               <Sparkles className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-2xl font-serif font-bold text-gray-500 mb-2">No Services Found</h3>
+              <h3 className="text-2xl font-sans font-bold text-gray-500 mb-2">No Services Found</h3>
               <p className="text-muted-foreground">
                 Try adjusting your search or filter settings.
               </p>

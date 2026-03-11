@@ -693,7 +693,7 @@ export default function SuperAdminMessages() {
           <>
             <div className="shrink-0 bg-white border-b border-gray-200 px-4 py-4">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-serif font-bold text-gray-900">
+                <h2 className="text-lg font-sans font-bold text-gray-900">
                   Branches ({chats.length})
                 </h2>
                 
@@ -732,7 +732,7 @@ export default function SuperAdminMessages() {
                       >
                         <Avatar className="w-12 h-12 rounded-xl border-2 border-white shadow-sm">
                           <AvatarFallback className={cn(
-                            "text-white text-lg font-serif",
+                            "text-white text-lg font-sans",
                             selectedBranchId === chat.id
                               ? "bg-gradient-to-br from-[#FA9DB7] to-[#B84A68]"
                               : "bg-gradient-to-br from-gray-400 to-gray-600"
@@ -838,7 +838,7 @@ export default function SuperAdminMessages() {
                     <MessageCircle className="w-5 h-5 text-white" />
                   </div>
                   <div>
-                    <h1 className="text-2xl font-serif font-bold text-gray-900">Executive Communications</h1>
+                    <h1 className="text-2xl font-sans font-bold text-gray-900">Executive Communications</h1>
                     <p className="text-xs text-gray-500 mt-0.5">Super Admin Portal</p>
                   </div>
                 </div>
@@ -948,7 +948,7 @@ export default function SuperAdminMessages() {
                       <div className="relative">
                         <Avatar className="w-14 h-14 rounded-2xl border-4 border-white shadow-xl">
                           <AvatarImage src={displayBranchDetails.image} />
-                          <AvatarFallback className="bg-gradient-to-br from-[#FA9DB7] to-[#B84A68] text-white text-2xl font-serif">
+                          <AvatarFallback className="bg-gradient-to-br from-[#FA9DB7] to-[#B84A68] text-white text-2xl font-sans">
                             {displayBranchDetails.name?.charAt(0)}
                           </AvatarFallback>
                         </Avatar>
@@ -957,7 +957,7 @@ export default function SuperAdminMessages() {
                       
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-3">
-                          <h2 className="text-2xl font-serif font-bold text-gray-900">
+                          <h2 className="text-2xl font-sans font-bold text-gray-900">
                             {displayBranchDetails.name}
                           </h2>
                           <Badge className="bg-[#FA9DB7]/10 text-[#B84A68] border-0 rounded-full px-4 py-1">
@@ -1005,7 +1005,7 @@ export default function SuperAdminMessages() {
                             <div className="w-24 h-24 bg-gradient-to-br from-[#FA9DB7]/20 to-[#B84A68]/10 rounded-3xl flex items-center justify-center mb-4">
                               <MessageCircle className="w-12 h-12 text-[#B84A68]" />
                             </div>
-                            <h3 className="text-xl font-serif font-bold text-gray-900 mb-2">No messages yet</h3>
+                            <h3 className="text-xl font-sans font-bold text-gray-900 mb-2">No messages yet</h3>
                             <p className="text-gray-500 text-center max-w-md">
                               Start a conversation with {displayBranchDetails.name}. Your messages will appear here.
                             </p>
@@ -1315,7 +1315,7 @@ export default function SuperAdminMessages() {
                     <div className="w-28 h-28 bg-gradient-to-br from-[#FA9DB7]/20 to-[#B84A68]/10 rounded-3xl flex items-center justify-center mx-auto mb-6">
                       <Building className="w-14 h-14 text-[#B84A68]/40" />
                     </div>
-                    <h3 className="text-2xl font-serif font-bold text-gray-900 mb-3">Welcome to Executive Communications</h3>
+                    <h3 className="text-2xl font-sans font-bold text-gray-900 mb-3">Welcome to Executive Communications</h3>
                     <p className="text-gray-500 mb-8">
                       Select a branch from the dropdown above or choose a branch from the sidebar to start messaging.
                     </p>

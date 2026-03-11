@@ -146,7 +146,7 @@ export default function CustomerOrders() {
               </Button>
             </Link>
             <div>
-              <h1 className="text-3xl font-serif font-bold text-primary">My Orders</h1>
+              <h1 className="text-3xl font-sans font-bold text-primary">My Orders</h1>
               <p className="text-muted-foreground">Track and manage your product orders</p>
             </div>
           </div>
@@ -283,7 +283,7 @@ export default function CustomerOrders() {
                                 <p className="text-xs text-muted-foreground">Qty: {product.quantity}</p>
                               </div>
                             </div>
-                            <span className="font-bold text-primary">${(product.price * product.quantity).toFixed(2)}</span>
+                            <span className="font-bold text-primary">AED {(product.price * product.quantity).toFixed(2)}</span>
                           </div>
                         ))}
                       </div>
@@ -311,7 +311,7 @@ export default function CustomerOrders() {
                       </div>
                       <div className="mt-4 md:mt-0 text-right">
                         <p className="text-xs text-muted-foreground">Total Amount</p>
-                        <p className="text-2xl font-bold text-primary">${order.totalAmount.toFixed(2)}</p>
+                        <p className="text-2xl font-bold text-primary">AED {order.totalAmount.toFixed(2)}</p>
                       </div>
                     </div>
                   </CardContent>

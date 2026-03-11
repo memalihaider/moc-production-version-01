@@ -61,7 +61,7 @@ export function Header() {
               className="object-contain"
             />
           </div>
-          <span className="text-xl font-serif font-bold text-primary tracking-tight">
+          <span className="text-xl font-sans font-bold text-primary tracking-tight">
             Man Of <span className="text-secondary">Cave</span>
           </span>
         </Link>

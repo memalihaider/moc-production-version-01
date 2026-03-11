@@ -159,7 +159,7 @@ export function ClassicTemplate({ invoice, branch }: InvoiceTemplateProps) {
   const total = subtotal + tax - discount;
 
   return (
-    <div className="bg-white p-12 max-w-4xl mx-auto font-serif">
+    <div className="bg-white p-12 max-w-4xl mx-auto font-sans">
       {/* Header */}
       <div className="text-center mb-12">
         <h1 className="text-5xl font-bold text-primary mb-2">MAN OF CAVE</h1>

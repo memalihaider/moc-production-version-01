@@ -48,7 +48,7 @@ export default function BranchPage({ params }: { params: { id: string } }) {
           <div className="w-24 h-24 bg-secondary/20 rounded-full flex items-center justify-center mx-auto mb-6">
             <Scissors className="w-10 h-10 text-secondary" />
           </div>
-          <h1 className="text-5xl font-serif font-bold text-white">Sanctuary Not Found</h1>
+          <h1 className="text-5xl font-sans font-bold text-white">Sanctuary Not Found</h1>
           <p className="text-gray-400 max-w-md mx-auto font-light">The location you are seeking is currently unavailable or does not exist in our collection.</p>
           <Button asChild className="bg-secondary text-primary font-black tracking-widest px-10 py-8 rounded-2xl">
             <Link href="/branches">EXPLORE ALL LOCATIONS</Link>
@@ -93,7 +93,7 @@ export default function BranchPage({ params }: { params: { id: string } }) {
               <span className="text-secondary font-black tracking-[0.3em] uppercase text-[10px]">Flagship Studio</span>
               <Crown className="w-4 h-4 text-secondary" />
             </div>
-            <h1 className="text-6xl md:text-8xl font-serif font-bold text-white leading-tight">{branch.name}</h1>
+            <h1 className="text-6xl md:text-8xl font-sans font-bold text-white leading-tight">{branch.name}</h1>
             <p className="text-xl md:text-2xl text-gray-300 font-light max-w-3xl mx-auto leading-relaxed italic">
               "{branch.description}"
             </p>
@@ -133,7 +133,7 @@ export default function BranchPage({ params }: { params: { id: string } }) {
               <div className="w-14 h-14 bg-secondary/10 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-secondary transition-all">
                 <Clock className="w-6 h-6 text-secondary group-hover:text-primary" />
               </div>
-              <h3 className="text-xl font-serif font-bold text-primary mb-3 group-hover:text-white">Studio Hours</h3>
+              <h3 className="text-xl font-sans font-bold text-primary mb-3 group-hover:text-white">Studio Hours</h3>
               <p className="text-sm text-muted-foreground group-hover:text-white/70 font-light leading-relaxed">
                 Mon-Sat: 9AM - 7PM<br />
                 Sunday: 10AM - 5PM
@@ -147,7 +147,7 @@ export default function BranchPage({ params }: { params: { id: string } }) {
               <div className="w-14 h-14 bg-secondary/10 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-secondary transition-all">
                 <Phone className="w-6 h-6 text-secondary group-hover:text-primary" />
               </div>
-              <h3 className="text-xl font-serif font-bold text-primary mb-3 group-hover:text-white">Concierge</h3>
+              <h3 className="text-xl font-sans font-bold text-primary mb-3 group-hover:text-white">Concierge</h3>
               <p className="text-sm text-muted-foreground group-hover:text-white/70 font-light leading-relaxed">
                 Direct: {branch.phone}<br />
                 Email: {params.id}@manofcave.com
@@ -161,7 +161,7 @@ export default function BranchPage({ params }: { params: { id: string } }) {
               <div className="w-14 h-14 bg-secondary/10 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-secondary transition-all">
                 <Calendar className="w-6 h-6 text-secondary group-hover:text-primary" />
               </div>
-              <h3 className="text-xl font-serif font-bold text-primary mb-3 group-hover:text-white">Next Available</h3>
+              <h3 className="text-xl font-sans font-bold text-primary mb-3 group-hover:text-white">Next Available</h3>
               <p className="text-sm text-muted-foreground group-hover:text-white/70 font-light leading-relaxed">
                 Today: 2:00 PM<br />
                 Tomorrow: 9:00 AM
@@ -173,7 +173,7 @@ export default function BranchPage({ params }: { params: { id: string } }) {
             <div className="absolute top-0 right-0 w-20 h-20 bg-primary/20 rounded-full blur-xl -mr-10 -mt-10"></div>
             <div className="relative z-10">
               <Sparkles className="w-10 h-10 text-primary mb-6 animate-pulse" />
-              <h3 className="text-2xl font-serif font-bold text-primary mb-6">Ready for your ritual?</h3>
+              <h3 className="text-2xl font-sans font-bold text-primary mb-6">Ready for your ritual?</h3>
               <Button asChild className="w-full h-16 bg-primary hover:bg-white text-white hover:text-primary font-black tracking-widest rounded-2xl transition-all duration-500 shadow-xl">
                 <Link href="/booking">BOOK APPOINTMENT</Link>
               </Button>
@@ -191,7 +191,7 @@ export default function BranchPage({ params }: { params: { id: string } }) {
                 THE MASTERS
                 <Crown className="w-4 h-4" />
               </div>
-              <h2 className="text-5xl font-serif font-bold text-primary">Our Artisans</h2>
+              <h2 className="text-5xl font-sans font-bold text-primary">Our Artisans</h2>
             </div>
             <p className="text-muted-foreground max-w-md font-light leading-relaxed">
               Meet the dedicated professionals who transform grooming into an art form. Each artisan brings years of expertise and a unique vision to every chair.
@@ -222,7 +222,7 @@ export default function BranchPage({ params }: { params: { id: string } }) {
                           <span className="text-white text-xs font-bold">{barber.rating}</span>
                         </div>
                       </div>
-                      <h3 className="text-2xl font-serif font-bold text-white mb-4">{barber.name}</h3>
+                      <h3 className="text-2xl font-sans font-bold text-white mb-4">{barber.name}</h3>
                       <div className="flex flex-wrap gap-2 mb-4">
                         {barber.specialties.map((spec, i) => (
                           <span key={i} className="text-[9px] font-black tracking-widest uppercase px-3 py-1 bg-white/10 text-white/80 rounded-full border border-white/10">
@@ -258,7 +258,7 @@ export default function BranchPage({ params }: { params: { id: string } }) {
                 THE MENU
                 <Scissors className="w-4 h-4" />
               </div>
-              <h2 className="text-5xl font-serif font-bold text-primary">Signature Services</h2>
+              <h2 className="text-5xl font-sans font-bold text-primary">Signature Services</h2>
             </div>
 
             <div className="space-y-6">
@@ -268,7 +268,7 @@ export default function BranchPage({ params }: { params: { id: string } }) {
                   <div className="relative z-10">
                     <div className="flex justify-between items-start mb-4">
                       <div>
-                        <h4 className="text-xl font-serif font-bold text-primary group-hover:text-secondary transition-colors">{service.name}</h4>
+                        <h4 className="text-xl font-sans font-bold text-primary group-hover:text-secondary transition-colors">{service.name}</h4>
                         <div className="flex items-center gap-4 mt-2">
                           <span className="flex items-center gap-1.5 text-[10px] font-black tracking-widest text-muted-foreground uppercase">
                             <Clock className="w-3 h-3" /> {service.duration}
@@ -278,7 +278,7 @@ export default function BranchPage({ params }: { params: { id: string } }) {
                         </div>
                       </div>
                       <div className="text-right">
-                        <span className="text-2xl font-serif font-bold text-primary">${service.price}</span>
+                        <span className="text-2xl font-sans font-bold text-primary">AED {service.price}</span>
                         <div className="text-[10px] font-black tracking-widest text-muted-foreground uppercase mt-1">Starting from</div>
                       </div>
                     </div>
@@ -306,7 +306,7 @@ export default function BranchPage({ params }: { params: { id: string } }) {
                 THE STUDIO
                 <Award className="w-4 h-4" />
               </div>
-              <h2 className="text-5xl font-serif font-bold text-primary">Visual Experience</h2>
+              <h2 className="text-5xl font-sans font-bold text-primary">Visual Experience</h2>
             </div>
 
             <div className="grid grid-cols-2 gap-6 h-[600px]">
@@ -316,7 +316,7 @@ export default function BranchPage({ params }: { params: { id: string } }) {
                 </div>
                 <div className="bg-primary rounded-[2.5rem] p-10 flex flex-col justify-center items-center text-center space-y-6 h-[280px]">
                   <Award className="w-12 h-12 text-secondary" />
-                  <p className="text-white font-serif text-xl italic">"Voted Best Luxury Barbershop 2024"</p>
+                  <p className="text-white font-sans text-xl italic">"Voted Best Luxury Barbershop 2024"</p>
                   <div className="flex items-center gap-2 text-white/70 text-xs font-black uppercase tracking-widest">
                     <Star className="w-3 h-3 fill-secondary text-secondary" />
                     4.9 Rating • 500+ Reviews
@@ -328,7 +328,7 @@ export default function BranchPage({ params }: { params: { id: string } }) {
                 <div className="absolute inset-0 bg-primary/80 opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-center justify-center">
                   <div className="text-center space-y-4">
                     <Sparkles className="w-12 h-12 text-secondary mx-auto animate-pulse" />
-                    <p className="text-white font-serif text-xl italic">Experience Luxury</p>
+                    <p className="text-white font-sans text-xl italic">Experience Luxury</p>
                     <p className="text-white/70 text-sm font-light">State-of-the-art facilities</p>
                   </div>
                 </div>
@@ -350,7 +350,7 @@ export default function BranchPage({ params }: { params: { id: string } }) {
                 VOICES
                 <div className="w-10 h-[1px] bg-secondary"></div>
               </div>
-              <h2 className="text-5xl md:text-6xl font-serif font-bold text-white leading-tight">Client Testimonials</h2>
+              <h2 className="text-5xl md:text-6xl font-sans font-bold text-white leading-tight">Client Testimonials</h2>
               <p className="text-gray-300 font-light max-w-2xl mx-auto">Real experiences from our valued clients who trust us with their grooming needs.</p>
             </div>
 
@@ -365,7 +365,7 @@ export default function BranchPage({ params }: { params: { id: string } }) {
                     </div>
                     <p className="text-gray-300 font-light italic leading-relaxed text-lg">"{review.text}"</p>
                     <div className="space-y-1">
-                      <h4 className="text-white font-serif font-bold">{review.name}</h4>
+                      <h4 className="text-white font-sans font-bold">{review.name}</h4>
                       <p className="text-secondary font-black tracking-widest text-[9px] uppercase">{review.date}</p>
                     </div>
                   </div>
@@ -391,7 +391,7 @@ export default function BranchPage({ params }: { params: { id: string } }) {
                 <span className="text-primary font-black tracking-[0.3em] uppercase text-[10px]">Limited Time Offer</span>
                 <Sparkles className="w-4 h-4 text-primary animate-pulse" />
               </div>
-              <h2 className="text-5xl md:text-7xl font-serif font-bold text-primary leading-tight">
+              <h2 className="text-5xl md:text-7xl font-sans font-bold text-primary leading-tight">
                 Ready for Your Premium Experience?
               </h2>
               <p className="text-xl text-primary/80 font-light max-w-xl mx-auto">

@@ -171,7 +171,7 @@ export default function CustomerLogin() {
             </div>
             
             {/* Brand Name - #FA9DB7 Pink */}
-            <h1 className="text-4xl md:text-5xl font-serif font-bold mb-3">
+            <h1 className="text-4xl md:text-5xl font-sans font-bold mb-3">
               <span className="text-[#FA9DB7] italic drop-shadow-sm">
                 Jam Beauty Lounge
               </span>
@@ -208,7 +208,7 @@ export default function CustomerLogin() {
               {/* Login Tab */}
               <TabsContent value="login" className="p-0">
                 <CardHeader className="pb-4 pt-8 px-8">
-                  <CardTitle className="text-2xl font-serif font-bold text-gray-800">
+                  <CardTitle className="text-2xl font-sans font-bold text-gray-800">
                     Welcome Back
                   </CardTitle>
                   <CardDescription className="text-gray-500">
@@ -302,7 +302,7 @@ export default function CustomerLogin() {
               {/* Register Tab */}
               <TabsContent value="register" className="p-0">
                 <CardHeader className="pb-4 pt-8 px-8">
-                  <CardTitle className="text-2xl font-serif font-bold text-gray-800">
+                  <CardTitle className="text-2xl font-sans font-bold text-gray-800">
                     Create Account
                   </CardTitle>
                   <CardDescription className="text-gray-500">

@@ -386,7 +386,7 @@
 //                   <Sparkles className="w-4 h-4 text-[#FA9DB7]" />
 //                 </div>
 //                 {isOpen && (
-//                   <span className="text-lg font-serif font-bold tracking-tighter">
+//                   <span className="text-lg font-sans font-bold tracking-tighter">
 //                     <span className="text-[#f48aa8]">Jam</span>
 //                     <span className="text-gray-500">Beauty</span>
 //                       <span className="text-gray-800">Lounge</span>
@@ -990,7 +990,7 @@ export function AdminSidebar({
                   <Scissors className="h-4 w-4 text-primary" />
                 </div>
                 {isOpen && (
-                  <span className="text-lg font-serif font-bold tracking-tighter text-white mt-1">
+                  <span className="text-lg font-sans font-bold tracking-tighter text-white mt-1">
                     <span className="text-secondary">MAN</span>
                     <span className="text-gray-300">OF</span>
                     <span className="text-white">CAVE</span>

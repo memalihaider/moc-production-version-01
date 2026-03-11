@@ -48,8 +48,7 @@ import {
   QueryDocumentSnapshot
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-
-// Types Definition
+import { ImageField } from '@/components/ui/image-field';
 interface BlogPost {
   id: string;
   title: string;
@@ -403,7 +402,7 @@ export default function AdminBlogPage() {
             <Edit className="w-4 h-4 text-secondary" />
             <span className="text-secondary font-black tracking-[0.3em] uppercase text-[10px]">Admin Portal</span>
           </div>
-          <h1 className="text-5xl md:text-7xl font-serif font-bold text-white mb-6 leading-tight">
+          <h1 className="text-5xl md:text-7xl font-sans font-bold text-white mb-6 leading-tight">
             Blog Content <span className="text-secondary italic">Manager</span>
           </h1>
           <p className="text-gray-300 max-w-2xl mx-auto text-lg font-light leading-relaxed mb-8">
@@ -452,7 +451,7 @@ export default function AdminBlogPage() {
           <div className="lg:col-span-1 space-y-6">
             <Card className="border-0 shadow-[0_8px_30px_rgba(0,0,0,0.04)] rounded-[2.5rem]">
               <CardHeader className="pb-4">
-                <CardTitle className="text-2xl font-serif font-bold text-primary">
+                <CardTitle className="text-2xl font-sans font-bold text-primary">
                   {isEditing ? 'Edit Blog Post' : 'Create New Blog'}
                 </CardTitle>
                 <CardDescription>
@@ -537,30 +536,16 @@ export default function AdminBlogPage() {
                   </div>
                 </div>
 
-                {/* Image URL */}
+                {/* Featured Image */}
                 <div className="space-y-2">
-                  <Label htmlFor="imageUrl" className="text-sm font-medium">
-                    Featured Image URL
-                  </Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="imageUrl"
-                      name="imageUrl"
-                      value={formData.imageUrl}
-                      onChange={handleInputChange}
-                      placeholder="https://images.unsplash.com/..."
-                      className="rounded-xl"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      className="shrink-0 rounded-xl"
-                      onClick={() => window.open('https://unsplash.com', '_blank')}
-                    >
-                      <ImageIcon className="w-4 h-4" />
-                    </Button>
-                  </div>
+                  <ImageField
+                    label="Featured Image"
+                    value={formData.imageUrl}
+                    onChange={(url) => setFormData(prev => ({ ...prev, imageUrl: url }))}
+                    folder="images/blogs"
+                    placeholder="https://images.unsplash.com/..."
+                    inputId="sa-blog-imageUrl"
+                  />
                 </div>
 
                 {/* Category and Read Time */}
@@ -760,7 +745,7 @@ export default function AdminBlogPage() {
             {/* Quick Stats */}
             <Card className="border-0 shadow-[0_8px_30px_rgba(0,0,0,0.04)] rounded-[2.5rem]">
               <CardHeader className="pb-4">
-                <CardTitle className="text-xl font-serif font-bold text-primary">
+                <CardTitle className="text-xl font-sans font-bold text-primary">
                   Quick Stats
                 </CardTitle>
               </CardHeader>
@@ -853,7 +838,7 @@ export default function AdminBlogPage() {
                   <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6">
                     <Edit className="w-8 h-8 text-gray-300" />
                   </div>
-                  <h3 className="text-2xl font-serif font-bold text-primary mb-3">No Blogs Found</h3>
+                  <h3 className="text-2xl font-sans font-bold text-primary mb-3">No Blogs Found</h3>
                   <p className="text-gray-500 font-light mb-8 max-w-md mx-auto">
                     {searchQuery || selectedCategory !== 'all' || showFeaturedOnly
                       ? 'No blogs match your current filters.'
@@ -903,7 +888,7 @@ export default function AdminBlogPage() {
                                   {blog.category}
                                 </Badge>
                               </div>
-                              <h3 className="text-xl font-serif font-bold text-primary line-clamp-1">
+                              <h3 className="text-xl font-sans font-bold text-primary line-clamp-1">
                                 {blog.title}
                               </h3>
                             </div>

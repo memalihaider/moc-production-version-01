@@ -39,8 +39,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Unsubscribe } from 'firebase/firestore';
-
-// Types for each section
+import { ImageField } from '@/components/ui/image-field';
 export interface Membership {
   id: string;
   name: string;
@@ -2207,21 +2206,17 @@ export default function SuperAdminMembership() {
                   />
                 </div>
 
-                {/* Image URL */}
+                {/* Image */}
                 <div>
-                  <Label className="text-xs font-bold uppercase">
-                    Offer Image URL
-                  </Label>
-                  <div className="flex items-center gap-2 mt-1">
-                    <ImageIcon className="w-4 h-4 text-gray-400" />
-                    <Input
-                      placeholder="https://example.com/offer-image.jpg"
-                      value={offerForm.imageUrl}
-                      onChange={(e) => setOfferForm({...offerForm, imageUrl: e.target.value})}
-                      className="rounded-lg"
-                      disabled={isAdding || isEditing}
-                    />
-                  </div>
+                  <ImageField
+                    label="Offer Image"
+                    value={offerForm.imageUrl}
+                    onChange={(url) => setOfferForm({ ...offerForm, imageUrl: url })}
+                    folder="images/membership"
+                    placeholder="https://example.com/offer-image.jpg"
+                    disabled={isAdding || isEditing}
+                    inputId="sa-offer-imageUrl"
+                  />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">

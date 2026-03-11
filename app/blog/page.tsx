@@ -331,7 +331,7 @@ export default function BlogPage() {
             </div>
 
             {/* Title */}
-            <h3 className="text-2xl font-serif font-bold text-center text-gray-900 mb-2">
+            <h3 className="text-2xl font-sans font-bold text-center text-gray-900 mb-2">
               Create Account First! ✋
             </h3>
 
@@ -385,7 +385,7 @@ export default function BlogPage() {
             <span className="text-black font-black tracking-[0.3em] uppercase text-[10px]">The ManofCave Journal</span>
           </div>
       
-     <h1 className="text-5xl md:text-7xl font-serif font-bold text-white mb-6 leading-tight">
+     <h1 className="text-5xl md:text-7xl font-sans font-bold text-white mb-6 leading-tight">
             The Grooming <span className="text-secondary italic">Chronicles</span>
           </h1>
           <p className="text-gray-300 max-w-2xl mx-auto text-lg font-light leading-relaxed mb-8">
@@ -505,7 +505,7 @@ export default function BlogPage() {
             {selectedCategory === 'all' && featuredPosts.length > 0 && (
               <div className="mb-20">
                 <div className="mb-12">
-                  <h2 className="text-3xl font-serif font-bold text-primary mb-4">
+                  <h2 className="text-3xl font-sans font-bold text-primary mb-4">
                     Featured Articles
                   </h2>
                   <div className="w-24 h-1 bg-gradient-to-r from-gray-400 to-primary rounded-full"></div>
@@ -547,7 +547,7 @@ export default function BlogPage() {
                                 {post.readTime}
                               </div>
                             </div>
-                            <h3 className="text-2xl font-serif font-bold text-primary leading-tight group-hover:text-secondary transition-colors">
+                            <h3 className="text-2xl font-sans font-bold text-primary leading-tight group-hover:text-secondary transition-colors">
                               {post.title}
                             </h3>
                             <p className="text-gray-600 text-sm leading-relaxed">
@@ -578,7 +578,7 @@ export default function BlogPage() {
 
             {/* All Articles Header - CODE1 STYLE */}
             <div className="mb-12">
-              <h2 className="text-3xl font-serif font-bold text-primary mb-4">
+              <h2 className="text-3xl font-sans font-bold text-primary mb-4">
                 All Articles
                 <span className="text-gray-800 ml-2">({filteredPosts.length})</span>
               </h2>
@@ -594,7 +594,7 @@ export default function BlogPage() {
                 <div className="w-24 h-24 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6">
                   <BookOpen className="w-12 h-12 text-gray-300" />
                 </div>
-                <h3 className="text-3xl font-serif font-bold text-primary mb-3">No Articles Found</h3>
+                <h3 className="text-3xl font-sans font-bold text-primary mb-3">No Articles Found</h3>
                 <p className="text-gray-500 font-light mb-8 max-w-md mx-auto">
                   {blogs.length === 0 
                     ? 'No blogs available. Check back soon for new articles!'
@@ -672,7 +672,7 @@ export default function BlogPage() {
                         </div>
                         
                         {/* Post Title - CODE1 STYLE */}
-                        <h3 className="text-xl font-serif font-bold text-primary leading-tight line-clamp-2 group-hover:text-secondary transition-colors min-h-14">
+                        <h3 className="text-xl font-sans font-bold text-primary leading-tight line-clamp-2 group-hover:text-secondary transition-colors min-h-14">
                           {post.title}
                         </h3>
                         
@@ -866,7 +866,7 @@ export default function BlogPage() {
             <Sparkles className="w-4 h-4 text-white" />
             <span className="text-white font-black tracking-[0.3em] uppercase text-[10px]">Stay Informed</span>
           </div>
-          <h2 className="text-4xl font-serif font-bold text-white mb-6">
+          <h2 className="text-4xl font-sans font-bold text-white mb-6">
             Join The Gentleman's Newsletter
           </h2>
           <p className="text-white/80 max-w-2xl mx-auto text-lg mb-8">

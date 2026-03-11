@@ -186,7 +186,7 @@ export default function CustomerTransactions() {
               </Button>
             </Link>
             <div>
-              <h1 className="text-3xl font-serif font-bold text-primary">Transaction History</h1>
+              <h1 className="text-3xl font-sans font-bold text-primary">Transaction History</h1>
               <p className="text-muted-foreground">View all your wallet and points activity</p>
             </div>
           </div>

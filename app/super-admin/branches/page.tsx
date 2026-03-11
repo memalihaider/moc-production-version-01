@@ -37,8 +37,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Unsubscribe } from 'firebase/firestore';
-
-export interface Branch {
+import { ImageField } from '@/components/ui/image-field';
   id: string;
   name: string;
   address: string;
@@ -1030,16 +1029,14 @@ export default function SuperAdminBranches() {
                     </div>
 
                     <div>
-                      <Label htmlFor="image" className="text-sm font-medium text-gray-700">
-                        Image URL
-                      </Label>
-                      <Input
-                        id="image"
+                      <ImageField
+                        label="Image"
                         value={formData.image}
-                        onChange={(e) => setFormData(prev => ({ ...prev, image: e.target.value }))}
+                        onChange={(url) => setFormData(prev => ({ ...prev, image: url }))}
+                        folder="images/branches"
                         placeholder="Enter image URL (optional)"
-                        className="mt-1"
                         disabled={isAdding}
+                        inputId="sa-image"
                       />
                     </div>
 
@@ -1434,16 +1431,14 @@ export default function SuperAdminBranches() {
                     </div>
 
                     <div>
-                      <Label htmlFor="edit-image" className="text-sm font-medium text-gray-700">
-                        Image URL
-                      </Label>
-                      <Input
-                        id="edit-image"
+                      <ImageField
+                        label="Image"
                         value={formData.image}
-                        onChange={(e) => setFormData(prev => ({ ...prev, image: e.target.value }))}
+                        onChange={(url) => setFormData(prev => ({ ...prev, image: url }))}
+                        folder="images/branches"
                         placeholder="Enter image URL (optional)"
-                        className="mt-1"
                         disabled={isEditing}
+                        inputId="sa-edit-image"
                       />
                     </div>
 

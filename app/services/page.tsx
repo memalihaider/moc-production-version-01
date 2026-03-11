@@ -682,7 +682,7 @@ export default function ServicesPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
               </svg>
             </div>
-            <h3 className="text-2xl font-serif font-bold text-center text-gray-900 mb-2">Create Account First! ✋</h3>
+            <h3 className="text-2xl font-sans font-bold text-center text-gray-900 mb-2">Create Account First! ✋</h3>
             <Link href="/customer/login" className="block w-full text-center bg-linear-to-r from-purple-500 to-blue-500 text-white font-semibold py-3 px-6 rounded-xl hover:shadow-lg hover:scale-[1.02] transition-all duration-300" onClick={() => setShowChatPopup(false)}>
               Login / Sign Up
             </Link>
@@ -707,7 +707,7 @@ export default function ServicesPage() {
             <span className="text-white font-black tracking-[0.5em] uppercase text-[10px]">The Service Menu</span>
           </div>
           
-          <h1 className="text-4xl md:text-6xl font-serif font-bold text-white mb-2 leading-[0.85] tracking-tighter">
+          <h1 className="text-4xl md:text-6xl font-sans font-bold text-white mb-2 leading-[0.85] tracking-tighter">
             <div className="mb-6">Signature</div>
             <span className="text-secondary italic">Rituals</span>
           </h1>
@@ -857,7 +857,7 @@ export default function ServicesPage() {
           {/* Services Count */}
           <div className="mb-4 flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-serif font-bold text-primary">
+              <h2 className="text-xl font-sans font-bold text-primary">
                 Premium Services
                 <span className="text-secondary ml-2 text-sm">({displayServices.length})</span>
               </h2>
@@ -880,7 +880,7 @@ export default function ServicesPage() {
               <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3">
                 <Scissors className="w-8 h-8 text-gray-300" />
               </div>
-              <h3 className="text-xl font-serif font-bold text-primary mb-2">No Services Available</h3>
+              <h3 className="text-xl font-sans font-bold text-primary mb-2">No Services Available</h3>
               <Button onClick={fetchServices} className="rounded-full px-5 bg-primary hover:bg-primary/90 font-bold tracking-widest text-[9px] h-8" type="button">
                 <RefreshCw className="w-3 h-3 mr-1" />
                 REFRESH
@@ -891,7 +891,7 @@ export default function ServicesPage() {
               <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3">
                 <Building className="w-8 h-8 text-gray-300" />
               </div>
-              <h3 className="text-xl font-serif font-bold text-primary mb-2">No Services Found</h3>
+              <h3 className="text-xl font-sans font-bold text-primary mb-2">No Services Found</h3>
               <p className="text-gray-500 font-light mb-4 max-w-md mx-auto text-xs">
                 {selectedBranch !== 'all' 
                   ? `No services at ${selectedBranch}`
@@ -967,7 +967,7 @@ export default function ServicesPage() {
 
                     {/* Card Content - Minimal */}
                     <CardHeader className="px-3 pt-2 pb-0">
-                      <CardTitle className="text-sm font-serif font-bold text-primary group-hover:text-secondary transition-colors duration-300 leading-tight line-clamp-1">
+                      <CardTitle className="text-sm font-sans font-bold text-primary group-hover:text-secondary transition-colors duration-300 leading-tight line-clamp-1">
                         {service.name}
                       </CardTitle>
                     </CardHeader>
@@ -1095,7 +1095,7 @@ export default function ServicesPage() {
             <Badge className="bg-secondary text-primary border-none mb-2 text-xs inline-block">
               {selectedService.category}
             </Badge>
-            <h2 className="text-3xl font-serif font-bold text-white mb-1">
+            <h2 className="text-3xl font-sans font-bold text-white mb-1">
               {selectedService.name}
             </h2>
             <div className="flex items-center gap-3 text-white/80">
@@ -1115,7 +1115,7 @@ export default function ServicesPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-secondary font-bold uppercase tracking-wider">Price</p>
-                <p className="text-3xl font-serif font-bold text-primary">AED {selectedService.price}</p>
+                <p className="text-3xl font-sans font-bold text-primary">AED {selectedService.price}</p>
               </div>
               <div className="bg-secondary text-primary p-3 rounded-full">
                 <CreditCard className="w-6 h-6" />

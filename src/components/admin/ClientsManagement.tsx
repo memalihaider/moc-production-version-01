@@ -715,7 +715,7 @@ export default function ClientsManagement({
                 <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">
                   Total Customers
                 </p>
-                <p className="text-3xl font-serif font-bold text-primary">
+                <p className="text-3xl font-sans font-bold text-primary">
                   {totalClients}
                 </p>
               </div>
@@ -731,7 +731,7 @@ export default function ClientsManagement({
                 <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">
                   Total Spending
                 </p>
-                <p className="text-3xl font-serif font-bold text-primary">
+                <p className="text-3xl font-sans font-bold text-primary">
                   AED{totalSpending.toLocaleString()}
                 </p>
               </div>
@@ -747,7 +747,7 @@ export default function ClientsManagement({
                 <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">
                   Loyalty Points
                 </p>
-                <p className="text-3xl font-serif font-bold text-primary">
+                <p className="text-3xl font-sans font-bold text-primary">
                   {totalLoyaltyPoints.toLocaleString()}
                 </p>
               </div>
@@ -763,7 +763,7 @@ export default function ClientsManagement({
                 <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">
                   Total Bookings
                 </p>
-                <p className="text-3xl font-serif font-bold text-primary">
+                <p className="text-3xl font-sans font-bold text-primary">
                   {totalBookings}
                 </p>
               </div>
@@ -779,7 +779,7 @@ export default function ClientsManagement({
                 <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">
                   Total Orders
                 </p>
-                <p className="text-3xl font-serif font-bold text-primary">
+                <p className="text-3xl font-sans font-bold text-primary">
                   {totalOrders}
                 </p>
               </div>
@@ -985,7 +985,7 @@ export default function ClientsManagement({
       {/* Clients Table */}
       <Card className="border-none shadow-sm rounded-xl overflow-hidden">
         <CardHeader className="border-b border-gray-100 bg-gray-50">
-          <CardTitle className="text-lg font-serif">
+          <CardTitle className="text-lg font-sans">
             All Customers ({filteredClients.length})
           </CardTitle>
         </CardHeader>
@@ -1097,7 +1097,7 @@ export default function ClientsManagement({
                             </SheetTrigger>
                             <SheetContent className="overflow-y-auto sm:max-w-4xl w-[90vw] h-[90vh] m-auto rounded-3xl p-5">
                               <SheetHeader>
-                                <SheetTitle className="text-2xl font-serif font-bold">
+                                <SheetTitle className="text-2xl font-sans font-bold">
                                   Customer Profile
                                 </SheetTitle>
                                 <SheetDescription>
@@ -1115,7 +1115,7 @@ export default function ClientsManagement({
                                         {selectedClient.lastName.charAt(0)}
                                       </div>
                                       <div>
-                                        <h3 className="text-xl font-serif font-bold">
+                                        <h3 className="text-xl font-sans font-bold">
                                           {selectedClient.firstName} {selectedClient.lastName}
                                         </h3>
                                         <div className="flex items-center gap-2 mt-1">
@@ -1325,14 +1325,14 @@ export default function ClientsManagement({
                                                           <Package className="w-3 h-3 text-gray-400" />
                                                           <span>{product.productName} x{product.quantity}</span>
                                                           <span className="text-gray-400">-</span>
-                                                          <span>${product.price}</span>
+                                                          <span>AED {product.price}</span>
                                                         </div>
                                                       ))}
                                                     </div>
                                                   </div>
                                                   <div className="text-right">
                                                     <p className="font-bold text-lg text-primary">
-                                                      ${order.totalAmount}
+                                                      AED {order.totalAmount}
                                                     </p>
                                                     {getOrderStatusBadge(order.status)}
                                                   </div>

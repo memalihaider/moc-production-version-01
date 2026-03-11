@@ -496,7 +496,7 @@ export default function AdminFeedbackPage() {
                   onToggle={() => setSidebarOpen(!sidebarOpen)}
                 />
                 <div>
-                  <h1 className="text-2xl font-serif font-bold text-primary">
+                  <h1 className="text-2xl font-sans font-bold text-primary">
                     {user?.role === 'admin' 
                       ? `Branch Feedback Management` 
                       : 'Customer Feedback Management'
@@ -551,7 +551,7 @@ export default function AdminFeedbackPage() {
                             <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">
                               {user?.role === 'admin' ? 'Branch Feedback' : 'Total Feedback'}
                             </p>
-                            <p className="text-3xl font-serif font-bold text-primary">{stats.total}</p>
+                            <p className="text-3xl font-sans font-bold text-primary">{stats.total}</p>
                             <p className="text-sm text-muted-foreground mt-1">
                               {user?.role === 'admin' ? 'For your branch' : 'All time reviews'}
                             </p>
@@ -567,7 +567,7 @@ export default function AdminFeedbackPage() {
                           <div>
                             <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Average Rating</p>
                             <div className="flex items-center gap-2">
-                              <p className="text-3xl font-serif font-bold text-primary">{stats.averageRating}/5</p>
+                              <p className="text-3xl font-sans font-bold text-primary">{stats.averageRating}/5</p>
                               <div className="flex">
                                 {[1, 2, 3, 4, 5].map((star) => (
                                   <Star
@@ -594,7 +594,7 @@ export default function AdminFeedbackPage() {
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Pending Reviews</p>
-                            <p className="text-3xl font-serif font-bold text-yellow-600">{stats.pending}</p>
+                            <p className="text-3xl font-sans font-bold text-yellow-600">{stats.pending}</p>
                             <p className="text-sm text-muted-foreground mt-1">Awaiting action</p>
                           </div>
                           <Clock className="w-12 h-12 text-yellow-500/20" />
@@ -607,7 +607,7 @@ export default function AdminFeedbackPage() {
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Approved Rate</p>
-                            <p className="text-3xl font-serif font-bold text-green-600">
+                            <p className="text-3xl font-sans font-bold text-green-600">
                               {stats.total > 0 ? Math.round((stats.approved / stats.total) * 100) : 0}%
                             </p>
                             <p className="text-sm text-muted-foreground mt-1">
@@ -627,7 +627,7 @@ export default function AdminFeedbackPage() {
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Total Products</p>
-                            <p className="text-3xl font-serif font-bold text-purple-600">{stats.totalProducts}</p>
+                            <p className="text-3xl font-sans font-bold text-purple-600">{stats.totalProducts}</p>
                             <p className="text-sm text-muted-foreground mt-1">Product feedbacks</p>
                           </div>
                           <Package className="w-12 h-12 text-purple-500/20" />
@@ -640,7 +640,7 @@ export default function AdminFeedbackPage() {
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Total Sold</p>
-                            <p className="text-3xl font-serif font-bold text-blue-600">{stats.totalSold}</p>
+                            <p className="text-3xl font-sans font-bold text-blue-600">{stats.totalSold}</p>
                             <p className="text-sm text-muted-foreground mt-1">Units sold</p>
                           </div>
                           <ShoppingBag className="w-12 h-12 text-blue-500/20" />
@@ -653,7 +653,7 @@ export default function AdminFeedbackPage() {
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Product Revenue</p>
-                            <p className="text-3xl font-serif font-bold text-green-600">AED {stats.totalRevenue.toFixed(2)}</p>
+                            <p className="text-3xl font-sans font-bold text-green-600">AED {stats.totalRevenue.toFixed(2)}</p>
                             <p className="text-sm text-muted-foreground mt-1">From reviewed products</p>
                           </div>
                           <DollarSign className="w-12 h-12 text-green-500/20" />
@@ -667,7 +667,7 @@ export default function AdminFeedbackPage() {
                     {/* Status Distribution */}
                     <Card className="border-none shadow-sm rounded-xl">
                       <CardHeader>
-                        <CardTitle className="text-lg font-serif flex items-center gap-2">
+                        <CardTitle className="text-lg font-sans flex items-center gap-2">
                           <BarChart3 className="w-5 h-5 text-secondary" />
                           Status Distribution
                         </CardTitle>
@@ -702,7 +702,7 @@ export default function AdminFeedbackPage() {
                     {/* Type Distribution */}
                     <Card className="border-none shadow-sm rounded-xl">
                       <CardHeader>
-                        <CardTitle className="text-lg font-serif flex items-center gap-2">
+                        <CardTitle className="text-lg font-sans flex items-center gap-2">
                           <TrendingUp className="w-5 h-5 text-secondary" />
                           Type Distribution
                         </CardTitle>
@@ -730,7 +730,7 @@ export default function AdminFeedbackPage() {
                     {/* Rating Distribution */}
                     <Card className="border-none shadow-sm rounded-xl">
                       <CardHeader>
-                        <CardTitle className="text-lg font-serif flex items-center gap-2">
+                        <CardTitle className="text-lg font-sans flex items-center gap-2">
                           <Star className="w-5 h-5 text-secondary" />
                           Rating Distribution
                         </CardTitle>
@@ -854,7 +854,7 @@ export default function AdminFeedbackPage() {
                   {loading ? (
                     <div className="text-center py-12">
                       <Loader2 className="w-12 h-12 animate-spin text-secondary mx-auto mb-4" />
-                      <p className="text-lg font-serif text-primary">Loading feedbacks...</p>
+                      <p className="text-lg font-sans text-primary">Loading feedbacks...</p>
                     </div>
                   ) : filteredFeedbacks.length === 0 ? (
                     <Card className="border-none shadow-sm rounded-xl">
@@ -941,7 +941,7 @@ export default function AdminFeedbackPage() {
                               <div className="lg:w-1/2 space-y-4">
                                 {/* Service/Product */}
                                 <div>
-                                  <h3 className="font-serif font-bold text-lg text-primary mb-2">
+                                  <h3 className="font-sans font-bold text-lg text-primary mb-2">
                                     {feedback.serviceOrProduct}
                                   </h3>
                                   

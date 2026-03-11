@@ -3306,7 +3306,7 @@ export default function CustomerPortal() {
                 </Avatar>
                 <div>
                  
-                  <h1 className="text-3xl font-serif font-bold">
+                  <h1 className="text-3xl font-sans font-bold">
                     {customer.name}
                   </h1>
                   <p className="text-white/70">{customer.email}</p>
@@ -3549,7 +3549,7 @@ export default function CustomerPortal() {
                     <Card className="border-none shadow-lg rounded-2xl">
                       <CardHeader className="flex flex-row items-center justify-between pb-4">
                         <div>
-                          <CardTitle className="text-lg font-serif">
+                          <CardTitle className="text-lg font-sans">
                             Recent Bookings
                           </CardTitle>
                           <CardDescription>
@@ -3628,7 +3628,7 @@ export default function CustomerPortal() {
                     <Card className="border-none shadow-lg rounded-2xl">
                       <CardHeader className="flex flex-row items-center justify-between pb-4">
                         <div>
-                          <CardTitle className="text-lg font-serif">
+                          <CardTitle className="text-lg font-sans">
                             Recent Orders
                           </CardTitle>
                           <CardDescription>
@@ -3704,7 +3704,7 @@ export default function CustomerPortal() {
                     {/* Quick Book Services */}
                     <Card className="border-none shadow-lg rounded-2xl">
                       <CardHeader className="pb-4">
-                        <CardTitle className="text-lg font-serif flex items-center gap-2">
+                        <CardTitle className="text-lg font-sans flex items-center gap-2">
                           <Sparkles className="w-5 h-5 text-secondary" />
                           Quick Services
                         </CardTitle>
@@ -3778,7 +3778,7 @@ export default function CustomerPortal() {
                     {/* Quick Products */}
                     <Card className="border-none shadow-lg rounded-2xl">
                       <CardHeader className="pb-4">
-                        <CardTitle className="text-lg font-serif flex items-center gap-2">
+                        <CardTitle className="text-lg font-sans flex items-center gap-2">
                           <Package className="w-5 h-5 text-secondary" />
                           Quick Products
                         </CardTitle>
@@ -3852,7 +3852,7 @@ export default function CustomerPortal() {
                     {/* Recent Transactions */}
                     <Card className="border-none shadow-lg rounded-2xl">
                       <CardHeader className="pb-4">
-                        <CardTitle className="text-lg font-serif flex items-center gap-2">
+                        <CardTitle className="text-lg font-sans flex items-center gap-2">
                           <History className="w-5 h-5 text-secondary" />
                           Recent Activity
                         </CardTitle>
@@ -3947,7 +3947,7 @@ export default function CustomerPortal() {
                   <CardHeader>
                     <div className="flex flex-col md:flex-row md:items-center justify-between">
                       <div>
-                        <CardTitle className="text-2xl font-serif">
+                        <CardTitle className="text-2xl font-sans">
                           My Shopping Cart
                         </CardTitle>
                         <CardDescription>
@@ -3978,7 +3978,7 @@ export default function CustomerPortal() {
                     {/* Checkout Form */}
                     {showCheckoutForm && (
                       <div className="mb-8 p-6 border-2 border-secondary/20 rounded-2xl bg-secondary/5">
-                        <h3 className="text-xl font-serif font-bold mb-6 flex items-center gap-2">
+                        <h3 className="text-xl font-sans font-bold mb-6 flex items-center gap-2">
                           <Truck className="w-6 h-6 text-secondary" />
                           Checkout Information (Required for Products)
                         </h3>
@@ -4208,16 +4208,16 @@ export default function CustomerPortal() {
                               </div>
                               <div className="flex justify-between">
                                 <span className="text-gray-600">Shipping:</span>
-                                <span className="font-semibold">$0.00</span>
+                                <span className="font-semibold">AED 0.00</span>
                               </div>
                               <div className="flex justify-between">
                                 <span className="text-gray-600">Tax:</span>
-                                <span className="font-semibold">$0.00</span>
+                                <span className="font-semibold">AED 0.00</span>
                               </div>
                               <div className="flex justify-between text-lg font-bold border-t pt-2">
                                 <span>Total:</span>
                                 <span className="text-primary">
-                                  $
+                                  AED 
                                   {cartItems
                                     .filter((i) => i.type === "product")
                                     .reduce(
@@ -4466,12 +4466,12 @@ export default function CustomerPortal() {
                               </div>
                               <div className="flex justify-between">
                                 <span className="text-gray-600">Shipping:</span>
-                                <span className="font-semibold">$0.00</span>
+                                <span className="font-semibold">AED 0.00</span>
                               </div>
                               <div className="flex justify-between text-lg font-bold border-t pt-2">
                                 <span>Total:</span>
                                 <span className="text-primary">
-                                  ${cartTotal.toFixed(2)}
+                                  AED {cartTotal.toFixed(2)}
                                 </span>
                               </div>
                             </div>
@@ -4532,7 +4532,7 @@ export default function CustomerPortal() {
               <TabsContent value="bookings" className="mt-6">
                 <Card className="border-none shadow-lg rounded-2xl">
                   <CardHeader>
-                    <CardTitle className="text-2xl font-serif">
+                    <CardTitle className="text-2xl font-sans">
                       My Service Bookings
                     </CardTitle>
                     <CardDescription>
@@ -4779,7 +4779,7 @@ export default function CustomerPortal() {
               <TabsContent value="orders" className="mt-6">
                 <Card className="border-none shadow-lg rounded-2xl">
                   <CardHeader>
-                    <CardTitle className="text-2xl font-serif">
+                    <CardTitle className="text-2xl font-sans">
                       My Product Orders
                     </CardTitle>
                     <CardDescription>
@@ -4995,7 +4995,7 @@ export default function CustomerPortal() {
                   <CardHeader>
                     <div className="flex flex-col md:flex-row md:items-center justify-between">
                       <div>
-                        <CardTitle className="text-2xl font-serif">
+                        <CardTitle className="text-2xl font-sans">
                           My Reviews & Feedbacks
                         </CardTitle>
                         <CardDescription>
@@ -5016,7 +5016,7 @@ export default function CustomerPortal() {
                     {/* Feedback Form */}
                     {showFeedbackForm && (
                       <div className="mb-8 p-6 border-2 border-secondary/20 rounded-2xl bg-secondary/5">
-                        <h3 className="text-xl font-serif font-bold mb-6">
+                        <h3 className="text-xl font-sans font-bold mb-6">
                           Share Your Experience
                         </h3>
                         <div className="space-y-6">
@@ -5369,7 +5369,7 @@ export default function CustomerPortal() {
                   <div className="lg:col-span-2">
                     <Card className="border-none shadow-lg rounded-2xl">
                       <CardHeader>
-                        <CardTitle className="text-2xl font-serif">
+                        <CardTitle className="text-2xl font-sans">
                           My Wallet
                         </CardTitle>
                         <CardDescription>
@@ -5467,7 +5467,7 @@ export default function CustomerPortal() {
                   <div>
                     <Card className="border-none shadow-lg rounded-2xl h-full">
                       <CardHeader>
-                        <CardTitle className="text-lg font-serif flex items-center gap-2">
+                        <CardTitle className="text-lg font-sans flex items-center gap-2">
                           <History className="w-5 h-5 text-secondary" />
                           Recent Transactions
                         </CardTitle>
@@ -5553,7 +5553,7 @@ export default function CustomerPortal() {
           {/* Quick Access Section */}
           <Card className="border-none shadow-lg rounded-2xl mt-8">
             <CardHeader>
-              <CardTitle className="text-lg font-serif">Quick Access</CardTitle>
+              <CardTitle className="text-lg font-sans">Quick Access</CardTitle>
               <CardDescription>
                 Get to your favorite actions quickly
               </CardDescription>
@@ -5626,7 +5626,7 @@ export default function CustomerPortal() {
                   )}
                   <div>
                     <p className="font-semibold">{selectedServiceForBooking.name}</p>
-                    <p className="text-primary font-bold">${selectedServiceForBooking.price}</p>
+                    <p className="text-primary font-bold">AED {selectedServiceForBooking.price}</p>
                     {selectedServiceForBooking.duration && (
                       <p className="text-sm text-gray-600">
                         ⏱️ Duration: {selectedServiceForBooking.duration}

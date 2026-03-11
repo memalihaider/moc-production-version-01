@@ -850,7 +850,7 @@ const createBookingInFirebase = async (
     addNotification({
       type: 'success',
       title: 'Booking Created',
-      message: `Booking #${bookingNumber} saved with payments: ${Object.entries(paymentAmounts).map(([k,v]) => `${k}: $${v}`).join(', ')}`
+      message: `Booking #${bookingNumber} saved with payments: ${Object.entries(paymentAmounts).map(([k,v]) => `${k}: AED ${v}`).join(', ')}`
     });
     
     return {success: true, bookingId: docRef.id};
@@ -943,8 +943,8 @@ const generatePDFInvoice = (invoiceData: ExtendedInvoiceData) => {
           service.serviceName,
           service.branch,
           service.staff,
-          `$${service.price.toFixed(2)}`,
-          service.tip ? `$${service.tip.toFixed(2)}` : '-'
+          `AED ${service.price.toFixed(2)}`,
+          service.tip ? `AED ${service.tip.toFixed(2)}` : '-'
         ]);
       });
     } else if (invoiceData.services && invoiceData.services.length > 0) {
@@ -954,7 +954,7 @@ const generatePDFInvoice = (invoiceData: ExtendedInvoiceData) => {
           service,
           invoiceData.branch || '-',
           invoiceData.barber || '-',
-          `$${pricePerService.toFixed(2)}`,
+          `AED ${pricePerService.toFixed(2)}`,
           '-'
         ]);
       });
@@ -963,7 +963,7 @@ const generatePDFInvoice = (invoiceData: ExtendedInvoiceData) => {
         invoiceData.service || 'Service',
         invoiceData.branch || '-',
         invoiceData.barber || '-',
-        `$${invoiceData.price.toFixed(2)}`,
+        `AED ${invoiceData.price.toFixed(2)}`,
         '-'
       ]);
     }
@@ -985,9 +985,9 @@ const generatePDFInvoice = (invoiceData: ExtendedInvoiceData) => {
     const grandTotal = subtotal + totalTips;
     
     doc.setFont("helvetica", "bold");
-    doc.text(`Subtotal: $${subtotal.toFixed(2)}`, pageWidth - 70, finalY);
-    doc.text(`Tips: $${totalTips.toFixed(2)}`, pageWidth - 70, finalY + 6);
-    doc.text(`Grand Total: $${grandTotal.toFixed(2)}`, pageWidth - 70, finalY + 14);
+    doc.text(`Subtotal: AED ${subtotal.toFixed(2)}`, pageWidth - 70, finalY);
+    doc.text(`Tips: AED ${totalTips.toFixed(2)}`, pageWidth - 70, finalY + 6);
+    doc.text(`Grand Total: AED ${grandTotal.toFixed(2)}`, pageWidth - 70, finalY + 14);
     
     // Footer
     const footerY = doc.internal.pageSize.height - 15;
@@ -2956,7 +2956,7 @@ export default function AdminAppointments() {
                         <td className="px-4 py-3 font-medium">{service.name || service.serviceName}</td>
                         <td className="px-4 py-3">{service.branch || selectedAppointment.branch}</td>
                         <td className="px-4 py-3">{service.staff || selectedAppointment.barber}</td>
-                        <td className="px-4 py-3 text-right">${(service.price || 0).toFixed(2)}</td>
+                        <td className="px-4 py-3 text-right">AED {(service.price || 0).toFixed(2)}</td>
                       </tr>
                     ))
                   ) : selectedAppointment.services && selectedAppointment.services.length > 0 ? (
@@ -2966,7 +2966,7 @@ export default function AdminAppointments() {
                         <td className="px-4 py-3">{selectedAppointment.branch}</td>
                         <td className="px-4 py-3">{selectedAppointment.barber}</td>
                         <td className="px-4 py-3 text-right">
-                          ${(selectedAppointment.price / selectedAppointment.services!.length).toFixed(2)}
+                          AED {(selectedAppointment.price / selectedAppointment.services!.length).toFixed(2)}
                         </td>
                       </tr>
                     ))
@@ -2975,14 +2975,14 @@ export default function AdminAppointments() {
                       <td className="px-4 py-3 font-medium">{selectedAppointment.service}</td>
                       <td className="px-4 py-3">{selectedAppointment.branch}</td>
                       <td className="px-4 py-3">{selectedAppointment.barber}</td>
-                      <td className="px-4 py-3 text-right">${selectedAppointment.price.toFixed(2)}</td>
+                      <td className="px-4 py-3 text-right">AED {selectedAppointment.price.toFixed(2)}</td>
                     </tr>
                   )}
                 </tbody>
                 <tfoot className="bg-gray-50">
                   <tr>
                     <td colSpan={3} className="px-4 py-3 text-right font-medium">Total:</td>
-                    <td className="px-4 py-3 text-right font-bold">${selectedAppointment.price.toFixed(2)}</td>
+                    <td className="px-4 py-3 text-right font-bold">AED {selectedAppointment.price.toFixed(2)}</td>
                   </tr>
                 </tfoot>
               </table>
@@ -3049,7 +3049,7 @@ export default function AdminAppointments() {
                     amount > 0 ? (
                       <div key={method} className="flex justify-between text-sm">
                         <span className="text-gray-600 capitalize">{method}:</span>
-                        <span className="font-medium">${amount.toFixed(2)}</span>
+                        <span className="font-medium">AED {amount.toFixed(2)}</span>
                       </div>
                     ) : null
                   )}
@@ -3182,7 +3182,7 @@ export default function AdminAppointments() {
                         <SelectItem key={service.firebaseId} value={service.name}>
                           <div className="flex justify-between items-center w-full">
                             <span>{service.name}</span>
-                            <span className="text-primary font-medium ml-4">${service.price}</span>
+                            <span className="text-primary font-medium ml-4">AED {service.price}</span>
                           </div>
                         </SelectItem>
                       ))}
@@ -3243,7 +3243,7 @@ export default function AdminAppointments() {
                             <td className="px-4 py-3">{item.branch}</td>
                             <td className="px-4 py-3 font-medium">{item.service}</td>
                             <td className="px-4 py-3">{item.staff}</td>
-                            <td className="px-4 py-3 text-right font-medium">${item.price}</td>
+                            <td className="px-4 py-3 text-right font-medium">AED {item.price}</td>
                             <td className="px-4 py-3 text-center">
                               <Button
                                 variant="ghost"
@@ -3261,7 +3261,7 @@ export default function AdminAppointments() {
                         <tr>
                           <td colSpan={3} className="px-4 py-3 text-right">Total:</td>
                           <td className="px-4 py-3 text-right font-bold">
-                            ${selectedServices.reduce((sum, item) => sum + (item.price || 0), 0)}
+                            AED {selectedServices.reduce((sum, item) => sum + (item.price || 0), 0)}
                           </td>
                           <td></td>
                         </tr>
@@ -3342,7 +3342,7 @@ export default function AdminAppointments() {
                       return amount > 0 ? (
                         <div key={method} className="flex justify-between text-sm">
                           <span className="capitalize">{method}:</span>
-                          <span className="font-medium">${amount}</span>
+                          <span className="font-medium">AED {amount}</span>
                         </div>
                       ) : null;
                     })}
@@ -3610,9 +3610,9 @@ export default function AdminAppointments() {
                         {service.serviceName} ({service.staff})
                       </span>
                       <div className="text-right">
-                        <div>${service.price.toFixed(2)}</div>
+                        <div>AED {service.price.toFixed(2)}</div>
                         {service.tip ? (
-                          <div className="text-xs text-green-600">+ Tip: ${service.tip.toFixed(2)}</div>
+                          <div className="text-xs text-green-600">+ Tip: AED {service.tip.toFixed(2)}</div>
                         ) : null}
                       </div>
                     </div>
@@ -3621,14 +3621,14 @@ export default function AdminAppointments() {
                   <div className="border-t pt-3 mt-3">
                     <div className="flex justify-between font-medium">
                       <span>Subtotal:</span>
-                      <span>${invoiceData.subtotal?.toFixed(2) || '0.00'}</span>
+                      <span>AED {invoiceData.subtotal?.toFixed(2) || '0.00'}</span>
                     </div>
                     
                     {invoiceData.serviceDetails?.some(s => s.tip) && (
                       <div className="flex justify-between text-green-600">
                         <span>Total Tips:</span>
                         <span>
-                          ${invoiceData.serviceDetails.reduce((sum, s) => sum + (s.tip || 0), 0).toFixed(2)}
+                          AED {invoiceData.serviceDetails.reduce((sum, s) => sum + (s.tip || 0), 0).toFixed(2)}
                         </span>
                       </div>
                     )}
@@ -3636,7 +3636,7 @@ export default function AdminAppointments() {
                     <div className="flex justify-between text-lg font-bold pt-3 border-t mt-3">
                       <span>Grand Total:</span>
                       <span className="text-green-600">
-                        ${((invoiceData.subtotal || 0) + (invoiceData.serviceDetails?.reduce((sum, s) => sum + (s.tip || 0), 0) || 0)).toFixed(2)}
+                        AED {((invoiceData.subtotal || 0) + (invoiceData.serviceDetails?.reduce((sum, s) => sum + (s.tip || 0), 0) || 0)).toFixed(2)}
                       </span>
                     </div>
                   </div>

@@ -41,7 +41,7 @@
 //                   onToggle={() => setSidebarOpen(!sidebarOpen)}
 //                 />
 //                 <div>
-//                   <h1 className="text-2xl font-serif font-bold text-primary">Client Management</h1>
+//                   <h1 className="text-2xl font-sans font-bold text-primary">Client Management</h1>
 //                   <p className="text-sm text-muted-foreground">Manage and track all customer relationships</p>
 //                 </div>
 //               </div>
@@ -102,7 +102,7 @@ export default function AdminClientsPage() {
                   isOpen={sidebarOpen}
                   onToggle={() => setSidebarOpen(!sidebarOpen)} role={'branch_admin'}                />
                 <div>
-                  <h1 className="text-2xl font-serif font-bold text-primary">Client Management</h1>
+                  <h1 className="text-2xl font-sans font-bold text-primary">Client Management</h1>
                   <p className="text-sm text-muted-foreground">Manage and track all customer relationships</p>
                 </div>
               </div>

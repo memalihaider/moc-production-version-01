@@ -228,7 +228,7 @@ export default function BlogDetailPage() {
             <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <Eye className="w-12 h-12 text-gray-300" />
             </div>
-            <h1 className="text-3xl font-serif font-bold text-primary mb-4">Article Not Found</h1>
+            <h1 className="text-3xl font-sans font-bold text-primary mb-4">Article Not Found</h1>
             <p className="text-gray-600 mb-8 max-w-md mx-auto">
               The blog article you're looking for doesn't exist or has been removed.
             </p>
@@ -289,7 +289,7 @@ export default function BlogDetailPage() {
               {blog.category}
             </Badge>
             
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-serif font-bold text-white mb-6 leading-tight">
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-sans font-bold text-white mb-6 leading-tight">
               {blog.title}
             </h1>
             
@@ -467,7 +467,7 @@ export default function BlogDetailPage() {
                       }}
                     />
                   </div>
-                  <h4 className="text-xl font-serif font-bold text-primary mb-2">{blog.author.name}</h4>
+                  <h4 className="text-xl font-sans font-bold text-primary mb-2">{blog.author.name}</h4>
                   <p className="text-secondary font-semibold mb-3">{blog.author.role}</p>
                   <p className="text-gray-600 text-sm">
                     Expert in grooming and men's lifestyle. Passionate about sharing knowledge and helping gentlemen look their best.
@@ -489,7 +489,7 @@ export default function BlogDetailPage() {
                 <CardContent className="p-8">
                   <div className="flex items-center gap-2 mb-6">
                     <TrendingUp className="w-5 h-5 text-secondary" />
-                    <h3 className="text-xl font-serif font-bold text-primary">Latest Articles</h3>
+                    <h3 className="text-xl font-sans font-bold text-primary">Latest Articles</h3>
                   </div>
                   
                   <div className="space-y-6">
@@ -543,7 +543,7 @@ export default function BlogDetailPage() {
               <CardContent className="p-8">
                 <div className="flex items-center gap-2 mb-6">
                   <Tag className="w-5 h-5 text-secondary" />
-                  <h3 className="text-xl font-serif font-bold text-primary">Article Tags</h3>
+                  <h3 className="text-xl font-sans font-bold text-primary">Article Tags</h3>
                 </div>
                 
                 <div className="flex flex-wrap gap-3">
@@ -566,7 +566,7 @@ export default function BlogDetailPage() {
       {/* Call to Action */}
       <section className="py-20 px-4 bg-gradient-to-b from-gray-50 to-white">
         <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl md:text-4xl font-serif font-bold text-primary mb-6">
+          <h2 className="text-3xl md:text-4xl font-sans font-bold text-primary mb-6">
             Explore More Articles
           </h2>
           <p className="text-gray-600 text-lg mb-8 max-w-2xl mx-auto">

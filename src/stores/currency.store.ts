@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-export type Currency = 'USD' | 'INR' | 'PKR' | 'AED';
+export type Currency = 'AED';
 
 interface CurrencyStore {
   currency: Currency;
@@ -11,17 +11,11 @@ interface CurrencyStore {
 }
 
 const currencySymbols: Record<Currency, string> = {
-  USD: '$',
-  INR: '₹',
-  PKR: '₨',
-  AED: 'د.إ'
+  AED: 'AED'
 };
 
 const currencyLocales: Record<Currency, string> = {
-  USD: 'en-US',
-  INR: 'en-IN',
-  PKR: 'ur-PK',
-  AED: 'ar-AE'
+  AED: 'en-AE'
 };
 
 export const useCurrencyStore = create<CurrencyStore>()(
@@ -32,11 +26,7 @@ export const useCurrencyStore = create<CurrencyStore>()(
       setCurrency: (currency: Currency) => set({ currency }),
 
       formatCurrency: (amount: number) => {
-        const { currency } = get();
-        return new Intl.NumberFormat(currencyLocales[currency], {
-          style: 'currency',
-          currency: currency,
-        }).format(amount);
+        return `AED ${amount.toFixed(2)}`;
       },
 
       getCurrencySymbol: () => {

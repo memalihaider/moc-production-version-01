@@ -478,7 +478,7 @@ export default function SuperAdminInvoices() {
       if (invoice.teamMembers.length > 0) {
         doc.text("Team Members:", 20, 135);
         invoice.teamMembers.forEach((tm, idx) => {
-          doc.text(`  • ${tm.name} (Tip: $${tm.tip})`, 20, 141 + (idx * 6));
+          doc.text(`  • ${tm.name} (Tip: AED ${tm.tip})`, 20, 141 + (idx * 6));
         });
       }
       
@@ -487,7 +487,7 @@ export default function SuperAdminInvoices() {
       
       autoTable(doc, {
         startY: tableStartY,
-        head: [['Description', 'Qty', 'Unit Price ($)', 'Total ($)']],
+        head: [['Description', 'Qty', 'Unit Price (AED)', 'Total (AED)']],
         body: [
           // Service row
           [invoice.service, '1', invoice.price.toFixed(2), invoice.price.toFixed(2)],
@@ -512,23 +512,23 @@ export default function SuperAdminInvoices() {
       doc.setFontSize(10);
       doc.setTextColor(100, 100, 100);
       doc.text("Subtotal:", 140, finalY);
-      doc.text(`$${calculateSubtotal().toFixed(2)}`, 170, finalY, { align: "right" });
+      doc.text(`AED ${calculateSubtotal().toFixed(2)}`, 170, finalY, { align: "right" });
       
       doc.text(`Discount (${invoice.discountType}):`, 140, finalY + 6);
-      doc.text(`-$${calculateDiscount().toFixed(2)}`, 170, finalY + 6, { align: "right" });
+      doc.text(`-AED ${calculateDiscount().toFixed(2)}`, 170, finalY + 6, { align: "right" });
       
       doc.text(`Tax (${invoice.tax}%):`, 140, finalY + 12);
-      doc.text(`$${calculateTax().toFixed(2)}`, 170, finalY + 12, { align: "right" });
+      doc.text(`AED ${calculateTax().toFixed(2)}`, 170, finalY + 12, { align: "right" });
       
       doc.text(`Tips:`, 140, finalY + 18);
       const totalTips = invoice.serviceTip + invoice.teamMembers.reduce((sum, tm) => sum + tm.tip, 0);
-      doc.text(`$${totalTips.toFixed(2)}`, 170, finalY + 18, { align: "right" });
+      doc.text(`AED ${totalTips.toFixed(2)}`, 170, finalY + 18, { align: "right" });
       
       doc.setFont("helvetica", "bold");
       doc.setFontSize(12);
       doc.setTextColor(0, 0, 0);
       doc.text("TOTAL:", 140, finalY + 28);
-      doc.text(`$${calculateTotal().toFixed(2)}`, 170, finalY + 28, { align: "right" });
+      doc.text(`AED ${calculateTotal().toFixed(2)}`, 170, finalY + 28, { align: "right" });
       
       // Payment Summary
       doc.setFont("helvetica", "normal");
@@ -538,12 +538,12 @@ export default function SuperAdminInvoices() {
       invoice.paymentMethods.forEach((method, idx) => {
         const amount = invoice.paymentAmounts[method];
         if (amount > 0) {
-          doc.text(`${method.toUpperCase()}: $${amount.toFixed(2)}`, 20, finalY + 46 + (idx * 6));
+          doc.text(`${method.toUpperCase()}: AED ${amount.toFixed(2)}`, 20, finalY + 46 + (idx * 6));
         }
       });
       
-      doc.text(`Total Paid: $${calculateTotalPaid().toFixed(2)}`, 20, finalY + 46 + (invoice.paymentMethods.length * 6));
-      doc.text(`Balance: $${(calculateTotal() - calculateTotalPaid()).toFixed(2)}`, 20, finalY + 52 + (invoice.paymentMethods.length * 6));
+      doc.text(`Total Paid: AED ${calculateTotalPaid().toFixed(2)}`, 20, finalY + 46 + (invoice.paymentMethods.length * 6));
+      doc.text(`Balance: AED ${(calculateTotal() - calculateTotalPaid()).toFixed(2)}`, 20, finalY + 52 + (invoice.paymentMethods.length * 6));
       
       // Footer
       doc.setFontSize(8);
@@ -665,10 +665,7 @@ export default function SuperAdminInvoices() {
 
   // Format currency
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount);
+    return `AED ${amount.toFixed(2)}`;
   };
 
   const handleLogout = () => {
@@ -1066,8 +1063,9 @@ export default function SuperAdminInvoices() {
                       <SelectContent>
                         {services.map(service => (
                           <SelectItem key={service.id} value={service.name}>
-                            {service.name} - ${service.price}
+                            {service.name} - AED {service.price}
                           </SelectItem>
+
                         ))}
                       </SelectContent>
                     </Select>
@@ -1110,7 +1108,7 @@ export default function SuperAdminInvoices() {
                     />
                   </div>
                   <div>
-                    <Label>Service Price ($)</Label>
+                    <Label>Service Price (AED)</Label>
                     <Input
                       type="number"
                       value={invoiceForm.price}

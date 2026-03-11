@@ -636,7 +636,7 @@ export default function ProductsPage() {
             </div>
 
             {/* Title */}
-            <h3 className="text-2xl font-serif font-bold text-center text-gray-900 mb-2">
+            <h3 className="text-2xl font-sans font-bold text-center text-gray-900 mb-2">
               Create Account First! ✋
             </h3>
 
@@ -690,7 +690,7 @@ export default function ProductsPage() {
               <span className="text-secondary font-black tracking-[0.3em] uppercase text-[10px]">The Apothecary</span>
             </div>
             
-            <h1 className="text-5xl md:text-7xl font-serif font-bold text-white mb-6 leading-tight">
+            <h1 className="text-5xl md:text-7xl font-sans font-bold text-white mb-6 leading-tight">
               Grooming <span className="text-secondary italic">Collection</span>
             </h1>
             
@@ -847,7 +847,7 @@ export default function ProductsPage() {
           {/* Products Count and Stats with Clear Cart Button */}
           <div className="mb-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
             <div>
-              <h2 className="text-3xl font-serif font-bold text-primary">
+              <h2 className="text-3xl font-sans font-bold text-primary">
                 Premium Products Collection
                 <span className="text-secondary ml-2">({filteredAndSortedProducts.length})</span>
               </h2>
@@ -881,7 +881,7 @@ export default function ProductsPage() {
                   <Search className="w-12 h-12 text-gray-300" />
                 )}
               </div>
-              <h3 className="text-3xl font-serif font-bold text-primary mb-3">
+              <h3 className="text-3xl font-sans font-bold text-primary mb-3">
                 {selectedBranch !== 'all' ? 'No Products in this Branch' : 'No Matching Products'}
               </h3>
               <p className="text-gray-500 font-light mb-8 max-w-md mx-auto">
@@ -971,7 +971,7 @@ export default function ProductsPage() {
                       {/* Price Badge */}
                       <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-500">
                         <div className="bg-white/95 backdrop-blur-sm text-black px-3 py-1.5 rounded-lg font-black text-xs shadow-xl">
-                          ${product.price}
+                          AED {product.price}
                         </div>
                       </div>
                       
@@ -996,7 +996,7 @@ export default function ProductsPage() {
                       </div>
                       
                       {/* Product Name */}
-                      <h4 className="text-base font-serif font-bold text-primary group-hover:text-secondary transition-colors duration-300 line-clamp-2 min-h-11">
+                      <h4 className="text-base font-sans font-bold text-primary group-hover:text-secondary transition-colors duration-300 line-clamp-2 min-h-11">
                         {product.name}
                       </h4>
                       
@@ -1098,7 +1098,7 @@ export default function ProductsPage() {
                     </div>
                     <div>
                       <p className="text-sm text-gray-500">Inventory Value</p>
-                      <p className="text-2xl font-bold text-primary">${totalValue.toLocaleString()}</p>
+                      <p className="text-2xl font-bold text-primary">AED {totalValue.toLocaleString()}</p>
                     </div>
                   </div>
                 </div>
@@ -1127,7 +1127,7 @@ export default function ProductsPage() {
                         <p className="font-bold text-primary">Your Cart</p>
                         <p className="text-sm text-gray-600">
                           {cartItems.reduce((sum, item) => sum + item.quantity, 0)} items • 
-                          Total: ${cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0).toFixed(2)}
+                          Total: AED {cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0).toFixed(2)}
                         </p>
                       </div>
                     </div>

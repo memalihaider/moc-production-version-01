@@ -171,7 +171,7 @@
 //               </Button>
 //             </Link>
 //             <div>
-//               <h1 className="text-3xl font-serif font-bold text-primary">My Profile</h1>
+//               <h1 className="text-3xl font-sans font-bold text-primary">My Profile</h1>
 //               <p className="text-muted-foreground">Manage your account settings</p>
 //             </div>
 //           </div>
@@ -924,7 +924,7 @@ export default function CustomerProfile() {
               </Button>
             </Link>
             <div>
-              <h1 className="text-3xl font-serif font-bold text-primary">My Profile</h1>
+              <h1 className="text-3xl font-sans font-bold text-primary">My Profile</h1>
               <p className="text-muted-foreground">Manage your account settings</p>
             </div>
           </div>

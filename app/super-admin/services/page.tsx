@@ -36,6 +36,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Unsubscribe } from 'firebase/firestore';
+import { ImageField } from '@/components/ui/image-field';
 
 // Types
 export interface Service {
@@ -845,39 +846,17 @@ export default function SuperAdminServices() {
             </SheetHeader>
             
             <div className="space-y-4 mt-6">
-              {/* ✅ Service Image URL */}
+              {/* Service Image */}
               <div>
-                <Label className="text-xs font-bold uppercase">
-                  Service Image URL
-                </Label>
-                <div className="flex items-center gap-2 mt-1">
-                  <ImageIcon className="w-4 h-4 text-gray-400" />
-                  <Input
-                    placeholder="https://example.com/image.jpg"
-                    value={serviceForm.imageUrl}
-                    onChange={(e) => setServiceForm({...serviceForm, imageUrl: e.target.value})}
-                    className="rounded-lg"
-                    disabled={isAdding || isEditing}
-                  />
-                </div>
-                {serviceForm.imageUrl && (
-                  <div className="mt-2">
-                    <p className="text-xs text-gray-500 mb-1">Image Preview:</p>
-                    <div className="w-full h-32 rounded-lg overflow-hidden border">
-                      <img 
-                        src={serviceForm.imageUrl} 
-                        alt="Preview"
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDIwMCAyMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjIwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNlNWU1ZTUiLz48cGF0aCBkPSJNNjAgODBDNzcuNjczMSA4MCA5MiA2NS42NzMxIDkyIDQ4QzkyIDMwLjMyNjkgNzcuNjczMSAxNiA2MCAxNkM0Mi4zMjY5IDE2IDI4IDMwLjMyNjkgMjggNDhDMjggNjUuNjczMSA0Mi4zMjY5IDgwIDYwIDgwWiIgZmlsbD0iI2NjYyIvPjxwYXRoIGQ9Ik0xNiAxNTZIMTg0TDE0Ni4xMiAxMDQuOTZMMTEyIDE0NEw3My44IDk2TDE2IDE1NloiIGZpbGw9IiNjY2MiLz48L3N2Zz4=';
-                        }}
-                      />
-                    </div>
-                  </div>
-                )}
-                <p className="text-xs text-gray-500 mt-1">
-                  Paste a direct image URL (e.g., from Firebase Storage, Cloudinary, etc.)
-                </p>
+                <ImageField
+                  label="Service Image"
+                  value={serviceForm.imageUrl}
+                  onChange={(url) => setServiceForm({ ...serviceForm, imageUrl: url })}
+                  folder="images/services"
+                  placeholder="https://example.com/image.jpg"
+                  disabled={isAdding || isEditing}
+                  inputId="sa-service-imageUrl"
+                />
               </div>
 
               {/* Service Name */}

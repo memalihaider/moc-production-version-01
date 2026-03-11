@@ -32,6 +32,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Unsubscribe } from 'firebase/firestore';
+import { ImageField } from '@/components/ui/image-field';
 
 // Types
 export interface Product {
@@ -948,39 +949,17 @@ export default function SuperAdminProducts() {
             </SheetHeader>
             
             <div className="space-y-4 mt-6">
-              {/* Product Image URL */}
+              {/* Product Image */}
               <div>
-                <Label className="text-xs font-bold uppercase">
-                  Product Image URL
-                </Label>
-                <div className="flex items-center gap-2 mt-1">
-                  <ImageIcon className="w-4 h-4 text-gray-400" />
-                  <Input
-                    placeholder="https://example.com/product-image.jpg"
-                    value={productForm.imageUrl}
-                    onChange={(e) => setProductForm({...productForm, imageUrl: e.target.value})}
-                    className="rounded-lg"
-                    disabled={isAdding || isEditing}
-                  />
-                </div>
-                {productForm.imageUrl && (
-                  <div className="mt-2">
-                    <p className="text-xs text-gray-500 mb-1">Image Preview:</p>
-                    <div className="w-full h-32 rounded-lg overflow-hidden border">
-                      <img 
-                        src={productForm.imageUrl} 
-                        alt="Preview"
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDIwMCAyMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjIwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNlNWU1ZTUiLz48cmVjdCB4PSI0MCIgeT0iNDAiIHdpZHRoPSIxMjAiIGhlaWdodD0iODAiIHJ4PSI4IiBmaWxsPSIjY2NjIi8+PHJlY3QgeD0iNjUiIHk9IjU1IiB3aWR0aD0iNzAiIGhlaWdodD0iMTAiIHJ4PSI1IiBmaWxsPSIjZWVlIi8+PHJlY3QgeD0iNjUiIHk9IjcwIiB3aWR0aD0iNTAiIGhlaWdodD0iOCIgb3BhY2l0eT0iMC42IiBmaWxsPSIjZWVlIi8+PHJlY3QgeD0iNjUiIHk9Ijg1IiB3aWR0aD0iMzAiIGhlaWdodD0iOCIgb3BhY2l0eT0iMC40IiBmaWxsPSIjZWVlIi8+PC9zdmc+';
-                        }}
-                      />
-                    </div>
-                  </div>
-                )}
-                <p className="text-xs text-gray-500 mt-1">
-                  Paste a direct image URL (optional)
-                </p>
+                <ImageField
+                  label="Product Image"
+                  value={productForm.imageUrl}
+                  onChange={(url) => setProductForm({ ...productForm, imageUrl: url })}
+                  folder="images/products"
+                  placeholder="https://example.com/product-image.jpg"
+                  disabled={isAdding || isEditing}
+                  inputId="sa-product-imageUrl"
+                />
               </div>
 
               {/* Product Name */}

@@ -41,7 +41,7 @@ export default function SuperAdminClientsPage() {
                   onToggle={() => setSidebarOpen(!sidebarOpen)}
                 />
                 <div>
-                  <h1 className="text-2xl font-serif font-bold text-primary">Client Management</h1>
+                  <h1 className="text-2xl font-sans font-bold text-primary">Client Management</h1>
                   <p className="text-sm text-muted-foreground">Manage and track all customer relationships across all branches</p>
                 </div>
               </div>

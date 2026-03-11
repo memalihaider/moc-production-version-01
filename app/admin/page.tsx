@@ -1427,7 +1427,7 @@ export default function SuperAdminDashboard() {
                 </div>
                 <div>
                   <div className="flex items-center gap-3">
-                    <h1 className="text-2xl font-bold text-white font-serif">
+                    <h1 className="text-2xl font-bold text-white font-sans">
                       {user?.role === "admin"
                         ? "Branch Dashboard"
                         : "Super Admin Dashboard"}
@@ -1593,7 +1593,7 @@ export default function SuperAdminDashboard() {
             <div className="mb-8">
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-900 font-serif">
+                  <h2 className="text-2xl font-bold text-gray-900 font-sans">
                     Dashboard Overview
                   </h2>
                   <p className="text-gray-600">
@@ -1620,7 +1620,7 @@ export default function SuperAdminDashboard() {
                   <CardContent className="relative z-10">
                     <div className="flex items-end gap-2 mb-3">
                       <div className="text-3xl font-bold text-gray-900">
-                        ${overallStats.totalRevenue.toLocaleString()}
+                        AED {overallStats.totalRevenue.toLocaleString()}
                       </div>
                       <div className="text-sm text-green-600 font-semibold flex items-center mb-2 bg-green-100 px-2 py-1 rounded-full">
                         <TrendingUp className="h-3 w-3 mr-1" />
@@ -1836,7 +1836,7 @@ export default function SuperAdminDashboard() {
                   <div className="flex flex-col gap-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <CardTitle className="text-lg font-bold text-gray-900 font-serif">
+                        <CardTitle className="text-lg font-bold text-gray-900 font-sans">
                           Recent Items
                         </CardTitle>
                         <CardDescription>
@@ -1983,7 +1983,7 @@ export default function SuperAdminDashboard() {
                                   <div>
                                     <p className="text-xs text-gray-500">Amount</p>
                                     <p className="font-semibold text-lg text-green-600">
-                                      ${booking.totalAmount}
+                                      AED {booking.totalAmount}
                                     </p>
                                   </div>
                                 </div>
@@ -2053,7 +2053,7 @@ export default function SuperAdminDashboard() {
                               <div>
                                 <p className="text-xs text-gray-500">Price</p>
                                 <p className="text-xl font-bold text-[#B84A68]">
-                                  ${service.price}
+                                  AED {service.price}
                                 </p>
                               </div>
                               <div>
@@ -2130,7 +2130,7 @@ export default function SuperAdminDashboard() {
                             <div className="mb-4">
                               <p className="text-xs text-gray-500 mb-1">Price</p>
                               <p className="text-2xl font-bold text-[#B84A68]">
-                                ${product.price}
+                                AED {product.price}
                               </p>
                             </div>
                             <div className="flex items-center justify-between">
@@ -2285,7 +2285,7 @@ export default function SuperAdminDashboard() {
                 <Card className="border-none shadow-xl">
                   <CardHeader className="border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg font-bold text-gray-900 font-serif">
+                      <CardTitle className="text-lg font-bold text-gray-900 font-sans">
                         Quick Actions
                       </CardTitle>
                       <Button
@@ -2401,7 +2401,7 @@ export default function SuperAdminDashboard() {
               <Card className="border-none shadow-xl h-fit">
                 <CardHeader className="border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg font-bold text-gray-900 font-serif">
+                    <CardTitle className="text-lg font-bold text-gray-900 font-sans">
                       Recent Activities
                     </CardTitle>
                   </div>

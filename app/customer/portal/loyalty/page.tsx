@@ -179,7 +179,7 @@
 //               </Button>
 //             </Link>
 //             <div>
-//               <h1 className="text-3xl font-serif font-bold text-primary">Loyalty Points</h1>
+//               <h1 className="text-3xl font-sans font-bold text-primary">Loyalty Points</h1>
 //               <p className="text-muted-foreground">Earn and redeem points for rewards</p>
 //             </div>
 //           </div>
@@ -1078,7 +1078,7 @@ export default function CustomerLoyalty() {
         type: "points_redeemed",
         amount: amountInDollars,
         pointsAmount: -points,
-        description: `Points redeemed for $${amountInDollars.toFixed(2)}`,
+        description: `Points redeemed for AED ${amountInDollars.toFixed(2)}`,
         status: "success",
         referenceId: `REDEEM_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         createdAt: serverTimestamp(),
@@ -1103,7 +1103,7 @@ export default function CustomerLoyalty() {
       // Show success message
       setTimeout(() => setRedeemSuccess(false), 3000);
       
-      console.log(`✅ Points redeemed: ${points} points for $${amountInDollars.toFixed(2)}`);
+      console.log(`✅ Points redeemed: ${points} points for AED ${amountInDollars.toFixed(2)}`);
     } catch (error) {
       console.error("❌ Error redeeming points:", error);
       setRedeemError('Failed to redeem points. Please try again.');
@@ -1178,7 +1178,7 @@ export default function CustomerLoyalty() {
               </Button>
             </Link>
             <div>
-              <h1 className="text-3xl font-serif font-bold text-primary">Loyalty Points</h1>
+              <h1 className="text-3xl font-sans font-bold text-primary">Loyalty Points</h1>
               <p className="text-muted-foreground">Earn and redeem points for rewards</p>
             </div>
           </div>

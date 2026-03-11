@@ -400,7 +400,7 @@ export default function AdminSettings() {
                         </div>
                         {settings.requireDeposit && (
                           <div className="space-y-2">
-                            <Label htmlFor="depositAmount">Deposit Amount ($)</Label>
+                            <Label htmlFor="depositAmount">Deposit Amount (AED)</Label>
                             <Input
                               id="depositAmount"
                               type="number"
@@ -461,9 +461,6 @@ export default function AdminSettings() {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="USD">USD - US Dollar ($)</SelectItem>
-                            <SelectItem value="INR">INR - Indian Rupee (₹)</SelectItem>
-                            <SelectItem value="PKR">PKR - Pakistani Rupee (₨)</SelectItem>
                             <SelectItem value="AED">AED - UAE Dirham (د.إ)</SelectItem>
                           </SelectContent>
                         </Select>

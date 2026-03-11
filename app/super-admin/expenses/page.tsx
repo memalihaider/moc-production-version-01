@@ -850,7 +850,7 @@ ${expenseSummary.categoryWiseData.map(c =>
                   onToggle={() => setSidebarOpen(!sidebarOpen)}
                 />
                 <div>
-                  <h1 className="text-2xl font-serif font-bold text-primary">Expense Analysis Dashboard</h1>
+                  <h1 className="text-2xl font-sans font-bold text-primary">Expense Analysis Dashboard</h1>
                   <p className="text-sm text-muted-foreground">Track and analyze expenses across products, services, and appointments</p>
                 </div>
               </div>
@@ -957,7 +957,7 @@ ${expenseSummary.categoryWiseData.map(c =>
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Total Expenses</p>
-                            <p className="text-2xl font-serif font-bold text-primary">
+                            <p className="text-2xl font-sans font-bold text-primary">
                               {formatCurrency(expenseSummary.totalExpenses)}
                             </p>
                             <p className="text-sm text-muted-foreground mt-1">All Categories</p>
@@ -972,7 +972,7 @@ ${expenseSummary.categoryWiseData.map(c =>
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Products Cost</p>
-                            <p className="text-2xl font-serif font-bold text-blue-600">
+                            <p className="text-2xl font-sans font-bold text-blue-600">
                               {formatCurrency(expenseSummary.totalProductsCost)}
                             </p>
                             <p className="text-sm text-muted-foreground mt-1">
@@ -989,7 +989,7 @@ ${expenseSummary.categoryWiseData.map(c =>
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Services Cost</p>
-                            <p className="text-2xl font-serif font-bold text-green-600">
+                            <p className="text-2xl font-sans font-bold text-green-600">
                               {formatCurrency(expenseSummary.totalServicesCost)}
                             </p>
                             <p className="text-sm text-muted-foreground mt-1">
@@ -1006,7 +1006,7 @@ ${expenseSummary.categoryWiseData.map(c =>
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Appointments Cost</p>
-                            <p className="text-2xl font-serif font-bold text-purple-600">
+                            <p className="text-2xl font-sans font-bold text-purple-600">
                               {formatCurrency(expenseSummary.totalAppointmentsCost)}
                             </p>
                             <p className="text-sm text-muted-foreground mt-1">
@@ -1024,7 +1024,7 @@ ${expenseSummary.categoryWiseData.map(c =>
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Manual Expenses</p>
-                            <p className="text-2xl font-serif font-bold text-orange-600">
+                            <p className="text-2xl font-sans font-bold text-orange-600">
                               {formatCurrency(expenseSummary.totalManualExpenses)}
                             </p>
                             <p className="text-sm text-muted-foreground mt-1">
@@ -1041,7 +1041,7 @@ ${expenseSummary.categoryWiseData.map(c =>
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <Card className="border-none shadow-sm rounded-xl">
                       <CardHeader>
-                        <CardTitle className="text-lg font-serif flex items-center gap-2">
+                        <CardTitle className="text-lg font-sans flex items-center gap-2">
                           <TrendingUp className="w-5 h-5 text-secondary" />
                           Revenue & Profit
                         </CardTitle>
@@ -1079,7 +1079,7 @@ ${expenseSummary.categoryWiseData.map(c =>
                     {/* Expense Distribution Pie Chart - UPDATED */}
                     <Card className="border-none shadow-sm rounded-xl lg:col-span-2">
                       <CardHeader>
-                        <CardTitle className="text-lg font-serif flex items-center gap-2">
+                        <CardTitle className="text-lg font-sans flex items-center gap-2">
                           <PieChart className="w-5 h-5 text-secondary" />
                           Expense Distribution (Including Manual Expenses)
                         </CardTitle>
@@ -1119,7 +1119,7 @@ ${expenseSummary.categoryWiseData.map(c =>
                   {/* Monthly Trend Chart - UPDATED */}
                   <Card className="border-none shadow-sm rounded-xl">
                     <CardHeader>
-                      <CardTitle className="text-lg font-serif flex items-center gap-2">
+                      <CardTitle className="text-lg font-sans flex items-center gap-2">
                         <BarChart3 className="w-5 h-5 text-secondary" />
                         Monthly Expense Trend (Including Manual Expenses)
                       </CardTitle>
@@ -1148,7 +1148,7 @@ ${expenseSummary.categoryWiseData.map(c =>
                 <TabsContent value="manual" className="space-y-6">
                   <Card className="border-none shadow-sm rounded-xl">
                     <CardHeader>
-                      <CardTitle className="text-lg font-serif flex items-center gap-2">
+                      <CardTitle className="text-lg font-sans flex items-center gap-2">
                         <FileText className="w-5 h-5 text-secondary" />
                         Manual Expenses Management
                       </CardTitle>
@@ -1248,7 +1248,7 @@ ${expenseSummary.categoryWiseData.map(c =>
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <Card className="border-none shadow-sm rounded-xl">
                       <CardHeader>
-                        <CardTitle className="text-lg font-serif flex items-center gap-2">
+                        <CardTitle className="text-lg font-sans flex items-center gap-2">
                           <PieChart className="w-5 h-5 text-secondary" />
                           Manual Expenses by Category
                         </CardTitle>
@@ -1281,7 +1281,7 @@ ${expenseSummary.categoryWiseData.map(c =>
 
                     <Card className="border-none shadow-sm rounded-xl">
                       <CardHeader>
-                        <CardTitle className="text-lg font-serif flex items-center gap-2">
+                        <CardTitle className="text-lg font-sans flex items-center gap-2">
                           <BarChart3 className="w-5 h-5 text-secondary" />
                           Manual Expenses by Month
                         </CardTitle>
@@ -1309,7 +1309,7 @@ ${expenseSummary.categoryWiseData.map(c =>
                   {/* Branch-wise Analysis - UPDATED */}
                   <Card className="border-none shadow-sm rounded-xl">
                     <CardHeader>
-                      <CardTitle className="text-lg font-serif flex items-center gap-2">
+                      <CardTitle className="text-lg font-sans flex items-center gap-2">
                         <Building2 className="w-5 h-5 text-secondary" />
                         Branch-wise Expense Analysis (Including Manual Expenses)
                       </CardTitle>
@@ -1388,7 +1388,7 @@ ${expenseSummary.categoryWiseData.map(c =>
                   {/* Monthly Detailed Analysis - UPDATED */}
                   <Card className="border-none shadow-sm rounded-xl">
                     <CardHeader>
-                      <CardTitle className="text-lg font-serif flex items-center gap-2">
+                      <CardTitle className="text-lg font-sans flex items-center gap-2">
                         <Calendar className="w-5 h-5 text-secondary" />
                         Monthly Profit & Loss Statement (Including Manual Expenses)
                       </CardTitle>
@@ -1447,7 +1447,7 @@ ${expenseSummary.categoryWiseData.map(c =>
                   {/* Manual Expenses Data - NEW */}
                   <Card className="border-none shadow-sm rounded-xl">
                     <CardHeader>
-                      <CardTitle className="text-lg font-serif flex items-center gap-2">
+                      <CardTitle className="text-lg font-sans flex items-center gap-2">
                         <FileText className="w-5 h-5 text-secondary" />
                         Manual Expenses Data ({manualExpenses.length})
                       </CardTitle>

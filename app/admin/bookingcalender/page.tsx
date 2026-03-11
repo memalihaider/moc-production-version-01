@@ -4458,7 +4458,7 @@ export default function AdminAppointments() {
                                 newMembers[index].tip = parseFloat(e.target.value) || 0;
                                 setBookingData({...bookingData, teamMembers: newMembers});
                               }}
-                              placeholder="$0.00"
+                              placeholder="AED 0.00"
                               className="h-9 w-24 text-right"
                             />
                           </div>
@@ -5239,7 +5239,7 @@ export default function AdminAppointments() {
                                   newMembers[index].tip = parseFloat(e.target.value) || 0;
                                   setEditBookingData({...editBookingData, teamMembers: newMembers});
                                 }}
-                                placeholder="$0.00"
+                                placeholder="AED 0.00"
                                 className="h-9 w-24 text-right"
                               />
                             </div>

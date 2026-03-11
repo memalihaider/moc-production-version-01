@@ -619,7 +619,7 @@ export default function ProductsOrderCheckout() {
             <div className="w-20 h-20 bg-secondary/10 rounded-full flex items-center justify-center mx-auto mb-6">
               <CheckCircle className="w-10 h-10 text-secondary" />
             </div>
-            <h1 className="text-4xl font-serif font-bold text-primary">Order Confirmed!</h1>
+            <h1 className="text-4xl font-sans font-bold text-primary">Order Confirmed!</h1>
             <p className="text-lg text-muted-foreground font-light">
               Your order has been successfully placed and is now upcoming.
             </p>
@@ -637,7 +637,7 @@ export default function ProductsOrderCheckout() {
               <div className="space-y-4">
                 <div className="border-b border-gray-100 pb-3">
                   <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Transaction ID</p>
-                  <p className="text-xl font-serif font-bold text-primary">{confirmedOrderId}</p>
+                  <p className="text-xl font-sans font-bold text-primary">{confirmedOrderId}</p>
                 </div>
                 <div className="grid grid-cols-2 gap-6 text-left">
                  
@@ -730,7 +730,7 @@ export default function ProductsOrderCheckout() {
               {/* Customer Information */}
               <Card className="border-none shadow-sm rounded-none">
                 <CardHeader className="border-b border-gray-50 py-4">
-                  <CardTitle className="text-xl font-serif font-bold flex items-center gap-2">
+                  <CardTitle className="text-xl font-sans font-bold flex items-center gap-2">
                     <User className="w-5 h-5 text-secondary" /> Customer Information
                   </CardTitle>
                 </CardHeader>
@@ -841,7 +841,7 @@ export default function ProductsOrderCheckout() {
               {/* Branch Details */}
               <Card className="border-none shadow-sm rounded-none">
                 <CardHeader className="border-b border-gray-50 py-4">
-                  <CardTitle className="text-xl font-serif font-bold flex items-center gap-2">
+                  <CardTitle className="text-xl font-sans font-bold flex items-center gap-2">
                     <Building className="w-5 h-5 text-secondary" /> Selected Branch Details
                   </CardTitle>
                 </CardHeader>
@@ -928,7 +928,7 @@ export default function ProductsOrderCheckout() {
               {/* Order Dates */}
               <Card className="border-none shadow-sm rounded-none">
                 <CardHeader className="border-b border-gray-50 py-4">
-                  <CardTitle className="text-xl font-serif font-bold flex items-center gap-2">
+                  <CardTitle className="text-xl font-sans font-bold flex items-center gap-2">
                     <Calendar className="w-5 h-5 text-secondary" /> Order Dates
                   </CardTitle>
                 </CardHeader>
@@ -963,7 +963,7 @@ export default function ProductsOrderCheckout() {
               {/* Payment Options */}
               <Card className="border-none shadow-sm rounded-none">
                 <CardHeader className="border-b border-gray-50 py-4">
-                  <CardTitle className="text-xl font-serif font-bold flex items-center gap-2">
+                  <CardTitle className="text-xl font-sans font-bold flex items-center gap-2">
                     <CreditCard className="w-5 h-5 text-secondary" /> Payment Options
                   </CardTitle>
                 </CardHeader>
@@ -1004,7 +1004,7 @@ export default function ProductsOrderCheckout() {
                     <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-3">
                       <Building className="w-8 h-8 text-white" />
                     </div>
-                    <p className="font-serif font-bold text-xl text-white">Order Summary</p>
+                    <p className="font-sans font-bold text-xl text-white">Order Summary</p>
                     <p className="text-sm text-white/80">
                       {selectedBranch || "Select Branch"}
                     </p>
@@ -1017,7 +1017,7 @@ export default function ProductsOrderCheckout() {
                 </div>
 
                 <CardHeader className="border-b border-white/10 py-4">
-                  <CardTitle className="text-xl font-serif font-bold">Order Details</CardTitle>
+                  <CardTitle className="text-xl font-sans font-bold">Order Details</CardTitle>
                 </CardHeader>
                 <CardContent className="pt-6 space-y-6">
                   <div className="space-y-4">
@@ -1036,7 +1036,7 @@ export default function ProductsOrderCheckout() {
                         <div key={item.id} className="space-y-3 pb-4 border-b border-white/10 last:border-0">
                           <div className="flex justify-between items-start group">
                             <div className="space-y-0.5 flex-1">
-                              <p className="font-serif font-bold text-sm">{item.name}</p>
+                              <p className="font-sans font-bold text-sm">{item.name}</p>
                               <div className="flex items-center gap-2 text-[10px] text-white/60">
                                 <span>SKU: {item.sku}</span>
                                 <span className="text-white/40">•</span>
@@ -1110,10 +1110,10 @@ export default function ProductsOrderCheckout() {
                         </div>
 
                         <div className="flex justify-between items-center pt-3 border-t border-white/10">
-                          <span className="text-sm font-serif font-bold">
+                          <span className="text-sm font-sans font-bold">
                             Final Amount
                           </span>
-                          <span className="text-2xl font-serif font-bold text-secondary">
+                          <span className="text-2xl font-sans font-bold text-secondary">
                             AED {finalTotal.toFixed(2)}
                           </span>
                         </div>

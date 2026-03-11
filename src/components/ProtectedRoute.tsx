@@ -36,7 +36,7 @@
 // //             <div className="w-16 h-16 bg-secondary rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
 // //               <Scissors className="w-8 h-8 text-primary" />
 // //             </div>
-// //             <h2 className="text-xl font-serif text-primary mb-2">Loading...</h2>
+// //             <h2 className="text-xl font-sans text-primary mb-2">Loading...</h2>
 // //             <p className="text-gray-600">Please wait while we verify your access.</p>
 // //           </CardContent>
 // //         </Card>
@@ -137,7 +137,7 @@
 //             <div className="w-16 h-16 bg-secondary rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
 //               <Scissors className="w-8 h-8 text-primary" />
 //             </div>
-//             <h2 className="text-xl font-serif text-primary mb-2">Verifying Access...</h2>
+//             <h2 className="text-xl font-sans text-primary mb-2">Verifying Access...</h2>
 //             <p className="text-gray-600">Checking your permissions</p>
 //           </CardContent>
 //         </Card>
@@ -242,7 +242,7 @@
 //             <div className="w-16 h-16 bg-secondary rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
 //               <Scissors className="w-8 h-8 text-primary" />
 //             </div>
-//             <h2 className="text-xl font-serif text-primary mb-2">Loading...</h2>
+//             <h2 className="text-xl font-sans text-primary mb-2">Loading...</h2>
 //             <p className="text-gray-600">Please wait while we verify your access.</p>
 //           </CardContent>
 //         </Card>
@@ -338,7 +338,7 @@ export default function ProtectedRoute({ children, requiredRole }: ProtectedRout
             <div className="w-16 h-16 bg-secondary rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
               <Scissors className="w-8 h-8 text-primary" />
             </div>
-            <h2 className="text-xl font-serif text-primary mb-2">Verifying Access...</h2>
+            <h2 className="text-xl font-sans text-primary mb-2">Verifying Access...</h2>
             <p className="text-gray-600">Checking your permissions</p>
           </CardContent>
         </Card>

@@ -141,7 +141,7 @@ export default function CustomerBookings() {
               </Button>
             </Link>
             <div>
-              <h1 className="text-3xl font-serif font-bold text-primary">My Bookings</h1>
+              <h1 className="text-3xl font-sans font-bold text-primary">My Bookings</h1>
               <p className="text-muted-foreground">View and manage your service appointments</p>
             </div>
           </div>
@@ -277,7 +277,7 @@ export default function CustomerBookings() {
                                 </div>
                               </div>
                             </div>
-                            <span className="font-bold text-primary">${service.price}</span>
+                            <span className="font-bold text-primary">AED {service.price}</span>
                           </div>
                         ))}
                       </div>
@@ -299,13 +299,13 @@ export default function CustomerBookings() {
                         )}
                         {booking.walletAmountUsed > 0 && (
                           <div className="text-blue-600">
-                            ${booking.walletAmountUsed} from wallet
+                            AED {booking.walletAmountUsed} from wallet
                           </div>
                         )}
                       </div>
                       <div className="mt-4 md:mt-0 text-right">
                         <p className="text-xs text-muted-foreground">Total Amount</p>
-                        <p className="text-2xl font-bold text-primary">${booking.totalAmount}</p>
+                        <p className="text-2xl font-bold text-primary">AED {booking.totalAmount}</p>
                       </div>
                     </div>
                   </CardContent>

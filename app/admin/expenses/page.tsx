@@ -880,7 +880,7 @@ ${expenseSummary.branchWiseData.map(b =>
                   onToggle={() => setSidebarOpen(!sidebarOpen)}
                 />
                 <div>
-                  <h1 className="text-2xl font-serif font-bold text-primary">
+                  <h1 className="text-2xl font-sans font-bold text-primary">
                     {user?.role === 'admin' 
                       ? `Branch Expense Dashboard` 
                       : 'Expense Analysis Dashboard'
@@ -1030,7 +1030,7 @@ ${expenseSummary.branchWiseData.map(b =>
                             <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">
                               Total Expenses
                             </p>
-                            <p className="text-2xl font-serif font-bold text-primary">
+                            <p className="text-2xl font-sans font-bold text-primary">
                               {formatCurrency(expenseSummary.totalExpenses)}
                             </p>
                             <p className="text-sm text-muted-foreground mt-1">
@@ -1047,7 +1047,7 @@ ${expenseSummary.branchWiseData.map(b =>
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Products Cost</p>
-                            <p className="text-2xl font-serif font-bold text-blue-600">
+                            <p className="text-2xl font-sans font-bold text-blue-600">
                               {formatCurrency(expenseSummary.totalProductsCost)}
                             </p>
                             <p className="text-sm text-muted-foreground mt-1">
@@ -1064,7 +1064,7 @@ ${expenseSummary.branchWiseData.map(b =>
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Services Cost</p>
-                            <p className="text-2xl font-serif font-bold text-green-600">
+                            <p className="text-2xl font-sans font-bold text-green-600">
                               {formatCurrency(expenseSummary.totalServicesCost)}
                             </p>
                             <p className="text-sm text-muted-foreground mt-1">
@@ -1081,7 +1081,7 @@ ${expenseSummary.branchWiseData.map(b =>
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Appointments Cost</p>
-                            <p className="text-2xl font-serif font-bold text-purple-600">
+                            <p className="text-2xl font-sans font-bold text-purple-600">
                               {formatCurrency(expenseSummary.totalAppointmentsCost)}
                             </p>
                             <p className="text-sm text-muted-foreground mt-1">
@@ -1098,7 +1098,7 @@ ${expenseSummary.branchWiseData.map(b =>
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Manual Expenses</p>
-                            <p className="text-2xl font-serif font-bold text-orange-600">
+                            <p className="text-2xl font-sans font-bold text-orange-600">
                               {formatCurrency(expenseSummary.totalManualExpenses)}
                             </p>
                             <p className="text-sm text-muted-foreground mt-1">
@@ -1114,7 +1114,7 @@ ${expenseSummary.branchWiseData.map(b =>
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <Card className="border-none shadow-sm rounded-xl">
                       <CardHeader>
-                        <CardTitle className="text-lg font-serif flex items-center gap-2">
+                        <CardTitle className="text-lg font-sans flex items-center gap-2">
                           <TrendingUp className="w-5 h-5 text-secondary" />
                           Revenue & Profit (Real Data)
                         </CardTitle>
@@ -1151,7 +1151,7 @@ ${expenseSummary.branchWiseData.map(b =>
 
                     <Card className="border-none shadow-sm rounded-xl lg:col-span-2">
                       <CardHeader>
-                        <CardTitle className="text-lg font-serif flex items-center gap-2">
+                        <CardTitle className="text-lg font-sans flex items-center gap-2">
                           <PieChart className="w-5 h-5 text-secondary" />
                           Expense Distribution (Real Data)
                         </CardTitle>
@@ -1190,7 +1190,7 @@ ${expenseSummary.branchWiseData.map(b =>
 
                   <Card className="border-none shadow-sm rounded-xl">
                     <CardHeader>
-                      <CardTitle className="text-lg font-serif flex items-center gap-2">
+                      <CardTitle className="text-lg font-sans flex items-center gap-2">
                         <BarChart3 className="w-5 h-5 text-secondary" />
                         Monthly Expense Trend (Real Data)
                       </CardTitle>
@@ -1218,7 +1218,7 @@ ${expenseSummary.branchWiseData.map(b =>
                 <TabsContent value="manual" className="space-y-6">
                   <Card className="border-none shadow-sm rounded-xl">
                     <CardHeader>
-                      <CardTitle className="text-lg font-serif flex items-center gap-2">
+                      <CardTitle className="text-lg font-sans flex items-center gap-2">
                         <FileText className="w-5 h-5 text-secondary" />
                         Manual Expenses Management (Real Data)
                       </CardTitle>
@@ -1320,7 +1320,7 @@ ${expenseSummary.branchWiseData.map(b =>
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <Card className="border-none shadow-sm rounded-xl">
                       <CardHeader>
-                        <CardTitle className="text-lg font-serif flex items-center gap-2">
+                        <CardTitle className="text-lg font-sans flex items-center gap-2">
                           <PieChart className="w-5 h-5 text-secondary" />
                           Manual Expenses by Category (Real Data)
                         </CardTitle>
@@ -1353,7 +1353,7 @@ ${expenseSummary.branchWiseData.map(b =>
 
                     <Card className="border-none shadow-sm rounded-xl">
                       <CardHeader>
-                        <CardTitle className="text-lg font-serif flex items-center gap-2">
+                        <CardTitle className="text-lg font-sans flex items-center gap-2">
                           <BarChart3 className="w-5 h-5 text-secondary" />
                           Manual Expenses by Month (Real Data)
                         </CardTitle>
@@ -1379,7 +1379,7 @@ ${expenseSummary.branchWiseData.map(b =>
                 <TabsContent value="analysis" className="space-y-6">
                   <Card className="border-none shadow-sm rounded-xl">
                     <CardHeader>
-                      <CardTitle className="text-lg font-serif flex items-center gap-2">
+                      <CardTitle className="text-lg font-sans flex items-center gap-2">
                         <Building2 className="w-5 h-5 text-secondary" />
                         {user?.role === 'admin' 
                           ? `Branch Expense Analysis (${user.branchName}) - Real Data`
@@ -1439,7 +1439,7 @@ ${expenseSummary.branchWiseData.map(b =>
 
                   <Card className="border-none shadow-sm rounded-xl">
                     <CardHeader>
-                      <CardTitle className="text-lg font-serif flex items-center gap-2">
+                      <CardTitle className="text-lg font-sans flex items-center gap-2">
                         <Calendar className="w-5 h-5 text-secondary" />
                         {user?.role === 'admin' 
                           ? 'Branch Monthly Profit & Loss Statement - Real Data'
@@ -1560,7 +1560,7 @@ ${expenseSummary.branchWiseData.map(b =>
                 <TabsContent value="data" className="space-y-6">
                   <Card className="border-none shadow-sm rounded-xl">
                     <CardHeader>
-                      <CardTitle className="text-lg font-serif flex items-center gap-2">
+                      <CardTitle className="text-lg font-sans flex items-center gap-2">
                         <FileText className="w-5 h-5 text-secondary" />
                         Manual Expenses Data (Real Data)
                       </CardTitle>
@@ -1684,7 +1684,7 @@ ${expenseSummary.branchWiseData.map(b =>
                     
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium mb-1">Amount (USD) *</label>
+                        <label className="block text-sm font-medium mb-1">Amount (AED) *</label>
                         <Input
                           type="number"
                           name="amount"

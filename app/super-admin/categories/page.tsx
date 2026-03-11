@@ -33,6 +33,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Unsubscribe } from 'firebase/firestore';
+import { ImageField } from '@/components/ui/image-field';
 
 export interface Category {
   id: string;
@@ -828,17 +829,14 @@ export default function SuperAdminCategories() {
                     </div>
 
                     <div>
-                      <Label htmlFor="image" className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                        <Upload className="w-4 h-4" />
-                        Image URL
-                      </Label>
-                      <Input
-                        id="image"
+                      <ImageField
+                        label="Image"
                         value={formData.image}
-                        onChange={(e) => setFormData(prev => ({ ...prev, image: e.target.value }))}
+                        onChange={(url) => setFormData(prev => ({ ...prev, image: url }))}
+                        folder="images/categories"
                         placeholder="Enter image URL"
-                        className="mt-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         disabled={isAdding}
+                        inputId="sa-cat-image"
                       />
                     </div>
                   </div>
@@ -1068,17 +1066,14 @@ export default function SuperAdminCategories() {
                     </div>
 
                     <div>
-                      <Label htmlFor="edit-image" className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                        <Upload className="w-4 h-4" />
-                        Image URL
-                      </Label>
-                      <Input
-                        id="edit-image"
+                      <ImageField
+                        label="Image"
                         value={formData.image}
-                        onChange={(e) => setFormData(prev => ({ ...prev, image: e.target.value }))}
+                        onChange={(url) => setFormData(prev => ({ ...prev, image: url }))}
+                        folder="images/categories"
                         placeholder="Enter image URL"
-                        className="mt-1 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                         disabled={isEditing}
+                        inputId="sa-cat-edit-image"
                       />
                     </div>
                   </div>
