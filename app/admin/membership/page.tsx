@@ -1479,15 +1479,16 @@ export default function SuperAdminMembership() {
       <div className="flex h-screen bg-gray-50">
         {/* Desktop Sidebar */}
         <div className="hidden lg:block">
-          <AdminSidebar role="branch_admin" onLogout={handleLogout} />
+          <AdminSidebar role={user?.role === 'super_admin' ? 'super_admin' : 'branch_admin'} onLogout={handleLogout} allowedPages={user?.allowedPages || []} />
         </div>
 
         {/* Mobile Sidebar Sheet */}
         <AdminMobileSidebar
-          role="branch_admin"
+          role={user?.role === 'super_admin' ? 'super_admin' : 'branch_admin'}
           onLogout={handleLogout}
           isOpen={sidebarOpen}
           onToggle={() => setSidebarOpen(!sidebarOpen)}
+          allowedPages={user?.allowedPages || []}
         />
 
         <div className={cn(

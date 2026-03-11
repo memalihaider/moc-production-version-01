@@ -85,10 +85,12 @@ export default function AdminClientsPage() {
       <div className="flex h-screen bg-[#f8f9fa]">
         {/* Sidebar */}
         <AdminSidebar
-         
+          role={user?.role === 'super_admin' ? 'super_admin' : 'branch_admin'}
           onLogout={handleLogout}
           isOpen={sidebarOpen}
-          onToggle={() => setSidebarOpen(!sidebarOpen)} role={'branch_admin'}        />
+          onToggle={() => setSidebarOpen(!sidebarOpen)}
+          allowedPages={user?.allowedPages || []}
+        />
 
         {/* Main Content */}
         <div className="flex-1 flex flex-col transition-all duration-300 ease-in-out min-h-0">
@@ -97,10 +99,12 @@ export default function AdminClientsPage() {
             <div className="flex items-center justify-between px-4 py-4 lg:px-8">
               <div className="flex items-center gap-4">
                 <AdminMobileSidebar
-                 
+                  role={user?.role === 'super_admin' ? 'super_admin' : 'branch_admin'}
                   onLogout={handleLogout}
                   isOpen={sidebarOpen}
-                  onToggle={() => setSidebarOpen(!sidebarOpen)} role={'branch_admin'}                />
+                  onToggle={() => setSidebarOpen(!sidebarOpen)}
+                  allowedPages={user?.allowedPages || []}
+                />
                 <div>
                   <h1 className="text-2xl font-sans font-bold text-primary">Client Management</h1>
                   <p className="text-sm text-muted-foreground">Manage and track all customer relationships</p>

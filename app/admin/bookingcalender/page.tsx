@@ -3100,6 +3100,7 @@ export default function AdminAppointments() {
             isOpen={sidebarOpen}
             onToggle={() => setSidebarOpen(!sidebarOpen)}
             onLogout={handleLogout}
+            allowedPages={user?.allowedPages || []}
           />
         </div>
 
@@ -3112,6 +3113,7 @@ export default function AdminAppointments() {
                   onLogout={handleLogout}
                   isOpen={sidebarOpen}
                   onToggle={() => setSidebarOpen(!sidebarOpen)}
+                  allowedPages={user?.allowedPages || []}
                 />
                 <div>
                   <h1 className="text-2xl font-bold text-gray-900">Appointment Calendar</h1>

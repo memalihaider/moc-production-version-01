@@ -1773,12 +1773,12 @@ export default function Home() {
             <div className="space-y-10">
               <Link href="/" className="inline-block">
                 <h3 className="text-3xl font-sans font-bold tracking-tighter">
-                  PREMIUM<span className="text-secondary">CUTS</span>
+                  Man of<span className="text-secondary">Cave</span>
                 </h3>
               </Link>
               <div className="space-y-4">
                 <p className="text-gray-500 text-base leading-relaxed font-light max-w-xs">
-                  The city's premier destination for luxury grooming and traditional barbering since 2015.
+                  The city's premier destination for luxury grooming and traditional barbering since 2020.
                 </p>
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-2">
@@ -1871,7 +1871,7 @@ export default function Home() {
           </div>
           
           <div className="mt-12 md:mt-32 pt-10 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4 md:gap-8 text-gray-600 text-[9px] tracking-[0.4em] font-black uppercase">
-            <p>&copy; 2026 PREMIUM CUTS LUXURY GROOMING. ALL RIGHTS RESERVED.</p>
+            <p>&copy; 2026 Man of Cave. ALL RIGHTS RESERVED.</p>
             <div className="flex gap-12">
               <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
               <a href="#" className="hover:text-white transition-colors">Terms of Service</a>

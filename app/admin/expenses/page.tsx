@@ -863,10 +863,11 @@ ${expenseSummary.branchWiseData.map(b =>
     <ProtectedRoute requiredRole="admin">
       <div className="flex h-screen bg-[#f8f9fa]">
         <AdminSidebar
-          role="branch_admin"
+          role={user?.role === 'super_admin' ? 'super_admin' : 'branch_admin'}
           onLogout={handleLogout}
           isOpen={sidebarOpen}
           onToggle={() => setSidebarOpen(!sidebarOpen)}
+          allowedPages={user?.allowedPages || []}
         />
 
         <div className="flex-1 flex flex-col transition-all duration-300 ease-in-out min-h-0">
@@ -874,10 +875,11 @@ ${expenseSummary.branchWiseData.map(b =>
             <div className="flex items-center justify-between px-4 py-4 lg:px-8">
               <div className="flex items-center gap-4">
                 <AdminMobileSidebar
-                  role="branch_admin"
+                  role={user?.role === 'super_admin' ? 'super_admin' : 'branch_admin'}
                   onLogout={handleLogout}
                   isOpen={sidebarOpen}
                   onToggle={() => setSidebarOpen(!sidebarOpen)}
+                  allowedPages={user?.allowedPages || []}
                 />
                 <div>
                   <h1 className="text-2xl font-sans font-bold text-primary">

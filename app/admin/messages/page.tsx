@@ -625,10 +625,11 @@ export default function BranchMessages() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <AdminMobileSidebar 
-                role="branch_admin" 
+                role={user?.role === 'super_admin' ? 'super_admin' : 'branch_admin'} 
                 onLogout={logout} 
                 isOpen={sidebarOpen} 
-                onToggle={() => setSidebarOpen(!sidebarOpen)} 
+                onToggle={() => setSidebarOpen(!sidebarOpen)}
+                allowedPages={user?.allowedPages || []} 
               />
               <div>
                 <div className="flex items-center gap-3">

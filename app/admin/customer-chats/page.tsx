@@ -979,19 +979,21 @@ export default function BranchCustomerChatsPage() {
                     <Menu className="h-4 w-4" />
                   </Button>
                   <AdminMobileSidebar 
-                    role="super_admin" 
+                    role={user?.role === 'super_admin' ? 'super_admin' : 'branch_admin'} 
                     onLogout={logout} 
                     isOpen={sidebarOpen} 
-                    onToggle={() => setSidebarOpen(!sidebarOpen)} 
+                    onToggle={() => setSidebarOpen(!sidebarOpen)}
+                    allowedPages={user?.allowedPages || []} 
                   />
                 </div>
                 
                 <div className="hidden md:flex items-center gap-4">
                   <AdminMobileSidebar 
-                    role="super_admin" 
+                    role={user?.role === 'super_admin' ? 'super_admin' : 'branch_admin'} 
                     onLogout={logout} 
                     isOpen={sidebarOpen} 
-                    onToggle={() => setSidebarOpen(!sidebarOpen)} 
+                    onToggle={() => setSidebarOpen(!sidebarOpen)}
+                    allowedPages={user?.allowedPages || []} 
                   />
                 </div>
                 

@@ -706,12 +706,13 @@ export default function SuperAdminProducts() {
   return (
     <div role="admin">
       <div className="flex h-screen bg-gray-50">
-        <AdminSidebar role="branch_admin" onLogout={handleLogout} />
+        <AdminSidebar role={user?.role === 'super_admin' ? 'super_admin' : 'branch_admin'} onLogout={handleLogout} allowedPages={user?.allowedPages || []} />
         <AdminMobileSidebar
-          role="branch_admin"
+          role={user?.role === 'super_admin' ? 'super_admin' : 'branch_admin'}
           onLogout={handleLogout}
           isOpen={sidebarOpen}
           onToggle={() => setSidebarOpen(!sidebarOpen)}
+          allowedPages={user?.allowedPages || []}
         />
 
         <div className={cn(

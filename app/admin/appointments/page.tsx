@@ -626,10 +626,11 @@ export default function SuperAdminAppointments() {
           sidebarOpen ? "w-64" : "w-16"
         )}>
           <AdminSidebar 
-            role="branch_admin"
+            role={user?.role === 'super_admin' ? 'super_admin' : 'branch_admin'}
             isOpen={sidebarOpen}
             onToggle={() => setSidebarOpen(!sidebarOpen)}
             onLogout={handleLogout}
+            allowedPages={user?.allowedPages || []}
           />
         </div>
 

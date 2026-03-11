@@ -8,7 +8,7 @@ import {
   onAuthStateChanged,
   User as FirebaseUser
 } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 
 // UPDATED: User interface with allowedPages
@@ -50,19 +50,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const router = useRouter();
 
   useEffect(() => {
+    let userDocUnsubscribe: (() => void) | null = null;
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
+      // Clean up previous Firestore listener when auth state changes
+      if (userDocUnsubscribe) {
+        userDocUnsubscribe();
+        userDocUnsubscribe = null;
+      }
+
       if (firebaseUser) {
         try {
           // FIRST: Check in "users" collection (for admins)
-          const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+          const userDocSnap = await getDoc(doc(db, 'users', firebaseUser.uid));
           
-          if (userDoc.exists()) {
-            // User is ADMIN
-            const userData = userDoc.data();
-            
-            // 👇 FETCH allowedPages from Firestore
+          if (userDocSnap.exists()) {
+            // User is ADMIN — set up real-time listener for permission changes
+            const userData = userDocSnap.data();
             const allowedPages = userData.allowedPages || [];
-            console.log('📋 Allowed pages from Firestore:', allowedPages);
             
             const userObj: User = {
               id: firebaseUser.uid,
@@ -71,12 +76,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               branchId: userData.branchId,
               branchName: userData.branchName,
               name: userData.name,
-              allowedPages: allowedPages // 👈 Store in user object
+              allowedPages: allowedPages
             };
             
             setUser(userObj);
             localStorage.setItem('user', JSON.stringify(userObj));
             console.log('✅ Admin auth state updated with allowedPages:', allowedPages);
+
+            // Real-time listener for user document changes (permissions, role, etc.)
+            userDocUnsubscribe = onSnapshot(doc(db, 'users', firebaseUser.uid), (snapshot) => {
+              if (snapshot.exists()) {
+                const updatedData = snapshot.data();
+                const updatedUser: User = {
+                  id: firebaseUser.uid,
+                  email: firebaseUser.email!,
+                  role: updatedData.role || 'admin',
+                  branchId: updatedData.branchId,
+                  branchName: updatedData.branchName,
+                  name: updatedData.name,
+                  allowedPages: updatedData.allowedPages || []
+                };
+                setUser(updatedUser);
+                localStorage.setItem('user', JSON.stringify(updatedUser));
+                console.log('🔄 Real-time user update — allowedPages:', updatedData.allowedPages);
+              }
+            });
             
           } else {
             // SECOND: Check in "customers" collection
@@ -91,7 +115,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 role: 'customer',
                 name: customerData.name,
                 phone: customerData.phone,
-                // allowedPages not needed for customers
               };
               
               setUser(userObj);
@@ -102,12 +125,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               // THIRD: If not found in either collection
               console.log('⚠️ User not found in Firestore, checking if new customer...');
               
-              // Check if this might be a newly registered customer
               const customerAuth = localStorage.getItem('customerAuth');
               if (customerAuth) {
                 const parsed = JSON.parse(customerAuth);
                 if (parsed.customer && parsed.customer.uid === firebaseUser.uid) {
-                  // Create customer document in Firestore
                   await setDoc(doc(db, 'customers', firebaseUser.uid), {
                     email: firebaseUser.email,
                     name: parsed.customer.name || '',
@@ -132,7 +153,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 }
               }
               
-              // If still not found, log out
               console.error('❌ User document not found in Firestore');
               await signOut(auth);
               setUser(null);
@@ -157,7 +177,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setIsLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      if (userDocUnsubscribe) {
+        userDocUnsubscribe();
+      }
+    };
   }, []);
 
   const login = async (email: string, password: string, isCustomer: boolean = false): Promise<boolean> => {

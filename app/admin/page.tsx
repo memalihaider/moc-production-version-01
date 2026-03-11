@@ -1400,6 +1400,7 @@ export default function SuperAdminDashboard() {
         onLogout={handleLogout}
         isOpen={sidebarOpen}
         onToggle={() => setSidebarOpen(!sidebarOpen)}
+        allowedPages={user?.allowedPages || []}
       />
 
       {/* Main Content */}
@@ -1420,6 +1421,7 @@ export default function SuperAdminDashboard() {
                 onLogout={handleLogout}
                 isOpen={sidebarOpen}
                 onToggle={() => setSidebarOpen(!sidebarOpen)}
+                allowedPages={user?.allowedPages || []}
               />
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm">

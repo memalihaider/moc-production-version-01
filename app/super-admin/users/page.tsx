@@ -105,11 +105,10 @@ export const AVAILABLE_PAGES: Page[] = [
   {
     id: "dashboard",
     name: "Dashboard",
-    path: "/dashboard",
+    path: "/admin",
     icon: Home,
     category: "dashboard",
   },
-
   {
     id: "products",
     name: "Products",
@@ -117,17 +116,16 @@ export const AVAILABLE_PAGES: Page[] = [
     icon: Package,
     category: "management",
   },
-
   {
     id: "messages",
-    name: "messages",
+    name: "Messages",
     path: "/admin/messages",
     icon: Package,
     category: "management",
   },
   {
     id: "customer-chats",
-    name: "customer-chats",
+    name: "Customer Chats",
     path: "/admin/customer-chats",
     icon: Package,
     category: "management",
@@ -139,21 +137,13 @@ export const AVAILABLE_PAGES: Page[] = [
     icon: Layers,
     category: "management",
   },
-
   {
     id: "services",
-    name: "services",
+    name: "Services",
     path: "/admin/services",
     icon: Layers,
     category: "management",
   },
-  // {
-  //   id: "orders",
-  //   name: "Orders",
-  //   path: "/admin/orders",
-  //   icon: ShoppingCart,
-  //   category: "management",
-  // },
   {
     id: "appointments",
     name: "Appointments",
@@ -162,18 +152,74 @@ export const AVAILABLE_PAGES: Page[] = [
     category: "management",
   },
   {
-    id: "booking Calender",
-    name: "booking Calander",
-    path: "/admin/bookingscalender",
+    id: "booking calender",
+    name: "Booking Calendar",
+    path: "/admin/bookingcalender",
     icon: ShoppingCart,
     category: "management",
   },
   {
     id: "feedbacks",
-    name: "feedbacks",
+    name: "Feedbacks",
     path: "/admin/feedbacks",
     icon: ShoppingCart,
     category: "management",
+  },
+  {
+    id: "clients",
+    name: "Clients",
+    path: "/admin/clients",
+    icon: UsersIcon,
+    category: "management",
+  },
+  {
+    id: "staff",
+    name: "Staff",
+    path: "/admin/staff",
+    icon: UsersIcon,
+    category: "management",
+  },
+  {
+    id: "analytics",
+    name: "Analytics",
+    path: "/admin/analytics",
+    icon: BarChart,
+    category: "reports",
+  },
+  {
+    id: "expenses",
+    name: "Expenses",
+    path: "/admin/expenses",
+    icon: DollarSign,
+    category: "operations",
+  },
+  {
+    id: "orders",
+    name: "Orders",
+    path: "/admin/orders",
+    icon: ShoppingCart,
+    category: "management",
+  },
+  {
+    id: "membership",
+    name: "Membership",
+    path: "/admin/membership",
+    icon: Clipboard,
+    category: "management",
+  },
+  {
+    id: "custom invoice",
+    name: "Custom Invoice",
+    path: "/admin/custominvoice",
+    icon: FileText,
+    category: "operations",
+  },
+  {
+    id: "settings",
+    name: "Settings",
+    path: "/admin/settings",
+    icon: Settings,
+    category: "operations",
   },
 ];
 
@@ -726,6 +772,20 @@ export default function SuperAdminUsers() {
 
     setIsDeleting(selectedUser.id);
     try {
+      // Delete from Firebase Auth via server API (uses Admin SDK)
+      const uid = selectedUser.uid || selectedUser.id;
+      const res = await fetch("/api/users/delete", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uid }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to delete user from authentication");
+      }
+
+      // Delete from Firestore
       const userDoc = doc(db, "users", selectedUser.id);
       await deleteDoc(userDoc);
 
@@ -734,7 +794,7 @@ export default function SuperAdminUsers() {
       alert("User deleted successfully!");
     } catch (error: any) {
       console.error("Error deleting user: ", error);
-      alert(`Error deleting user: AED{error.message}`);
+      alert(`Error deleting user: ${error.message}`);
     } finally {
       setIsDeleting(null);
     }

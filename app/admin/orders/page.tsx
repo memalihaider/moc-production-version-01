@@ -744,6 +744,7 @@ export default function SuperAdminOrders() {
           onLogout={handleLogout}
           isOpen={sidebarOpen}
           onToggle={() => setSidebarOpen(!sidebarOpen)}
+          allowedPages={user?.allowedPages || []}
           className={cn(
             "hidden lg:block transition-all duration-300",
             sidebarOpen ? "w-64" : "w-0"
@@ -760,6 +761,7 @@ export default function SuperAdminOrders() {
                 onLogout={handleLogout}
                 isOpen={sidebarOpen}
                 onToggle={() => setSidebarOpen(!sidebarOpen)}
+                allowedPages={user?.allowedPages || []}
               />
             </div>
           </div>

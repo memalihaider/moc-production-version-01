@@ -104,9 +104,10 @@ export default function AdminSettings() {
     <ProtectedRoute requiredRole="admin">
       <div className="flex h-screen bg-gray-50">
         {/* Sidebar */}
-        <AdminSidebar role="branch_admin" onLogout={handleLogout}
+        <AdminSidebar role={user?.role === 'super_admin' ? 'super_admin' : 'branch_admin'} onLogout={handleLogout}
           isOpen={sidebarOpen}
-          onToggle={() => setSidebarOpen(!sidebarOpen)} />
+          onToggle={() => setSidebarOpen(!sidebarOpen)}
+          allowedPages={user?.allowedPages || []} />
 
         {/* Main Content */}
         <div className={cn(
@@ -117,9 +118,10 @@ export default function AdminSettings() {
           <header className="bg-white shadow-sm border-b">
             <div className="flex items-center justify-between px-4 py-4 lg:px-8">
               <div className="flex items-center gap-4">
-                <AdminMobileSidebar role="branch_admin" onLogout={handleLogout}
+                <AdminMobileSidebar role={user?.role === 'super_admin' ? 'super_admin' : 'branch_admin'} onLogout={handleLogout}
           isOpen={sidebarOpen}
-          onToggle={() => setSidebarOpen(!sidebarOpen)} />
+          onToggle={() => setSidebarOpen(!sidebarOpen)}
+          allowedPages={user?.allowedPages || []} />
                 <div>
                   <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
                   <p className="text-sm text-gray-600">Manage your business settings</p>

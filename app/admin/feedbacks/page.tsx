@@ -477,10 +477,11 @@ export default function AdminFeedbackPage() {
       <div className="flex h-screen bg-[#f8f9fa]">
         {/* Sidebar */}
         <AdminSidebar
-          role="branch_admin"
+          role={user?.role === 'super_admin' ? 'super_admin' : 'branch_admin'}
           onLogout={handleLogout}
           isOpen={sidebarOpen}
           onToggle={() => setSidebarOpen(!sidebarOpen)}
+          allowedPages={user?.allowedPages || []}
         />
 
         {/* Main Content */}
@@ -490,10 +491,11 @@ export default function AdminFeedbackPage() {
             <div className="flex items-center justify-between px-4 py-4 lg:px-8">
               <div className="flex items-center gap-4">
                 <AdminMobileSidebar
-                  role="branch_admin"
+                  role={user?.role === 'super_admin' ? 'super_admin' : 'branch_admin'}
                   onLogout={handleLogout}
                   isOpen={sidebarOpen}
                   onToggle={() => setSidebarOpen(!sidebarOpen)}
+                  allowedPages={user?.allowedPages || []}
                 />
                 <div>
                   <h1 className="text-2xl font-sans font-bold text-primary">

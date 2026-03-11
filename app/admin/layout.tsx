@@ -117,8 +117,30 @@
 'use client';
 
 import { useAuth } from '@/contexts/AuthContext';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useEffect } from 'react';
+
+// Map admin routes to their pageKey permission IDs
+const routeToPageKey: Record<string, string> = {
+  '/admin': 'dashboard',
+  '/admin/appointments': 'appointments',
+  '/admin/bookingcalender': 'booking calender',
+  '/admin/services': 'services',
+  '/admin/products': 'products',
+  '/admin/clients': 'clients',
+  '/admin/staff': 'staff',
+  '/admin/feedbacks': 'feedbacks',
+  '/admin/categories': 'categories',
+  '/admin/analytics': 'analytics',
+  '/admin/expenses': 'expenses',
+  '/admin/orders': 'orders',
+  '/admin/membership': 'membership',
+  '/admin/messages': 'messages',
+  '/admin/customer-chats': 'customer-chats',
+  '/admin/custominvoice': 'custom invoice',
+  '/admin/settings': 'settings',
+  '/admin/branches': 'branches',
+};
 
 export default function AdminLayout({
   children,
@@ -127,12 +149,37 @@ export default function AdminLayout({
 }) {
   const { user, isLoading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     if (!isLoading && !user) {
       router.push('/login');
     }
   }, [user, isLoading, router]);
+
+  // Permission enforcement for admin (non-super_admin) users
+  useEffect(() => {
+    if (isLoading || !user || !pathname) return;
+    
+    // Super admins have access to everything
+    if (user.role === 'super_admin') return;
+
+    // Find the matching pageKey for the current route
+    const pageKey = routeToPageKey[pathname];
+    
+    // If not a recognized route, allow access (might be a sub-route)
+    if (!pageKey) return;
+
+    // Dashboard is always accessible
+    if (pageKey === 'dashboard') return;
+
+    const allowedPages = (user.allowedPages || []).map(p => p.toLowerCase());
+    
+    if (!allowedPages.includes(pageKey.toLowerCase())) {
+      // User does not have permission for this page
+      router.push('/admin');
+    }
+  }, [user, isLoading, pathname, router]);
 
   if (isLoading) {
     return (
