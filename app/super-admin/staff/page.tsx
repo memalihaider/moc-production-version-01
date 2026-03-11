@@ -1915,6 +1915,8 @@ import {
 import { db } from '@/lib/firebase';
 import { Unsubscribe } from 'firebase/firestore';
 import { ImageField } from '@/components/ui/image-field';
+
+interface Staff {
   id: string;
   name: string;
   role: string;
