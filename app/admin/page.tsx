@@ -234,6 +234,9 @@ interface CategoryDocument {
   name?: string;
   type?: string;
   branchName?: string;
+  branchId?: string;
+  branches?: string[];
+  branchNames?: string[];
   isActive?: boolean;
   createdAt?: { toDate: () => Date };
   [key: string]: any;
@@ -1058,9 +1061,17 @@ export default function SuperAdminDashboard() {
           });
           console.log(`Products: ${allProducts.length} total → ${filteredProducts.length} filtered`);
 
-          // Categories filter
+          // Categories filter - check branches array first, then fallback to old branchName
           filteredCategories = allCategories.filter(
             (category) => {
+              // Global categories (no branches) are visible to all
+              if ((!category.branches || category.branches.length === 0) && !category.branchId && !category.branchName) return true;
+              // NEW: multi-branch array check
+              if (category.branches && category.branches.length > 0 && userBranchId) {
+                return category.branches.includes(userBranchId);
+              }
+              // Backward compat: old branchId/branchName
+              if (userBranchId && category.branchId === userBranchId) return true;
               const matches = category.branchName === userBranchName ||
                 (category.branchName && category.branchName.includes(userBranchName || ""));
               return matches || false;

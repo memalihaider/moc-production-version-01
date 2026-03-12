@@ -1920,19 +1920,26 @@ export default function AdminAppointments() {
     return categories.filter(category => {
       if (!category.isActive || category.type !== 'service') return false;
       
+      // Global categories (no branches assigned) are always visible
+      if (!category.branches || category.branches.length === 0) {
+        // If also no old branchId/branchName, it's truly global
+        if (!category.branchId && !category.branchName) return true;
+      }
+      
+      // NEW: Check multi-branch array first
+      if (selectedBranch?.firebaseId && category.branches && category.branches.length > 0) {
+        if (category.branches.includes(selectedBranch.firebaseId)) return true;
+      }
+      
+      // Backward compat: check old branchId field
+      if (selectedBranch?.firebaseId && category.branchId === selectedBranch.firebaseId) return true;
+      
+      // Backward compat: check old branchName field
       const selectedBranchLower = bookingData.branch.toLowerCase().trim();
       const categoryBranchLower = (category.branchName || '').toLowerCase().trim();
+      if (categoryBranchLower && categoryBranchLower === selectedBranchLower) return true;
       
-      const exactMatch = categoryBranchLower === selectedBranchLower;
-      const partialMatch = categoryBranchLower.includes(selectedBranchLower) || 
-                          selectedBranchLower.includes(categoryBranchLower);
-      
-      const branchIdMatch = selectedBranch?.firebaseId && (
-        (category.branches && category.branches.includes(selectedBranch.firebaseId)) ||
-        category.branchId === selectedBranch.firebaseId
-      );
-      
-      return exactMatch || partialMatch || branchIdMatch;
+      return false;
     });
   }, [bookingData.branch, selectedBranch, categories]);
 
