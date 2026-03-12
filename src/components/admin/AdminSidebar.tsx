@@ -602,6 +602,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -629,6 +630,7 @@ import {
   Sparkles,
   XCircle
 } from 'lucide-react';
+
 
 interface SidebarProps {
   role: 'branch_admin' | 'super_admin';
@@ -990,11 +992,13 @@ export function AdminSidebar({
                   <Scissors className="h-4 w-4 text-primary" />
                 </div>
                 {isOpen && (
-                  <span className="text-lg font-sans font-bold tracking-tighter text-white mt-1">
-                    <span className="text-secondary">MAN</span>
-                    <span className="text-gray-300">OF</span>
-                    <span className="text-white">CAVE</span>
-                  </span>
+                  <Image
+                    src="/manofcavebradning.png"
+                    alt="MAN OF CAVE"
+                    width={140}
+                    height={28}
+                    className="h-6 w-auto object-contain brightness-0 invert"
+                  />
                 )}
               </Link>
               {/* Sidebar toggle button - always visible */}

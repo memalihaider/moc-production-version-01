@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { Header } from "@/components/shared/Header";
 import Link from "next/link";
+import Image from "next/image";
 import { 
   Carousel, 
   CarouselContent, 
@@ -874,7 +875,7 @@ export default function Home() {
             <span className="text-[10px] tracking-[0.3em] uppercase font-bold text-secondary">For The Modern Caveman</span>
           </div>
           
-          <h1 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-sans font-bold mb-6 leading-[1.1] tracking-tight drop-shadow-2xl">
+          <h1 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-cinzel font-bold mb-6 leading-[1.1] tracking-tight drop-shadow-2xl">
             Unleash Your <br />
             <span className="text-secondary italic">Raw</span> Potential
           </h1>
@@ -976,7 +977,7 @@ export default function Home() {
         <div className="inline-block bg-secondary/10 px-3 py-1 rounded-full">
           <span className="text-secondary font-bold tracking-[0.2em] uppercase text-[10px]">Our Signature Menu</span>
         </div>
-        <h2 className="text-3xl md:text-4xl font-sans font-bold text-primary">Bespoke Services</h2>
+        <h2 className="text-3xl md:text-4xl font-cinzel font-bold text-primary">Bespoke Services</h2>
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="text-xs border-secondary/30 text-secondary">
             {filteredServices.length} Services Available
@@ -1103,7 +1104,7 @@ export default function Home() {
         <div className="inline-block bg-secondary/20 px-3 py-1 rounded-full border border-secondary/30">
           <span className="text-secondary font-bold tracking-[0.2em] uppercase text-[10px]">Premium Apothecary</span>
         </div>
-        <h2 className="text-3xl md:text-4xl font-sans font-bold text-white">Grooming Essentials</h2>
+        <h2 className="text-3xl md:text-4xl font-cinzel font-bold text-white">Grooming Essentials</h2>
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="border-white/20 text-white text-xs">
             {filteredProducts.length} Premium Products
@@ -1221,7 +1222,7 @@ export default function Home() {
         <div className="inline-block bg-secondary/10 px-3 py-1 rounded-full">
           <span className="text-secondary font-bold tracking-[0.2em] uppercase text-[10px]">Exclusive Privileges</span>
         </div>
-        <h2 className="text-3xl md:text-4xl font-sans font-bold text-primary">Member Rewards</h2>
+        <h2 className="text-3xl md:text-4xl font-cinzel font-bold text-primary">Member Rewards</h2>
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="border-secondary/30 text-secondary text-xs">
             {filteredOffers.length} Active Offers
@@ -1364,7 +1365,7 @@ export default function Home() {
         <div className="inline-block bg-secondary/10 px-3 py-1 rounded-full">
           <span className="text-secondary font-bold tracking-[0.2em] uppercase text-[10px]">Elite Access</span>
         </div>
-        <h2 className="text-3xl md:text-4xl font-sans font-bold text-primary">Exclusive Memberships</h2>
+        <h2 className="text-3xl md:text-4xl font-cinzel font-bold text-primary">Exclusive Memberships</h2>
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="border-secondary/30 text-secondary text-xs">
             {filteredMemberships.length} Premium Plans
@@ -1515,7 +1516,7 @@ export default function Home() {
       <div className="inline-block bg-secondary/10 px-3 py-1 rounded-full mb-4">
         <span className="text-secondary font-bold tracking-[0.2em] uppercase text-[10px]">The Artisans</span>
       </div>
-      <h2 className="text-3xl md:text-4xl font-sans font-bold text-primary mb-3">Meet The Masters</h2>
+      <h2 className="text-3xl md:text-4xl font-cinzel font-bold text-primary mb-3">Meet The Masters</h2>
       <p className="text-muted-foreground max-w-2xl mx-auto font-light text-sm">
         Our barbers are more than just stylists; they are highly trained artisans dedicated to the perfection of their craft.
       </p>
@@ -1571,7 +1572,7 @@ export default function Home() {
         <div className="inline-block bg-secondary/10 px-3 py-1 rounded-full">
           <span className="text-secondary font-bold tracking-[0.2em] uppercase text-[10px]">Our Global Presence</span>
         </div>
-        <h2 className="text-3xl sm:text-4xl md:text-5xl font-sans font-bold text-primary leading-[1.1]">
+        <h2 className="text-3xl sm:text-4xl md:text-5xl font-cinzel font-bold text-primary leading-[1.1]">
           Luxury Grooming, <br /><span className="text-secondary italic">Everywhere.</span>
         </h2>
         <div className="flex items-center gap-2">
@@ -1704,39 +1705,6 @@ export default function Home() {
   </div>
 </section>
 
-      {/* Newsletter Section */}
-      <section className="py-16 md:py-32 px-4 bg-primary relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
-          <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] rounded-full bg-secondary blur-[150px] animate-pulse"></div>
-          <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] rounded-full bg-secondary blur-[150px] animate-pulse"></div>
-        </div>
-        
-        <div className="max-w-5xl mx-auto text-center relative z-10">
-          <div className="inline-block bg-secondary/20 px-4 py-1.5 rounded-full mb-6 md:mb-8 border border-secondary/30">
-            <span className="text-secondary font-black tracking-[0.3em] uppercase text-[10px]">The Inner Circle</span>
-          </div>
-          <h2 className="text-4xl sm:text-5xl md:text-7xl font-sans font-bold text-white mb-6 md:mb-10 leading-tight">
-            Join The <span className="text-secondary italic">Elite</span>
-          </h2>
-          <p className="text-base md:text-xl text-gray-400 mb-8 md:mb-16 font-light max-w-2xl mx-auto leading-relaxed">
-            Subscribe to receive exclusive invitations, grooming insights, and priority access to our most sought-after events.
-          </p>
-          
-          <div className="flex flex-col sm:flex-row gap-3 max-w-3xl mx-auto bg-white/5 p-3 rounded-2xl sm:rounded-[2.5rem] border border-white/10 backdrop-blur-xl shadow-2xl">
-            <input 
-              placeholder="Your prestigious email address" 
-              className="h-12 sm:h-16 bg-transparent text-white rounded-xl px-5 sm:px-8 focus:outline-none transition-all w-full font-light text-base sm:text-lg"
-            />
-            <Button size="lg" className="h-12 sm:h-16 bg-secondary text-primary hover:bg-white hover:scale-105 transition-all font-black px-8 sm:px-12 rounded-xl sm:rounded-[1.8rem] shrink-0 tracking-[0.2em] text-xs">
-              SUBSCRIBE NOW
-            </Button>
-          </div>
-          <p className="text-[10px] text-gray-500 mt-6 md:mt-10 uppercase tracking-[0.3em] font-bold">
-            Privacy is our priority. Unsubscribe at any time.
-          </p>
-        </div>
-      </section>
-
       {/* CTA Section */}
       <section className="relative py-20 sm:py-32 md:py-40 px-4 overflow-hidden">
         <div 
@@ -1772,9 +1740,13 @@ export default function Home() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 md:gap-16 lg:gap-20">
             <div className="space-y-10">
               <Link href="/" className="inline-block">
-                <h3 className="text-3xl font-sans font-bold tracking-tighter">
-                  Man of<span className="text-secondary">Cave</span>
-                </h3>
+                <Image
+                  src="/manofcavebradning.png"
+                  alt="MAN OF CAVE"
+                  width={300}
+                  height={80}
+                  className="h-24 w-auto object-contain brightness-0 invert"
+                />
               </Link>
               <div className="space-y-4">
                 <p className="text-gray-500 text-base leading-relaxed font-light max-w-xs">
@@ -1850,28 +1822,28 @@ export default function Home() {
                     <MapPin className="w-5 h-5" />
                   </div>
                   <span className="font-light leading-relaxed">
-                    {branches[0]?.address || "123 Luxury Way, Suite 100"}<br />
-                    {branches[0]?.city || "Financial District"}, {branches[0]?.country || "NY 10004"}
+                    {branches[0]?.address || ""}<br />
+                    {branches[0]?.city || "Abu Dhabi"} {branches[0]?.country || ""}
                   </span>
                 </li>
                 <li className="flex items-center gap-4 group">
                   <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-secondary group-hover:bg-secondary group-hover:text-primary transition-all duration-500">
                     <Phone className="w-5 h-5" />
                   </div>
-                  <span className="font-light">{branches[0]?.phone || "+1 (555) 000-1234"}</span>
+                  <span className="font-light">{branches[0]?.phone || "+971 02 550 3984"}</span>
                 </li>
                 <li className="flex items-center gap-4 group">
                   <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-secondary group-hover:bg-secondary group-hover:text-primary transition-all duration-500">
                     <Mail className="w-5 h-5" />
                   </div>
-                  <span className="font-light">{branches[0]?.email || "concierge@premiumcuts.com"}</span>
+                  <span className="font-light">{branches[0]?.email || "manofcave2024@gmail.com"}</span>
                 </li>
               </ul>
             </div>
           </div>
           
           <div className="mt-12 md:mt-32 pt-10 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4 md:gap-8 text-gray-600 text-[9px] tracking-[0.4em] font-black uppercase">
-            <p>&copy; 2026 Man of Cave. ALL RIGHTS RESERVED.</p>
+            <p>&copy; 2026 MAN OF CAVE. ALL RIGHTS RESERVED.</p>
             <div className="flex gap-12">
               <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
               <a href="#" className="hover:text-white transition-colors">Terms of Service</a>

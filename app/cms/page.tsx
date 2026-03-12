@@ -25,7 +25,7 @@ export default function LandingPageCMS() {
 
   // Mock data for CMS content
   const heroSection = {
-    title: "Man of Cave",
+    title: "MAN OF CAVE",
     subtitle: "Experience luxury grooming at our 8 locations across the city",
     ctaPrimary: "Book Now",
     ctaSecondary: "Find Location",
@@ -45,9 +45,9 @@ export default function LandingPageCMS() {
   ];
 
   const seoSettings = {
-    metaTitle: "Man of Cave - Luxury Grooming | Book Online",
-    metaDescription: "Experience luxury grooming services at Man of Cave. Professional barbers, luxury atmosphere, 8 locations across the city.",
-    keywords: "barber, haircuts, beard grooming, luxury salon, man of cave",
+    metaTitle: "MAN OF CAVE - Luxury Grooming | Book Online",
+    metaDescription: "Experience luxury grooming services at MAN OF CAVE. Professional barbers, luxury atmosphere, 8 locations across the city.",
+    keywords: "barber, haircuts, beard grooming, luxury salon, MAN OF CAVE",
   };
 
   return (

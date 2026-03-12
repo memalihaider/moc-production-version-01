@@ -136,6 +136,10 @@
   .glass {
     @apply bg-white/70 backdrop-blur-md border border-white/20 dark:bg-black/70 dark:border-white/10;
   }
+
+  .font-cinzel {
+    font-family: var(--font-cinzel), Georgia, serif;
+  }
   
   .text-balance {
     text-wrap: balance;

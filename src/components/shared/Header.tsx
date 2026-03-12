@@ -55,15 +55,20 @@ export function Header() {
           <div className="w-10 h-10 bg-primary flex items-center justify-center rounded-lg transition-all duration-300 group-hover:rotate-12 group-hover:scale-110 shadow-md overflow-hidden">
             <Image
               src="/manofcave.png"
-              alt="Man of Cave Logo"
+              alt="MAN OF CAVE Logo"
               width={40}
               height={40}
-              className="object-contain"
+              className="h-14 w-auto object-contain self-center"
             />
           </div>
-          <span className="text-xl font-sans font-bold text-primary tracking-tight">
-            Man Of <span className="text-secondary">Cave</span>
-          </span>
+          <Image
+            src="/manofcavebradning.png"
+            alt="MAN OF CAVE"
+            width={220}
+            height={44}
+            className="h-15 w-auto object-contain self-center"
+            priority
+          />
         </Link>
 
         {/* Desktop nav */}

@@ -245,7 +245,7 @@ export function ClassicTemplate({ invoice, branch }: InvoiceTemplateProps) {
         <p className="font-semibold mb-2">{branch.name}</p>
         <p>{branch.address}</p>
         <p className="mt-2">Phone: {branch.phone} | Email: {branch.email}</p>
-        <p className="mt-4 italic">Thank you for choosing Man of Cave</p>
+        <p className="mt-4 italic">Thank you for choosing MAN OF CAVE</p>
       </div>
     </div>
   );
@@ -478,7 +478,7 @@ export function PremiumTemplate({ invoice, branch }: InvoiceTemplateProps) {
 
         {/* Footer */}
         <div className="border-t-2 border-primary pt-8 text-center">
-          <p className="text-gray-600 text-sm mb-4">Thank you for your business with Man of Cave</p>
+          <p className="text-gray-600 text-sm mb-4">Thank you for your business with MAN OF CAVE</p>
           <p className="text-gray-500 text-xs">{branch.website} · {branch.phone} · {branch.email}</p>
         </div>
       </div>

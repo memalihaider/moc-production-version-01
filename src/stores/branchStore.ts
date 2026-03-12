@@ -43,6 +43,12 @@ export const useBranchStore = create<BranchStore>((set, get) => ({
   setBranches: (branches: Branch[]) => set({ branches }),
   
   fetchBranches: async () => {
+    // Skip re-fetch if already loaded
+    const current = get();
+    if (current.branches.length > 0) {
+      set({ loading: false });
+      return;
+    }
     set({ loading: true });
     try {
       const branchesRef = collection(db, 'branches');
@@ -67,7 +73,14 @@ export const useBranchStore = create<BranchStore>((set, get) => ({
         });
       });
       
-      branchesData.sort((a, b) => a.name.localeCompare(b.name));
+      // Mall branches first, then alphabetical
+      branchesData.sort((a, b) => {
+        const aMall = a.name.toLowerCase().includes('mall');
+        const bMall = b.name.toLowerCase().includes('mall');
+        if (aMall && !bMall) return -1;
+        if (!aMall && bMall) return 1;
+        return a.name.localeCompare(b.name);
+      });
       set({ branches: branchesData });
       
       // Local storage se selected branch lo agar pehle se save hai
