@@ -1714,6 +1714,8 @@ export default function AdminAppointments() {
 
             setStaffMembers(staffData.filter(s => s.branch === userBranch));
             setServices(servicesData.filter(s =>
+              // Global services (no branches assigned) are for ALL branches
+              ((!s.branches || s.branches.length === 0) && (!s.branchNames || s.branchNames.length === 0)) ||
               s.branchNames?.includes(userBranch) ||
               (adminBranchId && s.branches?.includes(adminBranchId))
             ));
@@ -1982,6 +1984,19 @@ export default function AdminAppointments() {
     return services.filter(service => {
       if (service.status !== 'active') return false;
       
+      // Global services (no branches assigned) are for ALL branches
+      if ((!service.branches || service.branches.length === 0) && 
+          (!service.branchNames || service.branchNames.length === 0)) {
+        // Still apply category filter if selected
+        if (bookingData.category) {
+          const categoryMatch = 
+            service.category === bookingData.category ||
+            (selectedCategory && service.categoryId === selectedCategory.firebaseId);
+          if (!categoryMatch) return false;
+        }
+        return true;
+      }
+      
       // Filter by branch - check both name and ID
       const selectedBranchLower = bookingData.branch.toLowerCase().trim();
       
@@ -1989,16 +2004,12 @@ export default function AdminAppointments() {
         branch.toLowerCase().trim() === selectedBranchLower
       );
       
-      const hasInBranches = service.branches?.some(branch => 
-        branch.toLowerCase().trim() === selectedBranchLower
-      );
-      
-      // Also check branch ID match
+      // Check branch ID match
       const hasInBranchIds = selectedBranch?.firebaseId && service.branches?.some(branchId => 
         branchId === selectedBranch.firebaseId
       );
       
-      const branchMatch = hasInBranchNames || hasInBranches || hasInBranchIds;
+      const branchMatch = hasInBranchNames || hasInBranchIds;
       if (!branchMatch) return false;
       
       // Filter by selected category (if one is selected) - category only filters, doesn't block

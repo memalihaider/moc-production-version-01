@@ -194,6 +194,8 @@ interface FirebaseCategory {
   branchId: string;
   branchName: string;
   branchCity: string;
+  branches: string[];
+  branchNames: string[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -566,6 +568,8 @@ const fetchCategories = async (): Promise<FirebaseCategory[]> => {
         branchId: data.branchId || "",
         branchName: data.branchName || "",
         branchCity: data.branchCity || "",
+        branches: Array.isArray(data.branches) ? data.branches : [],
+        branchNames: Array.isArray(data.branchNames) ? data.branchNames : [],
         createdAt,
         updatedAt
       };
@@ -1806,9 +1810,14 @@ export default function AdminAppointments() {
   const unreadNotifications = notifications.filter(n => !n.read).length;
 
   const fetchServicesForBranch = (branchName: string) => {
-    const filtered = services.filter(service => 
-      service.branchNames?.some(b => b === branchName) && service.status === 'active'
-    );
+    const branchObj = branches.find(b => b.name === branchName);
+    const branchId = branchObj?.firebaseId;
+    const filtered = services.filter(service => {
+      if (service.status !== 'active') return false;
+      const matchByName = service.branchNames?.some(b => b === branchName);
+      const matchById = branchId && service.branches?.some(id => id === branchId);
+      return matchByName || matchById;
+    });
     setBranchServices(filtered);
   };
 

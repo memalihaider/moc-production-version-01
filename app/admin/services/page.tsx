@@ -169,6 +169,8 @@ export default function SuperAdminServices() {
           
           if (user?.role === 'admin' && (user?.branchId || user?.branchName)) {
             filteredServices = servicesData.filter(service => {
+              // Global services (no branches assigned) are for ALL branches
+              if ((!service.branches || service.branches.length === 0) && (!service.branchNames || service.branchNames.length === 0)) return true;
               if (user.branchId && service.branches?.includes(user.branchId)) return true;
               if (user.branchName && service.branchNames?.includes(user.branchName)) return true;
               return false;
