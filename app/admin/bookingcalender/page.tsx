@@ -1951,6 +1951,7 @@ export default function AdminAppointments() {
     return services.filter(service => {
       if (service.status !== 'active') return false;
       
+      // Filter by branch
       const selectedBranchLower = bookingData.branch.toLowerCase().trim();
       
       const hasInBranchNames = service.branchNames?.some(branch => 
@@ -1961,9 +1962,20 @@ export default function AdminAppointments() {
         branch.toLowerCase().trim() === selectedBranchLower
       );
       
-      return hasInBranchNames || hasInBranches;
+      const branchMatch = hasInBranchNames || hasInBranches;
+      if (!branchMatch) return false;
+      
+      // Filter by selected category (if one is selected)
+      if (bookingData.category) {
+        const categoryMatch = 
+          service.category === bookingData.category ||
+          (selectedCategory && service.categoryId === selectedCategory.firebaseId);
+        if (!categoryMatch) return false;
+      }
+      
+      return true;
     });
-  }, [bookingData.branch, services]);
+  }, [bookingData.branch, bookingData.category, selectedCategory, services]);
 
   const filteredStaff = useMemo(() => {
     if (!bookingData.branch) return [];
@@ -4167,7 +4179,9 @@ export default function AdminAppointments() {
                             <div className="flex flex-col">
                               <span className="font-medium">{category.name}</span>
                               <span className="text-xs text-gray-500">
-                                {category.branchName || 'No branch'} • {category.branchCity || 'No city'}
+                                {category.branchNames && category.branchNames.length > 0 
+                                  ? category.branchNames.join(', ') 
+                                  : category.branchName || 'No branch'}
                               </span>
                             </div>
                           </SelectItem>
