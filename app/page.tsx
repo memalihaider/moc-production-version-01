@@ -332,7 +332,7 @@ const useHomeStore = create<HomeStore>()(
               reviews: Number(data.reviews) || 0,
               status: data.status || 'active',
               bio: data.description || data.experience || 'Professional barber with extensive experience.',
-              branchNames: Array.isArray(data.branchNames) ? data.branchNames : [],
+              branchNames: Array.isArray(data.branchNames) ? data.branchNames : (data.branch ? [data.branch] : []),
               branchId: data.branchId || '',
             });
           });
@@ -484,9 +484,9 @@ const useHomeStore = create<HomeStore>()(
               name: data.name || 'Unnamed Category',
               description: data.description || 'No description available',
               image: data.image || 'https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?q=80&w=2070&auto=format&fit=crop',
-              branchId: data.branchId || '',
-              branchName: data.branchName || 'Unknown Branch',
-              branchCity: data.branchCity || 'Unknown City',
+              branchId: data.branchId || (Array.isArray(data.branches) && data.branches.length > 0 ? data.branches[0] : ''),
+              branchName: data.branchName || (Array.isArray(data.branchNames) && data.branchNames.length > 0 ? data.branchNames[0] : 'All Branches'),
+              branchCity: data.branchCity || '',
               branches: data.branches || [],
               branchNames: data.branchNames || [],
               type: data.type || 'general',

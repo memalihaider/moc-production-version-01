@@ -668,11 +668,19 @@ const deleteProductOrderInFirebase = async (orderId: string): Promise<boolean> =
 const createBookingInFirebase = async (
   bookingData: BookingFormData,
   selectedServices: ServiceItem[],
-  addNotification: (notification: { type: 'error' | 'success' | 'warning' | 'info'; title: string; message: string }) => void
+  addNotification: (notification: { type: 'error' | 'success' | 'warning' | 'info'; title: string; message: string }) => void,
+  services: FirebaseService[],
+  branches: FirebaseBranch[]
 ): Promise<{success: boolean, bookingId?: string}> => {
   try {
     const servicesPrice = selectedServices.reduce((sum, s) => sum + s.price, 0);
     const totalAmount = servicesPrice;
+    
+    // Calculate total duration from services
+    const totalDuration = selectedServices.reduce((sum, s) => {
+      const svc = services.find(sv => sv.name === s.service);
+      return sum + (svc?.duration || 30);
+    }, 0);
     
     // ✅ BOOKING NUMBER - EXACT 2nd FORMAT
     const bookingNumber = `BOOK-${Date.now()}`;
@@ -708,10 +716,15 @@ const createBookingInFirebase = async (
     
     // ✅ MAIN BRANCH
     const mainBranch = selectedServices[0]?.branch || "Main Branch";
+    const mainBranchObj = branches.find(b => b.name === mainBranch);
+    const mainBranchId = mainBranchObj?.firebaseId || '';
     
     // ✅ FIRST SERVICE
     const firstService = selectedServices[0];
-    const firstServiceStaffId = firstService?.serviceId || "kXGNeY0fILAr1FR4niIu";
+    const firstServiceStaffId = firstService?.serviceId || "";
+    
+    // Look up service details from Firebase services list
+    const firstServiceData = services.find(s => s.name === firstService?.service);
     
     // ✅ SERVICE DETAILS ARRAY
     const serviceDetails = selectedServices.map(service => ({
@@ -767,22 +780,22 @@ const createBookingInFirebase = async (
       time: bookingTimeString,
       
       branch: mainBranch,
-      branchId: mainBranch,
+      branchId: mainBranchId,
       branchNames: [mainBranch],
-      branches: [mainBranch],
-      userBranchId: mainBranch,
+      branches: [mainBranchId],
+      userBranchId: mainBranchId,
       userBranchName: mainBranch,
       
       customerName: bookingData.customer,
       customerEmail: bookingData.email || "",
       customerPhone: bookingData.phone || "",
-      customerId: "BMM6eUOOm9gJLpB7bs0WAFcPVK63",
+      customerId: "",
       
-      serviceCategory: "Category 02",
-      serviceCategoryId: "OMKdORLeWL9HozfHtwud",
+      serviceCategory: firstServiceData?.category || "",
+      serviceCategoryId: firstServiceData?.categoryId || "",
       serviceCharges: 0,
-      serviceDuration: 22,
-      serviceId: firstServiceStaffId,
+      serviceDuration: firstServiceData?.duration || 30,
+      serviceId: firstServiceData?.firebaseId || firstServiceStaffId,
       serviceName: firstService?.service || "Classic Service",
       servicePrice: servicesPrice,
       serviceTip: 0,
@@ -790,10 +803,10 @@ const createBookingInFirebase = async (
       services: selectedServices.map(s => s.service),
       serviceDetails: serviceDetails,
       
-      staff: firstService?.staff || "Alexa",
-      staffName: firstService?.staff || "Alexa",
+      staff: firstService?.staff || "",
+      staffName: firstService?.staff || "",
       staffId: firstServiceStaffId,
-      staffRole: "Hair Barber",
+      staffRole: "Barber",
       
       teamMembers: teamMembers,
       
@@ -801,8 +814,8 @@ const createBookingInFirebase = async (
       totalAmount: totalAmount,
       price: totalAmount,
       
-      duration: "60 min",
-      totalDuration: 22,
+      duration: `${totalDuration} min`,
+      totalDuration: totalDuration,
       timeSlot: timeSlotString,
       
       // ✅ PAYMENT DETAILS - MULTIPLE METHODS WITH AMOUNTS
@@ -1905,7 +1918,7 @@ export default function AdminAppointments() {
       return;
     }
 
-    const result = await createBookingInFirebase(bookingData, selectedServices, addNotification);
+    const result = await createBookingInFirebase(bookingData, selectedServices, addNotification, services, branches);
     
     if (result.success) {
       addNotification({
