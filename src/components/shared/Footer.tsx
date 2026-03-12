@@ -4,16 +4,9 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { MapPin, Mail, Phone, Instagram, Facebook, Twitter, Linkedin, Youtube } from "lucide-react";
-import { collection, getDocs, query, limit } from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-
-interface Branch {
-  id: string;
-  name: string;
-  address: string;
-  city: string;
-  country: string;
-}
+import { useBranchStore } from "@/stores/branchStore";
 
 interface Stats {
   totalBranches: number;
@@ -23,7 +16,7 @@ interface Stats {
 }
 
 export function Footer() {
-  const [branches, setBranches] = useState<Branch[]>([]);
+  const { selectedBranch, branches } = useBranchStore();
   const [stats, setStats] = useState<Stats>({
     totalBranches: 0,
     totalServices: 0,
@@ -34,20 +27,10 @@ export function Footer() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        // Get branches
-        const branchesSnapshot = await getDocs(collection(db, "branches"));
-        setBranches(branchesSnapshot.docs.map(doc => ({
-          id: doc.id,
-          name: doc.data().name || '',
-          address: doc.data().address || '',
-          city: doc.data().city || '',
-          country: doc.data().country || ''
-        })));
-
-        // Get counts
         const servicesSnapshot = await getDocs(collection(db, "services"));
         const productsSnapshot = await getDocs(collection(db, "products"));
         const staffSnapshot = await getDocs(collection(db, "staff"));
+        const branchesSnapshot = await getDocs(collection(db, "branches"));
 
         setStats({
           totalBranches: branchesSnapshot.size,
@@ -62,6 +45,11 @@ export function Footer() {
 
     fetchStats();
   }, []);
+
+  // Determine which branch to display in contact details
+  const activeBranch = selectedBranch === 'all'
+    ? branches[0]
+    : branches.find(b => b.name === selectedBranch) ?? branches[0];
 
   return (
     <footer className="bg-primary text-white py-40 px-4 border-t border-white/5 relative overflow-hidden mt-20">
@@ -172,30 +160,35 @@ export function Footer() {
 
           <div className="space-y-12">
             <h4 className="font-black uppercase tracking-[0.5em] text-[10px] text-[#FA9DB7]">Concierge</h4>
+            {activeBranch && (
+              <p className="text-[10px] uppercase tracking-[0.3em] text-secondary/70 -mt-6 font-black transition-all duration-500">
+                {selectedBranch === 'all' ? 'All Branches' : activeBranch.name}
+              </p>
+            )}
             <ul className="space-y-10 text-white/70 text-sm font-light">
               <li className="flex items-start gap-5 group">
                 <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-[#FA9DB7] group-hover:bg-secondary group-hover:text-white transition-all duration-700 shadow-xl border border-white/5">
                   <MapPin className="w-6 h-6" />
                 </div>
-                <span className="leading-relaxed text-xs text-[#FA9DB7]">
-                  {branches[0]?.address || "123 Luxury Way"}<br />
-                  {branches[0]?.city || "Manhattan"}, {branches[0]?.country || "NY"}
+                <span className="leading-relaxed text-xs text-[#FA9DB7] transition-all duration-500">
+                  {activeBranch?.address || "Premium Location"}<br />
+                  {activeBranch?.city || ""}{activeBranch?.city && activeBranch?.country ? ", " : ""}{activeBranch?.country || ""}
                 </span>
               </li>
               <li className="flex items-center gap-5 group">
                 <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-[#FA9DB7] group-hover:bg-secondary group-hover:text-white transition-all duration-700 shadow-xl border border-white/5">
                   <Phone className="w-6 h-6" />
                 </div>
-                <a href="tel:+1234567890" className="text-xs text-[#FA9DB7] transition-colors">
-                  +971 54 535 4361
+                <a href={`tel:${activeBranch?.phone || '+97154535436'}`} className="text-xs text-[#FA9DB7] transition-colors">
+                  {activeBranch?.phone || '+971 54 535 4361'}
                 </a>
               </li>
               <li className="flex items-center gap-5 group">
                 <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-[#FA9DB7] group-hover:bg-secondary group-hover:text-white transition-all duration-700 shadow-xl border border-white/5">
                   <Mail className="w-6 h-6" />
                 </div>
-                <a href="mailto:Manofcave2020@gmail.com" className="text-xs text-[#FA9DB7] transition-colors">
-                  manofcave2020@gmail.com
+                <a href={`mailto:${activeBranch?.email || 'manofcave2020@gmail.com'}`} className="text-xs text-[#FA9DB7] transition-colors">
+                  {activeBranch?.email || 'manofcave2020@gmail.com'}
                 </a>
               </li>
             </ul>
