@@ -10,21 +10,40 @@ interface HeroSliderProps {
 }
 
 export function HeroSlider({ slides, children }: HeroSliderProps) {
+  const [mounted, setMounted] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [nextIndex, setNextIndex] = useState<number | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const inProgressRef = useRef(false);
+  const currentIndexRef = useRef(0);
   const videoRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
 
-  const totalSlides = slides.length;
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    currentIndexRef.current = currentIndex;
+  }, [currentIndex]);
+
+  const totalSlides = mounted ? slides.length : 0;
+
+  // Cross-fade: incoming slide fades in on top of the outgoing slide — no black gap
+  const goToSlide = useCallback((target: number) => {
+    if (inProgressRef.current) return;
+    inProgressRef.current = true;
+    setNextIndex(target);
+    setTimeout(() => {
+      setCurrentIndex(target);
+      setNextIndex(null);
+      inProgressRef.current = false;
+    }, 1000);
+  }, []);
 
   const goToNext = useCallback(() => {
     if (totalSlides <= 1) return;
-    setIsTransitioning(true);
-    setTimeout(() => {
-      setCurrentIndex((prev) => (prev + 1) % totalSlides);
-      setIsTransitioning(false);
-    }, 600);
-  }, [totalSlides]);
+    goToSlide((currentIndexRef.current + 1) % totalSlides);
+  }, [totalSlides, goToSlide]);
 
   // Auto-advance
   useEffect(() => {
@@ -47,14 +66,16 @@ export function HeroSlider({ slides, children }: HeroSliderProps) {
   }, [currentIndex, slides]);
 
   const handleDotClick = (index: number) => {
-    if (index === currentIndex) return;
+    if (index === currentIndex || inProgressRef.current) return;
     if (timerRef.current) clearInterval(timerRef.current);
-    setIsTransitioning(true);
-    setTimeout(() => {
-      setCurrentIndex(index);
-      setIsTransitioning(false);
-    }, 600);
+    goToSlide(index);
     timerRef.current = setInterval(goToNext, 6000);
+  };
+
+  const getSlideClasses = (index: number) => {
+    if (index === nextIndex) return 'opacity-100 z-[2]';
+    if (index === currentIndex) return 'opacity-100 z-[1]';
+    return 'opacity-0 z-0';
   };
 
   // Fallback for no slides
@@ -82,8 +103,8 @@ export function HeroSlider({ slides, children }: HeroSliderProps) {
         <div
           key={slide.id}
           className={cn(
-            'absolute inset-0 transition-opacity duration-700 ease-in-out',
-            index === currentIndex && !isTransitioning ? 'opacity-100 z-[1]' : 'opacity-0 z-0'
+            'absolute inset-0 transition-opacity duration-1000 ease-in-out',
+            getSlideClasses(index)
           )}
         >
           {slide.type === 'video' ? (

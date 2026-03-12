@@ -157,6 +157,19 @@
     animation: float 3s ease-in-out infinite;
   }
 
+  .animate-slow-zoom {
+    animation: slowZoom 8s cubic-bezier(0.4, 0, 0.2, 1) infinite alternate;
+  }
+
+  @keyframes slowZoom {
+    from {
+      transform: scale(1.05);
+    }
+    to {
+      transform: scale(1.15);
+    }
+  }
+
   @keyframes fadeIn {
     from {
       opacity: 0;

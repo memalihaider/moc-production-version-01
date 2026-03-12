@@ -149,57 +149,57 @@ export default function CustomerLogin() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
+    <div className="min-h-screen bg-gradient-to-br from-zinc-900 via-black to-zinc-900">
       
       <div className="pt-16 pb-16 px-4">
         <div className="max-w-md mx-auto">
-          {/* Premium Hero Section - #FA9DB7 Pink */}
+          {/* Premium Hero Section */}
           <div className="text-center mb-10">
-            {/* Pink Accent Line - #FA9DB7 */}
+            {/* Gold Accent Line */}
             <div className="flex justify-center mb-5">
-              <div className="w-20 h-1 bg-[#FA9DB7] rounded-full"></div>
+              <div className="w-20 h-1 bg-[#c5a059] rounded-full"></div>
             </div>
             
-            {/* Customer Portal Badge - Gray */}
+            {/* Customer Portal Badge */}
             <div className="inline-block mb-4">
-              <span className="inline-flex items-center px-5 py-2 rounded-full bg-gray-100 border border-gray-200 shadow-sm">
-                <Sparkles className="w-3.5 h-3.5 mr-2 text-[#FA9DB7]" />
-                <span className="text-gray-700 font-medium tracking-[0.2em] uppercase text-[10px]">
+              <span className="inline-flex items-center px-5 py-2 rounded-full bg-zinc-800 border border-zinc-700 shadow-sm">
+                <Sparkles className="w-3.5 h-3.5 mr-2 text-[#c5a059]" />
+                <span className="text-zinc-300 font-medium tracking-[0.2em] uppercase text-[10px]">
                   CUSTOMER PORTAL
                 </span>
               </span>
             </div>
             
-            {/* Brand Name - #FA9DB7 Pink */}
+            {/* Brand Name */}
             <h1 className="text-4xl md:text-5xl font-sans font-bold mb-3">
-              <span className="text-[#FA9DB7] italic drop-shadow-sm">
-                Jam Beauty Lounge
+              <span className="text-[#c5a059] italic drop-shadow-sm">
+                Man of Cave
               </span>
             </h1>
             
-            {/* Subtitle - Gray */}
-            <p className="text-gray-500 text-sm font-light tracking-wide">
-              Experience luxury beauty services
+            {/* Subtitle */}
+            <p className="text-zinc-400 text-sm font-light tracking-wide">
+              Premium grooming for the modern man
             </p>
           </div>
 
-          {/* Premium Card - White with #FA9DB7 Pink Accents */}
-          <Card className="border border-gray-200 bg-white shadow-xl shadow-gray-200/50 hover:shadow-2xl hover:shadow-[#FA9DB7]/20 transition-all duration-500 rounded-3xl overflow-hidden">
+          {/* Premium Card - Dark with Gold Accents */}
+          <Card className="border border-zinc-700 bg-zinc-900 shadow-xl shadow-black/50 hover:shadow-2xl hover:shadow-[#c5a059]/20 transition-all duration-500 rounded-3xl overflow-hidden">
             
-            {/* Pink Top Border - #FA9DB7 */}
-            <div className="h-1.5 w-full bg-[#FA9DB7]"></div>
+            {/* Gold Top Border */}
+            <div className="h-1.5 w-full bg-[#c5a059]"></div>
             
             <Tabs defaultValue="login" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 bg-gray-100 p-1.5 rounded-none border-b border-gray-200">
+              <TabsList className="grid w-full grid-cols-2 bg-zinc-800 p-1.5 rounded-none border-b border-zinc-700">
                 <TabsTrigger 
                   value="login" 
-                  className="rounded-xl font-semibold text-xs tracking-[0.15em] uppercase py-3 data-[state=active]:bg-[#FA9DB7] data-[state=active]:text-white data-[state=active]:shadow-md text-gray-600 hover:text-gray-900 transition-all"
+                  className="rounded-xl font-semibold text-xs tracking-[0.15em] uppercase py-3 data-[state=active]:bg-[#c5a059] data-[state=active]:text-black data-[state=active]:shadow-md text-zinc-400 hover:text-zinc-200 transition-all"
                 >
                   Sign In
                 </TabsTrigger>
                 <TabsTrigger 
                   value="register" 
-                  className="rounded-xl font-semibold text-xs tracking-[0.15em] uppercase py-3 data-[state=active]:bg-[#FA9DB7] data-[state=active]:text-white data-[state=active]:shadow-md text-gray-600 hover:text-gray-900 transition-all"
+                  className="rounded-xl font-semibold text-xs tracking-[0.15em] uppercase py-3 data-[state=active]:bg-[#c5a059] data-[state=active]:text-black data-[state=active]:shadow-md text-zinc-400 hover:text-zinc-200 transition-all"
                 >
                   Register
                 </TabsTrigger>
@@ -208,64 +208,64 @@ export default function CustomerLogin() {
               {/* Login Tab */}
               <TabsContent value="login" className="p-0">
                 <CardHeader className="pb-4 pt-8 px-8">
-                  <CardTitle className="text-2xl font-sans font-bold text-gray-800">
+                  <CardTitle className="text-2xl font-sans font-bold text-zinc-100">
                     Welcome Back
                   </CardTitle>
-                  <CardDescription className="text-gray-500">
+                  <CardDescription className="text-zinc-400">
                     Enter your credentials to access your account
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="px-8 pb-8">
                   <form onSubmit={handleLogin} className="space-y-6">
                     {error && (
-                      <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-sm">
+                      <div className="bg-red-950/50 border border-red-800 text-red-400 px-4 py-3 rounded-xl text-sm">
                         {error}
                       </div>
                     )}
                     
                     {success && (
-                      <div className="bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded-xl text-sm">
+                      <div className="bg-green-950/50 border border-green-800 text-green-400 px-4 py-3 rounded-xl text-sm">
                         {success}
                       </div>
                     )}
                     
                     <div className="space-y-2">
-                      <Label htmlFor="email" className="text-[10px] font-semibold uppercase tracking-[0.15em] text-gray-600">
+                      <Label htmlFor="email" className="text-[10px] font-semibold uppercase tracking-[0.15em] text-zinc-400">
                         Email Address
                       </Label>
                       <div className="relative group">
-                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-[#FA9DB7] transition-colors" />
+                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 group-focus-within:text-[#c5a059] transition-colors" />
                         <Input
                           id="email"
                           type="email"
                           placeholder="you@example.com"
                           value={loginData.email}
                           onChange={(e) => setLoginData({...loginData, email: e.target.value})}
-                          className="pl-11 h-14 rounded-2xl border-gray-200 bg-gray-50/50 focus:bg-white focus:ring-2 focus:ring-[#FA9DB7] focus:border-transparent transition-all"
+                          className="pl-11 h-14 rounded-2xl border-zinc-700 bg-zinc-800 text-zinc-100 placeholder:text-zinc-500 focus:bg-zinc-800 focus:ring-2 focus:ring-[#c5a059] focus:border-transparent transition-all"
                           required
                         />
                       </div>
                     </div>
                     
                     <div className="space-y-2">
-                      <Label htmlFor="password" className="text-[10px] font-semibold uppercase tracking-[0.15em] text-gray-600">
+                      <Label htmlFor="password" className="text-[10px] font-semibold uppercase tracking-[0.15em] text-zinc-400">
                         Password
                       </Label>
                       <div className="relative group">
-                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-[#FA9DB7] transition-colors" />
+                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 group-focus-within:text-[#c5a059] transition-colors" />
                         <Input
                           id="password"
                           type={showPassword ? 'text' : 'password'}
                           placeholder="Enter your password"
                           value={loginData.password}
                           onChange={(e) => setLoginData({...loginData, password: e.target.value})}
-                          className="pl-11 pr-11 h-14 rounded-2xl border-gray-200 bg-gray-50/50 focus:bg-white focus:ring-2 focus:ring-[#FA9DB7] focus:border-transparent transition-all"
+                          className="pl-11 pr-11 h-14 rounded-2xl border-zinc-700 bg-zinc-800 text-zinc-100 placeholder:text-zinc-500 focus:bg-zinc-800 focus:ring-2 focus:ring-[#c5a059] focus:border-transparent transition-all"
                           required
                         />
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#FA9DB7] transition-colors"
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-[#c5a059] transition-colors"
                         >
                           {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
@@ -274,7 +274,7 @@ export default function CustomerLogin() {
 
                     <Button 
                       type="submit" 
-                      className="relative w-full h-14 bg-[#FA9DB7] hover:bg-[#E87A9B] text-white font-semibold tracking-[0.15em] text-xs rounded-2xl transition-all duration-500 shadow-md shadow-[#FA9DB7]/30 hover:shadow-lg hover:shadow-[#FA9DB7]/40 hover:-translate-y-0.5 overflow-hidden group"
+                      className="relative w-full h-14 bg-[#c5a059] hover:bg-[#b08a45] text-black font-semibold tracking-[0.15em] text-xs rounded-2xl transition-all duration-500 shadow-md shadow-[#c5a059]/30 hover:shadow-lg hover:shadow-[#c5a059]/40 hover:-translate-y-0.5 overflow-hidden group"
                       disabled={isLoading}
                     >
                       <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-white/0 via-white/20 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></span>
@@ -283,15 +283,15 @@ export default function CustomerLogin() {
                     </Button>
                   </form>
 
-                  <div className="mt-6 pt-6 border-t border-gray-100 text-center">
-                    <p className="text-gray-500 text-sm">
+                  <div className="mt-6 pt-6 border-t border-zinc-800 text-center">
+                    <p className="text-zinc-400 text-sm">
                       Don't have an account?{' '}
-                      <Link href="#register" className="text-[#FA9DB7] font-semibold hover:text-[#E87A9B] transition-colors">
+                      <Link href="#register" className="text-[#c5a059] font-semibold hover:text-[#b08a45] transition-colors">
                         Register here
                       </Link>
                     </p>
                     <div className="mt-3">
-                      <Link href="/" className="text-gray-400 hover:text-[#FA9DB7] text-sm flex items-center justify-center gap-2 transition-colors">
+                      <Link href="/" className="text-zinc-500 hover:text-[#c5a059] text-sm flex items-center justify-center gap-2 transition-colors">
                         ← Back to Home
                       </Link>
                     </div>
@@ -302,118 +302,118 @@ export default function CustomerLogin() {
               {/* Register Tab */}
               <TabsContent value="register" className="p-0">
                 <CardHeader className="pb-4 pt-8 px-8">
-                  <CardTitle className="text-2xl font-sans font-bold text-gray-800">
+                  <CardTitle className="text-2xl font-sans font-bold text-zinc-100">
                     Create Account
                   </CardTitle>
-                  <CardDescription className="text-gray-500">
-                    Join our exclusive beauty community
+                  <CardDescription className="text-zinc-400">
+                    Join our exclusive members club
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="px-8 pb-8">
                   <form onSubmit={handleRegister} className="space-y-5">
                     {success && (
-                      <div className="bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded-xl text-sm">
+                      <div className="bg-green-950/50 border border-green-800 text-green-400 px-4 py-3 rounded-xl text-sm">
                         {success}
                       </div>
                     )}
                     
                     {error && (
-                      <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-sm">
+                      <div className="bg-red-950/50 border border-red-800 text-red-400 px-4 py-3 rounded-xl text-sm">
                         {error}
                       </div>
                     )}
                     
                     <div className="space-y-2">
-                      <Label htmlFor="name" className="text-[10px] font-semibold uppercase tracking-[0.15em] text-gray-600">
+                      <Label htmlFor="name" className="text-[10px] font-semibold uppercase tracking-[0.15em] text-zinc-400">
                         Full Name
                       </Label>
                       <div className="relative group">
-                        <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-[#FA9DB7] transition-colors" />
+                        <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 group-focus-within:text-[#c5a059] transition-colors" />
                         <Input
                           id="name"
                           type="text"
                           placeholder="John Doe"
                           value={registerData.name}
                           onChange={(e) => setRegisterData({...registerData, name: e.target.value})}
-                          className="pl-11 h-14 rounded-2xl border-gray-200 bg-gray-50/50 focus:bg-white focus:ring-2 focus:ring-[#FA9DB7] focus:border-transparent transition-all"
+                          className="pl-11 h-14 rounded-2xl border-zinc-700 bg-zinc-800 text-zinc-100 placeholder:text-zinc-500 focus:bg-zinc-800 focus:ring-2 focus:ring-[#c5a059] focus:border-transparent transition-all"
                           required
                         />
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="reg-email" className="text-[10px] font-semibold uppercase tracking-[0.15em] text-gray-600">
+                      <Label htmlFor="reg-email" className="text-[10px] font-semibold uppercase tracking-[0.15em] text-zinc-400">
                         Email Address
                       </Label>
                       <div className="relative group">
-                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-[#FA9DB7] transition-colors" />
+                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 group-focus-within:text-[#c5a059] transition-colors" />
                         <Input
                           id="reg-email"
                           type="email"
                           placeholder="you@example.com"
                           value={registerData.email}
                           onChange={(e) => setRegisterData({...registerData, email: e.target.value})}
-                          className="pl-11 h-14 rounded-2xl border-gray-200 bg-gray-50/50 focus:bg-white focus:ring-2 focus:ring-[#FA9DB7] focus:border-transparent transition-all"
+                          className="pl-11 h-14 rounded-2xl border-zinc-700 bg-zinc-800 text-zinc-100 placeholder:text-zinc-500 focus:bg-zinc-800 focus:ring-2 focus:ring-[#c5a059] focus:border-transparent transition-all"
                           required
                         />
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="phone" className="text-[10px] font-semibold uppercase tracking-[0.15em] text-gray-600">
+                      <Label htmlFor="phone" className="text-[10px] font-semibold uppercase tracking-[0.15em] text-zinc-400">
                         Phone Number
                       </Label>
                       <div className="relative group">
-                        <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-[#FA9DB7] transition-colors" />
+                        <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 group-focus-within:text-[#c5a059] transition-colors" />
                         <Input
                           id="phone"
                           type="tel"
                           placeholder="(555) 123-4567"
                           value={registerData.phone}
                           onChange={(e) => setRegisterData({...registerData, phone: e.target.value})}
-                          className="pl-11 h-14 rounded-2xl border-gray-200 bg-gray-50/50 focus:bg-white focus:ring-2 focus:ring-[#FA9DB7] focus:border-transparent transition-all"
+                          className="pl-11 h-14 rounded-2xl border-zinc-700 bg-zinc-800 text-zinc-100 placeholder:text-zinc-500 focus:bg-zinc-800 focus:ring-2 focus:ring-[#c5a059] focus:border-transparent transition-all"
                           required
                         />
                       </div>
                     </div>
                     
                     <div className="space-y-2">
-                      <Label htmlFor="reg-password" className="text-[10px] font-semibold uppercase tracking-[0.15em] text-gray-600">
+                      <Label htmlFor="reg-password" className="text-[10px] font-semibold uppercase tracking-[0.15em] text-zinc-400">
                         Password
                       </Label>
                       <div className="relative group">
-                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-[#FA9DB7] transition-colors" />
+                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 group-focus-within:text-[#c5a059] transition-colors" />
                         <Input
                           id="reg-password"
                           type={showPassword ? 'text' : 'password'}
                           placeholder="Create a password (min 6 characters)"
                           value={registerData.password}
                           onChange={(e) => setRegisterData({...registerData, password: e.target.value})}
-                          className="pl-11 h-14 rounded-2xl border-gray-200 bg-gray-50/50 focus:bg-white focus:ring-2 focus:ring-[#FA9DB7] focus:border-transparent transition-all"
+                          className="pl-11 h-14 rounded-2xl border-zinc-700 bg-zinc-800 text-zinc-100 placeholder:text-zinc-500 focus:bg-zinc-800 focus:ring-2 focus:ring-[#c5a059] focus:border-transparent transition-all"
                           required
                         />
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="confirm-password" className="text-[10px] font-semibold uppercase tracking-[0.15em] text-gray-600">
+                      <Label htmlFor="confirm-password" className="text-[10px] font-semibold uppercase tracking-[0.15em] text-zinc-400">
                         Confirm Password
                       </Label>
                       <div className="relative group">
-                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-[#FA9DB7] transition-colors" />
+                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 group-focus-within:text-[#c5a059] transition-colors" />
                         <Input
                           id="confirm-password"
                           type={showPassword ? 'text' : 'password'}
                           placeholder="Confirm your password"
                           value={registerData.confirmPassword}
                           onChange={(e) => setRegisterData({...registerData, confirmPassword: e.target.value})}
-                          className="pl-11 h-14 rounded-2xl border-gray-200 bg-gray-50/50 focus:bg-white focus:ring-2 focus:ring-[#FA9DB7] focus:border-transparent transition-all"
+                          className="pl-11 h-14 rounded-2xl border-zinc-700 bg-zinc-800 text-zinc-100 placeholder:text-zinc-500 focus:bg-zinc-800 focus:ring-2 focus:ring-[#c5a059] focus:border-transparent transition-all"
                           required
                         />
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#FA9DB7] transition-colors"
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-[#c5a059] transition-colors"
                         >
                           {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
@@ -422,7 +422,7 @@ export default function CustomerLogin() {
 
                     <Button 
                       type="submit" 
-                      className="relative w-full h-14 bg-[#FA9DB7] hover:bg-[#E87A9B] text-white font-semibold tracking-[0.15em] text-xs rounded-2xl transition-all duration-500 shadow-md shadow-[#FA9DB7]/30 hover:shadow-lg hover:shadow-[#FA9DB7]/40 hover:-translate-y-0.5 overflow-hidden group"
+                      className="relative w-full h-14 bg-[#c5a059] hover:bg-[#b08a45] text-black font-semibold tracking-[0.15em] text-xs rounded-2xl transition-all duration-500 shadow-md shadow-[#c5a059]/30 hover:shadow-lg hover:shadow-[#c5a059]/40 hover:-translate-y-0.5 overflow-hidden group"
                       disabled={isLoading}
                     >
                       <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-white/0 via-white/20 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></span>
@@ -437,10 +437,10 @@ export default function CustomerLogin() {
 
          
           
-          {/* Footer Note - Gray */}
+          {/* Footer Note */}
           <div className="text-center mt-8">
-            <p className="text-gray-400 text-xs">
-              © 2026 Jam Beauty Lounge. All rights reserved.
+            <p className="text-zinc-500 text-xs">
+              © 2026 Man of Cave. All rights reserved.
             </p>
           </div>
         </div>
