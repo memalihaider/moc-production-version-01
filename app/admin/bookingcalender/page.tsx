@@ -165,6 +165,8 @@ interface FirebaseCategory {
   branchId: string;
   branchName: string;
   branchCity: string;
+  branches?: string[];
+  branchNames?: string[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -569,6 +571,8 @@ const fetchCategories = async (): Promise<FirebaseCategory[]> => {
         branchId: data.branchId || "",
         branchName: data.branchName || "",
         branchCity: data.branchCity || "",
+        branches: data.branches || [],
+        branchNames: data.branchNames || [],
         createdAt,
         updatedAt
       };
