@@ -628,7 +628,8 @@ import {
   TrendingUp,
   Wrench,
   Sparkles,
-  XCircle
+  XCircle,
+  Layout
 } from 'lucide-react';
 
 
@@ -880,6 +881,12 @@ const superAdminNavItems = [
     icon: Wrench,
     pageKey: 'admin_tools',
     children: [
+      {
+        title: 'CMS',
+        href: '/super-admin/cms',
+        icon: Layout,
+        pageKey: 'cms'
+      },
       {
         title: 'Blogs',
         href: '/super-admin/blogs',

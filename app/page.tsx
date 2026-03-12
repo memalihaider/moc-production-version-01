@@ -37,6 +37,8 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useBranchStore } from '@/stores/branchStore';
+import { useCMSStore } from '@/stores/cms.store';
+import { HeroSlider } from '@/components/shared/HeroSlider';
 
 // ==================== STORE DEFINITION ====================
 interface Service {
@@ -569,6 +571,26 @@ export default function Home() {
     fetchHomeData();
   }, [fetchHomeData]);
 
+  // CMS data
+  const { 
+    fetchCMSData, getActiveHeroSlides, getSectionByKey, settings: cmsSettings 
+  } = useCMSStore();
+
+  useEffect(() => {
+    fetchCMSData();
+  }, [fetchCMSData]);
+
+  const heroSlides = getActiveHeroSlides();
+  const svcSection = getSectionByKey('services');
+  const prodSection = getSectionByKey('products');
+  const offersSection = getSectionByKey('offers');
+  const memberSection = getSectionByKey('memberships');
+  const staffSection = getSectionByKey('staff');
+  const branchSection = getSectionByKey('branches');
+  const ctaSection = getSectionByKey('cta');
+  const featuredSection = getSectionByKey('featured_in');
+  const featuredBrands = (featuredSection?.extraData?.brands || 'GQ,VOGUE,ESQUIRE,FORBES,MEN\'S HEALTH').split(',').map(b => b.trim());
+
   // Show branch notification when selected branch changes
   useEffect(() => {
     if (selectedBranch !== 'all') {
@@ -781,7 +803,7 @@ export default function Home() {
       <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-4">
         {/* WhatsApp */}
         <a 
-          href="https://wa.me/923001234567" 
+          href={`https://wa.me/${cmsSettings.whatsappNumber.replace(/[^0-9]/g, '')}`} 
           target="_blank" 
           rel="noopener noreferrer"
           className="flex items-center justify-center w-12 h-12 bg-white rounded-full shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-110"
@@ -797,7 +819,7 @@ export default function Home() {
   
         {/* Phone */}
         <a 
-          href="tel:+1234567890"
+          href={`tel:${cmsSettings.phoneNumber}`}
           className="flex items-center justify-center w-12 h-12 bg-blue-500 rounded-full shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-110"
           title="Call Now"
         >
@@ -858,26 +880,16 @@ export default function Home() {
       )}
 
       {/* Hero Section */}
-      <section className="relative h-[85vh] flex items-center justify-center overflow-hidden mt-[3.5rem]">
-        <div 
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat scale-105 animate-slow-zoom"
-          style={{ 
-            backgroundImage: "url('https://images.unsplash.com/photo-1503951914875-452162b0f3f1?q=80&w=2070&auto=format&fit=crop')",
-          }}
-        >
-          <div className="absolute inset-0 bg-linear-to-b from-black/70 via-black/40 to-black/70 backdrop-blur-[2px]"></div>
-          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20"></div>
-        </div>
-        
-        <div className="relative z-10 text-center text-white px-4 max-w-5xl mx-auto">
+      <HeroSlider slides={heroSlides}>
+        <div className="text-center text-white px-4 max-w-5xl mx-auto">
           <div className="inline-flex items-center gap-2 mb-6 bg-white/10 backdrop-blur-md border border-white/20 rounded-full px-4 py-1.5 animate-fade-in">
             <div className="w-2 h-2 rounded-full bg-secondary animate-pulse"></div>
-            <span className="text-[10px] tracking-[0.3em] uppercase font-bold text-secondary">For The Modern Caveman</span>
+            <span className="text-[10px] tracking-[0.3em] uppercase font-bold text-secondary">{cmsSettings.heroTagline}</span>
           </div>
           
           <h1 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-cinzel font-bold mb-6 leading-[1.1] tracking-tight drop-shadow-2xl">
-            Unleash Your <br />
-            <span className="text-secondary italic">Raw</span> Potential
+            {heroSlides[0]?.heading || 'Unleash Your'} <br />
+            <span className="text-secondary italic">{heroSlides[0]?.subHeading || 'Raw Potential'}</span>
           </h1>
           
           {/* ✅ Branch Info in Hero */}
@@ -894,20 +906,14 @@ export default function Home() {
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center w-full">
             <Button size="lg" asChild className="w-full sm:w-auto bg-secondary hover:bg-secondary/90 text-primary font-bold px-8 py-5 sm:px-10 sm:py-7 text-sm sm:text-base rounded-xl transition-all duration-500 shadow-[0_0_30px_rgba(197,160,89,0.3)] hover:shadow-[0_0_50px_rgba(197,160,89,0.5)] hover:scale-105 active:scale-95">
-              <Link href="/services">RESERVE YOUR SERVICE</Link>
+              <Link href={heroSlides[0]?.ctaLink || '/services'}>{heroSlides[0]?.ctaText || 'RESERVE YOUR SERVICE'}</Link>
             </Button>
             <Button size="lg" variant="outline" asChild className="w-full sm:w-auto border-white/30 text-primary hover:bg-white hover:text-primary px-8 py-5 sm:px-10 sm:py-7 text-sm sm:text-base rounded-xl transition-all duration-500 backdrop-blur-sm hover:scale-105 active:scale-95">
-              <Link href="/services">VIEW OUR MENU</Link>
+              <Link href={heroSlides[0]?.ctaSecondaryLink || '/services'}>{heroSlides[0]?.ctaSecondaryText || 'VIEW OUR MENU'}</Link>
             </Button>
           </div>
         </div>
-
-        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 animate-bounce hidden md:block">
-          <div className="w-6 h-10 rounded-full border-2 border-white/30 flex justify-center p-1">
-            <div className="w-1 h-2 bg-secondary rounded-full"></div>
-          </div>
-        </div>
-      </section>
+      </HeroSlider>
 
       {/* Stats Section */}
       <section className="py-8 md:py-10 border-b border-gray-100 bg-white relative z-20 -mt-6 md:-mt-10 mx-3 md:mx-10 rounded-2xl shadow-2xl">
@@ -957,27 +963,30 @@ export default function Home() {
       </section>
 
       {/* Featured In Section */}
+      {featuredSection?.isVisible !== false && (
       <section className="py-10 md:py-12 bg-white border-b border-gray-50">
         <div className="max-w-7xl mx-auto px-4">
-          <p className="text-center text-[10px] uppercase tracking-[0.4em] text-muted-foreground mb-6 md:mb-8 font-bold">As Featured In</p>
+          <p className="text-center text-[10px] uppercase tracking-[0.4em] text-muted-foreground mb-6 md:mb-8 font-bold">{featuredSection?.subHeading || 'As Featured In'}</p>
           <div className="flex flex-wrap justify-center items-center gap-6 sm:gap-10 md:gap-20 opacity-40 grayscale hover:grayscale-0 transition-all duration-700">
-            {['GQ', 'VOGUE', 'ESQUIRE', 'FORBES', 'MEN\'S HEALTH'].map((brand) => (
+            {featuredBrands.map((brand) => (
               <span key={brand} className="text-xl sm:text-2xl md:text-3xl font-sans font-black tracking-tighter text-primary">{brand}</span>
             ))}
           </div>
         </div>
       </section>
+      )}
 
 
      {/* Services Section */}
+{(svcSection?.isVisible !== false) && (
 <section className="py-16 px-4 bg-gray-50">
   <div className="max-w-7xl mx-auto">
     <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-4">
       <div className="space-y-2">
         <div className="inline-block bg-secondary/10 px-3 py-1 rounded-full">
-          <span className="text-secondary font-bold tracking-[0.2em] uppercase text-[10px]">Our Signature Menu</span>
+          <span className="text-secondary font-bold tracking-[0.2em] uppercase text-[10px]">{svcSection?.badgeText || 'Signature Collection'}</span>
         </div>
-        <h2 className="text-3xl md:text-4xl font-cinzel font-bold text-primary">Bespoke Services</h2>
+        <h2 className="text-3xl md:text-4xl font-cinzel font-bold text-primary">{svcSection?.heading || 'Bespoke Services'}</h2>
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="text-xs border-secondary/30 text-secondary">
             {filteredServices.length} Services Available
@@ -991,8 +1000,8 @@ export default function Home() {
         </div>
       </div>
       <Button asChild variant="outline" className="border-primary text-primary hover:bg-primary hover:text-white rounded-full px-6 py-3 text-xs font-bold tracking-widest group transition-all duration-500">
-        <Link href="/services" className="flex items-center">
-          VIEW ALL <ChevronRight className="ml-1 w-3 h-3 transition-transform group-hover:translate-x-1" />
+        <Link href={svcSection?.ctaLink || '/services'} className="flex items-center">
+          {svcSection?.ctaText || 'VIEW ALL'} <ChevronRight className="ml-1 w-3 h-3 transition-transform group-hover:translate-x-1" />
         </Link>
       </Button>
     </div>
@@ -1095,16 +1104,18 @@ export default function Home() {
     )}
   </div>
 </section>
+)}
      {/* Products Section */}
+{(prodSection?.isVisible !== false) && (
 <section className="py-20 px-4 bg-[#0f0f0f] text-white relative overflow-hidden">
   <div className="absolute top-0 right-0 w-1/2 h-full bg-secondary/5 blur-[150px] pointer-events-none"></div>
   <div className="max-w-7xl mx-auto relative z-10">
     <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
       <div className="space-y-3">
         <div className="inline-block bg-secondary/20 px-3 py-1 rounded-full border border-secondary/30">
-          <span className="text-secondary font-bold tracking-[0.2em] uppercase text-[10px]">Premium Apothecary</span>
+          <span className="text-secondary font-bold tracking-[0.2em] uppercase text-[10px]">{prodSection?.badgeText || 'Premium Apothecary'}</span>
         </div>
-        <h2 className="text-3xl md:text-4xl font-cinzel font-bold text-white">Grooming Essentials</h2>
+        <h2 className="text-3xl md:text-4xl font-cinzel font-bold text-white">{prodSection?.heading || 'Grooming Essentials'}</h2>
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="border-white/20 text-white text-xs">
             {filteredProducts.length} Premium Products
@@ -1211,18 +1222,20 @@ export default function Home() {
     )}
   </div>
 </section>
+)}
 
     
     {/* Offers Section */}
+{(offersSection?.isVisible !== false) && (
 <section className="py-16 px-4 bg-gray-50/50 relative overflow-hidden">
   <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-[0.03] pointer-events-none"></div>
   <div className="max-w-7xl mx-auto relative z-10">
     <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-4">
       <div className="space-y-2">
         <div className="inline-block bg-secondary/10 px-3 py-1 rounded-full">
-          <span className="text-secondary font-bold tracking-[0.2em] uppercase text-[10px]">Exclusive Privileges</span>
+          <span className="text-secondary font-bold tracking-[0.2em] uppercase text-[10px]">{offersSection?.badgeText || 'Active Promotions'}</span>
         </div>
-        <h2 className="text-3xl md:text-4xl font-cinzel font-bold text-primary">Member Rewards</h2>
+        <h2 className="text-3xl md:text-4xl font-cinzel font-bold text-primary">{offersSection?.heading || 'Member Rewards'}</h2>
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="border-secondary/30 text-secondary text-xs">
             {filteredOffers.length} Active Offers
@@ -1236,7 +1249,7 @@ export default function Home() {
         </div>
       </div>
       <p className="text-muted-foreground max-w-md text-sm font-light">
-        Unlock premium benefits and exclusive savings designed for our most loyal patrons.
+        {offersSection?.description || 'Unlock premium benefits and exclusive savings designed for our most loyal patrons.'}
       </p>
     </div>
     
@@ -1355,17 +1368,19 @@ export default function Home() {
     )}
   </div>
 </section>
+)}
 
      {/* Memberships Section */}
+{(memberSection?.isVisible !== false) && (
 <section className="py-16 px-4 bg-white relative overflow-hidden">
   <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/diamond.png')] opacity-[0.02] pointer-events-none"></div>
   <div className="max-w-7xl mx-auto relative z-10">
     <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-4">
       <div className="space-y-2">
         <div className="inline-block bg-secondary/10 px-3 py-1 rounded-full">
-          <span className="text-secondary font-bold tracking-[0.2em] uppercase text-[10px]">Elite Access</span>
+          <span className="text-secondary font-bold tracking-[0.2em] uppercase text-[10px]">{memberSection?.badgeText || 'Elite Access'}</span>
         </div>
-        <h2 className="text-3xl md:text-4xl font-cinzel font-bold text-primary">Exclusive Memberships</h2>
+        <h2 className="text-3xl md:text-4xl font-cinzel font-bold text-primary">{memberSection?.heading || 'Exclusive Memberships'}</h2>
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="border-secondary/30 text-secondary text-xs">
             {filteredMemberships.length} Premium Plans
@@ -1379,7 +1394,7 @@ export default function Home() {
         </div>
       </div>
       <p className="text-muted-foreground max-w-md text-sm font-light">
-        Join our elite community and unlock unprecedented benefits, priority access, and exclusive privileges.
+        {memberSection?.description || 'Join our elite community and unlock unprecedented benefits, priority access, and exclusive privileges.'}
       </p>
     </div>
     
@@ -1507,18 +1522,20 @@ export default function Home() {
     )}
   </div>
 </section>
+)}
 
      
      {/* Staff Section */}
+{(staffSection?.isVisible !== false) && (
 <section className="py-16 px-4 bg-gray-50/50 overflow-hidden relative">
   <div className="max-w-7xl mx-auto relative z-10">
     <div className="text-center mb-10">
       <div className="inline-block bg-secondary/10 px-3 py-1 rounded-full mb-4">
-        <span className="text-secondary font-bold tracking-[0.2em] uppercase text-[10px]">The Artisans</span>
+        <span className="text-secondary font-bold tracking-[0.2em] uppercase text-[10px]">{staffSection?.badgeText || 'The Artisans'}</span>
       </div>
-      <h2 className="text-3xl md:text-4xl font-cinzel font-bold text-primary mb-3">Meet The Masters</h2>
+      <h2 className="text-3xl md:text-4xl font-cinzel font-bold text-primary mb-3">{staffSection?.heading || 'Meet The Masters'}</h2>
       <p className="text-muted-foreground max-w-2xl mx-auto font-light text-sm">
-        Our barbers are more than just stylists; they are highly trained artisans dedicated to the perfection of their craft.
+        {staffSection?.description || 'Our barbers are more than just stylists; they are highly trained artisans dedicated to the perfection of their craft.'}
       </p>
       {selectedBranch !== 'all' && (
         <div className="flex items-center justify-center gap-2 mt-3">
@@ -1562,18 +1579,20 @@ export default function Home() {
     )}
   </div>
 </section>
+)}
 
      {/* Branches Section */}
+{(branchSection?.isVisible !== false) && (
 <section className="py-12 md:py-20 px-4 bg-white relative overflow-hidden">
   <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-[0.02] pointer-events-none"></div>
   <div className="max-w-7xl mx-auto relative z-10">
     <div className="flex flex-col md:flex-row items-end justify-between mb-12 gap-6">
       <div className="space-y-3">
         <div className="inline-block bg-secondary/10 px-3 py-1 rounded-full">
-          <span className="text-secondary font-bold tracking-[0.2em] uppercase text-[10px]">Our Global Presence</span>
+          <span className="text-secondary font-bold tracking-[0.2em] uppercase text-[10px]">{branchSection?.badgeText || 'Our Locations'}</span>
         </div>
         <h2 className="text-3xl sm:text-4xl md:text-5xl font-cinzel font-bold text-primary leading-[1.1]">
-          Luxury Grooming, <br /><span className="text-secondary italic">Everywhere.</span>
+          {branchSection?.heading || 'Luxury Grooming,'} <br /><span className="text-secondary italic">{branchSection?.subHeading || 'Everywhere.'}</span>
         </h2>
         <div className="flex items-center gap-2">
          
@@ -1694,8 +1713,8 @@ export default function Home() {
         {/* Explore All Button */}
         <div className="text-center mt-10">
           <Button asChild className="bg-primary hover:bg-primary/90 text-white px-8 py-6 rounded-xl group shadow-xl transition-all duration-500 hover:scale-105">
-            <Link href="/branches" className="flex items-center justify-center gap-2 font-bold tracking-wider text-xs">
-              EXPLORE ALL BRANCHES 
+            <Link href={branchSection?.ctaLink || '/branches'} className="flex items-center justify-center gap-2 font-bold tracking-wider text-xs">
+              {branchSection?.ctaText || 'EXPLORE ALL BRANCHES'} 
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </Link>
           </Button>
@@ -1704,8 +1723,10 @@ export default function Home() {
     )}
   </div>
 </section>
+)}
 
       {/* CTA Section */}
+      {(ctaSection?.isVisible !== false) && (
       <section className="relative py-20 sm:py-32 md:py-40 px-4 overflow-hidden">
         <div 
           className="absolute inset-0 bg-cover bg-center scale-110"
@@ -1716,22 +1737,23 @@ export default function Home() {
         
         <div className="relative z-10 max-w-5xl mx-auto text-center text-white space-y-8 md:space-y-12">
           <h2 className="text-4xl sm:text-6xl md:text-8xl font-sans font-bold leading-[1.1] tracking-tight">
-            Your Chair <br />
-            <span className="text-secondary italic">Awaits.</span>
+            {ctaSection?.heading || 'Your Chair'} <br />
+            <span className="text-secondary italic">{ctaSection?.subHeading || 'Awaits.'}</span>
           </h2>
           <p className="text-base sm:text-xl md:text-2xl text-gray-300 max-w-3xl mx-auto font-light leading-relaxed">
-            Step into a world where time slows down and style takes center stage. Experience the pinnacle of luxury grooming today.
+            {ctaSection?.description || 'Step into a world where time slows down and style takes center stage. Experience the pinnacle of luxury grooming today.'}
           </p>
           <div className="flex flex-col sm:flex-row gap-4 sm:gap-8 justify-center pt-4 sm:pt-8">
             <Button size="lg" asChild className="w-full sm:w-auto bg-secondary hover:bg-white text-primary font-black px-8 py-6 sm:px-14 sm:py-10 text-sm rounded-2xl shadow-[0_20px_50px_rgba(197,160,89,0.3)] transition-all duration-500 hover:scale-110 tracking-[0.2em]">
-              <Link href="/services">BOOK APPOINTMENT</Link>
+              <Link href={ctaSection?.ctaLink || '/services'}>{ctaSection?.ctaText || 'BOOK APPOINTMENT'}</Link>
             </Button>
             <Button size="lg" variant="outline" asChild className="w-full sm:w-auto border-white/30 text-primary hover:bg-white hover:text-primary px-8 py-6 sm:px-14 sm:py-10 text-sm rounded-2xl backdrop-blur-md transition-all duration-500 hover:scale-110 tracking-[0.2em]">
-              <Link href="/login">JOIN THE CLUB</Link>
+              <Link href={ctaSection?.ctaSecondaryLink || '/login'}>{ctaSection?.ctaSecondaryText || 'JOIN THE CLUB'}</Link>
             </Button>
           </div>
         </div>
       </section>
+      )}
 
       {/* Footer */}
       <footer className="bg-[#050505] text-white py-16 md:py-32 px-4 border-t border-white/5 relative overflow-hidden">
@@ -1750,7 +1772,7 @@ export default function Home() {
               </Link>
               <div className="space-y-4">
                 <p className="text-gray-500 text-base leading-relaxed font-light max-w-xs">
-                  The city's premier destination for luxury grooming and traditional barbering since 2020.
+                  {cmsSettings.footerDescription}
                 </p>
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-2">
@@ -1843,7 +1865,7 @@ export default function Home() {
           </div>
           
           <div className="mt-12 md:mt-32 pt-10 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4 md:gap-8 text-gray-600 text-[9px] tracking-[0.4em] font-black uppercase">
-            <p>&copy; 2026 MAN OF CAVE. ALL RIGHTS RESERVED.</p>
+            <p>{cmsSettings.copyrightText}</p>
             <div className="flex gap-12">
               <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
               <a href="#" className="hover:text-white transition-colors">Terms of Service</a>
