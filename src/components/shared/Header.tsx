@@ -61,14 +61,14 @@ export function Header() {
               className="h-14 w-auto object-contain self-center"
             />
           </div>
-          <Image
+          {/* <Image
             src="/manofcavebradning.png"
             alt="MAN OF CAVE"
-            width={220}
-            height={44}
-            className="h-15 w-auto object-contain self-center"
+            width={200}
+            height={40}
+            className="h-10 w-auto object-contain self-center"
             priority
-          />
+          /> */}
         </Link>
 
         {/* Desktop nav */}
