@@ -536,6 +536,9 @@ const useHomeStore = create<HomeStore>()(
 // ==================== MAIN COMPONENT ====================
 export default function Home() {
   const { selectedBranch, branches: allBranches } = useBranchStore();
+  const activeBranch = selectedBranch === 'all'
+    ? allBranches[0]
+    : allBranches.find(b => b.name === selectedBranch) ?? allBranches[0];
   
   const { 
     services, 
@@ -1837,28 +1840,37 @@ export default function Home() {
             </div>
 
             <div>
-              <h4 className="font-black mb-10 uppercase tracking-[0.3em] text-[10px] text-secondary">Headquarters</h4>
+              <h4 className="font-black mb-2 uppercase tracking-[0.3em] text-[10px] text-secondary">Headquarters</h4>
+              {activeBranch && (
+                <p className="text-[10px] uppercase tracking-[0.3em] text-secondary/60 font-black mb-8 transition-all duration-500">
+                  {selectedBranch === 'all' ? 'All Branches' : activeBranch.name}
+                </p>
+              )}
               <ul className="space-y-8 text-gray-400 text-sm font-medium">
                 <li className="flex items-start gap-4 group">
                   <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-secondary group-hover:bg-secondary group-hover:text-primary transition-all duration-500">
                     <MapPin className="w-5 h-5" />
                   </div>
-                  <span className="font-light leading-relaxed">
-                    {branches[0]?.address || ""}<br />
-                    {branches[0]?.city || "Abu Dhabi"} {branches[0]?.country || ""}
+                  <span className="font-light leading-relaxed transition-all duration-500">
+                    {activeBranch?.address || ""}<br />
+                    {activeBranch?.city || "Abu Dhabi"}{activeBranch?.city && activeBranch?.country ? " " : ""}{activeBranch?.country || ""}
                   </span>
                 </li>
                 <li className="flex items-center gap-4 group">
                   <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-secondary group-hover:bg-secondary group-hover:text-primary transition-all duration-500">
                     <Phone className="w-5 h-5" />
                   </div>
-                  <span className="font-light">{branches[0]?.phone || "+971 02 550 3984"}</span>
+                  <a href={`tel:${activeBranch?.phone || '+971 02 550 3984'}`} className="font-light transition-colors hover:text-secondary">
+                    {activeBranch?.phone || "+971 02 550 3984"}
+                  </a>
                 </li>
                 <li className="flex items-center gap-4 group">
                   <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-secondary group-hover:bg-secondary group-hover:text-primary transition-all duration-500">
                     <Mail className="w-5 h-5" />
                   </div>
-                  <span className="font-light">{branches[0]?.email || "manofcave2024@gmail.com"}</span>
+                  <a href={`mailto:${activeBranch?.email || 'manofcave2024@gmail.com'}`} className="font-light transition-colors hover:text-secondary">
+                    {activeBranch?.email || "manofcave2024@gmail.com"}
+                  </a>
                 </li>
               </ul>
             </div>
