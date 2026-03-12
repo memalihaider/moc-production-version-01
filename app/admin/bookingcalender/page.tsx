@@ -1533,12 +1533,12 @@ export default function AdminAppointments() {
     cardLast4Digits: '',
     trnNumber: '',
     category: '',
-    branch: ''
+    branch: (user?.role === 'admin' && user?.branchName) ? user.branchName : ''
   });
 
-  // Auto-set branch for branch admins once branches are loaded
+  // Auto-set branch for branch admins (fallback if loadFirebaseData hasn't set it)
   useEffect(() => {
-    if (user?.role === 'admin' && user?.branchName && branches.length > 0) {
+    if (user?.role === 'admin' && user?.branchName && branches.length > 0 && !bookingData.branch) {
       const adminBranch = branches.find(b => b.name === user.branchName);
       if (adminBranch) {
         setSelectedBranch(adminBranch);
@@ -1711,6 +1711,15 @@ export default function AdminAppointments() {
             // For branch admin, show only their branch
             const adminBranch = branchesData.find(b => b.name === userBranch);
             setBranches(adminBranch ? [adminBranch] : branchesData);
+            
+            // Auto-set branch in booking form immediately (no race condition)
+            if (adminBranch) {
+              setSelectedBranch(adminBranch);
+              setBookingData(prev => ({
+                ...prev,
+                branch: userBranch
+              }));
+            }
           } else {
             setStaffMembers(staffData);
             setServices(servicesData);
@@ -1924,13 +1933,14 @@ export default function AdminAppointments() {
       
       // Global categories (no branches assigned) are always visible
       if (!category.branches || category.branches.length === 0) {
-        // If also no old branchId/branchName, it's truly global
         if (!category.branchId && !category.branchName) return true;
       }
       
-      // NEW: Check multi-branch array first
-      if (selectedBranch?.firebaseId && category.branches && category.branches.length > 0) {
-        if (category.branches.includes(selectedBranch.firebaseId)) return true;
+      // Check multi-branch arrays (by ID and by name)
+      if (category.branches && category.branches.length > 0) {
+        if (selectedBranch?.firebaseId && category.branches.includes(selectedBranch.firebaseId)) return true;
+        // Also check branchNames array (works even when selectedBranch object isn't loaded yet)
+        if (category.branchNames && category.branchNames.includes(bookingData.branch)) return true;
       }
       
       // Backward compat: check old branchId field
