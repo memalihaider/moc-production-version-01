@@ -117,3 +117,37 @@ I0312 16:42:16.355098   49918 dev.go:104] Listening on address (HTTP + gRPC): 12
  {"metadata":{"emulator":{"name":"dataconnect"},"message":"I0312 16:42:16.748321   49918 engine.go:210] [projects/emulator/locations/emulator/services/jbl01 93b0] ExecuteGraphqlRead query IntrospectionQuery: succeeded. \n"}}
 [debug] [2026-03-12T11:42:17.280Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects 200
 [debug] [2026-03-12T11:42:17.281Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects [omitted]
+[debug] [2026-03-12T13:35:36.517Z] [Firebase Plugin] Value of process.env.MONOSPACE_ENV: undefined
+[debug] [2026-03-12T13:35:36.518Z] [Firebase Plugin] requireAuthWrapper
+[debug] [2026-03-12T13:35:36.522Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-03-12T13:35:36.522Z] > authorizing via signed-in user (largifysolutions@gmail.com)
+[debug] [2026-03-12T13:35:36.524Z] Checked if tokens are valid: false, expires at: 1773319335228
+[debug] [2026-03-12T13:35:36.524Z] Checked if tokens are valid: false, expires at: 1773319335228
+[debug] [2026-03-12T13:35:36.524Z] > refreshing access token with scopes: []
+[debug] [2026-03-12T13:35:36.528Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-03-12T13:35:36.529Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-03-12T13:35:36.534Z] [Firebase Plugin] Value of process.env.MONOSPACE_ENV: undefined
+[debug] [2026-03-12T13:35:36.534Z] [Firebase Plugin] requireAuthWrapper
+[debug] [2026-03-12T13:35:36.535Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-03-12T13:35:36.535Z] > authorizing via signed-in user (largifysolutions@gmail.com)
+[debug] [2026-03-12T13:35:36.536Z] Checked if tokens are valid: false, expires at: 1773319335228
+[debug] [2026-03-12T13:35:36.536Z] Checked if tokens are valid: false, expires at: 1773319335228
+[debug] [2026-03-12T13:35:36.536Z] > refreshing access token with scopes: []
+[debug] [2026-03-12T13:35:36.536Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-03-12T13:35:36.536Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-03-12T13:35:37.537Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2026-03-12T13:35:37.537Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-03-12T13:35:37.590Z] [Firebase Plugin] User found:  largifysolutions@gmail.com
+[info] [Firebase Plugin] (Core:Project) New user detected, fetching projects
+[debug] [2026-03-12T13:35:37.591Z] Checked if tokens are valid: true, expires at: 1773326136537
+[debug] [2026-03-12T13:35:37.595Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects pageSize=1000
+[debug] [2026-03-12T13:35:37.606Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2026-03-12T13:35:37.607Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-03-12T13:35:37.651Z] [Firebase Plugin] User found:  largifysolutions@gmail.com
+[info] [Firebase Plugin] (Core:Project) New user detected, fetching projects
+[debug] [2026-03-12T13:35:37.651Z] Checked if tokens are valid: true, expires at: 1773326136607
+[debug] [2026-03-12T13:35:37.652Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects pageSize=1000
+[debug] [2026-03-12T13:35:38.785Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects 200
+[debug] [2026-03-12T13:35:38.786Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects [omitted]
+[debug] [2026-03-12T13:35:38.788Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects 200
+[debug] [2026-03-12T13:35:38.788Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects [omitted]

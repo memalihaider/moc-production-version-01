@@ -1705,7 +1705,9 @@ export default function AdminAppointments() {
             setServices(servicesData.filter(s =>
               s.branchNames?.includes(userBranch) || s.branches?.includes(userBranch)
             ));
-            setCategories(categoriesData.filter(c => c.branchName === userBranch));
+            setCategories(categoriesData.filter(c =>
+              c.branchNames?.includes(userBranch) || c.branches?.includes(userBranch) || c.branchName === userBranch
+            ));
             // For branch admin, show only their branch
             const adminBranch = branchesData.find(b => b.name === userBranch);
             setBranches(adminBranch ? [adminBranch] : branchesData);
