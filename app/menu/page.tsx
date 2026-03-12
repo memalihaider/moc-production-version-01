@@ -106,10 +106,26 @@ export default function MenuPage() {
     : branches.find(b => b.name === selectedBranch)?.name || selectedBranch;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white relative overflow-hidden">
+      {/* Luxury Background Elements */}
+      <div className="fixed inset-0 pointer-events-none z-0">
+        {/* Subtle gradient orbs */}
+        <div className="absolute top-1/4 -left-32 w-96 h-96 bg-secondary/5 rounded-full blur-3xl animate-[pulse_8s_ease-in-out_infinite]" />
+        <div className="absolute top-2/3 -right-32 w-80 h-80 bg-primary/5 rounded-full blur-3xl animate-[pulse_10s_ease-in-out_infinite_2s]" />
+        <div className="absolute bottom-1/4 left-1/3 w-64 h-64 bg-secondary/3 rounded-full blur-3xl animate-[pulse_12s_ease-in-out_infinite_4s]" />
+        
+        {/* Diamond pattern overlay */}
+        <div className="absolute inset-0 opacity-[0.015]" style={{ backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 35px, currentColor 35px, currentColor 36px), repeating-linear-gradient(-45deg, transparent, transparent 35px, currentColor 35px, currentColor 36px)' }} />
+        
+        {/* Decorative gold lines */}
+        <div className="absolute top-0 left-1/2 w-px h-full bg-gradient-to-b from-transparent via-secondary/10 to-transparent" />
+        <div className="absolute top-0 left-1/4 w-px h-full bg-gradient-to-b from-transparent via-secondary/5 to-transparent" />
+        <div className="absolute top-0 left-3/4 w-px h-full bg-gradient-to-b from-transparent via-secondary/5 to-transparent" />
+      </div>
+
       <Header />
       
-      <main className="pt-16 pb-12">
+      <main className="pt-16 pb-12 relative z-10">
         {/* Hero Section */}
         <section className="relative h-[350px] md:h-[400px] overflow-hidden">
           <div className="absolute inset-0 w-full h-full">
@@ -143,7 +159,7 @@ export default function MenuPage() {
         <div className="container mx-auto px-4 mt-8">
 
           {/* Filters Section */}
-          <div className="max-w-2xl mx-auto mb-8 p-4 bg-white/60 backdrop-blur-sm rounded-2xl shadow-sm border border-gray-200/80">
+          <div className="max-w-2xl mx-auto mb-8 p-4 bg-white/70 backdrop-blur-md rounded-2xl shadow-sm border border-secondary/10">
             <div className="flex flex-col sm:flex-row items-center gap-4">
               <div className="relative w-full">
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -168,7 +184,7 @@ export default function MenuPage() {
 
           {/* Services Table */}
           {filteredServices.length > 0 ? (
-            <Card className="overflow-hidden rounded-2xl shadow-md border-gray-200/80">
+            <Card className="overflow-hidden rounded-2xl shadow-lg border-secondary/10 bg-white/80 backdrop-blur-sm">
               <CardContent className="p-0">
                 <Table>
                   <TableHeader className="bg-gray-50/50">
@@ -179,7 +195,7 @@ export default function MenuPage() {
                   </TableHeader>
                   <TableBody>
                     {filteredServices.map((service) => (
-                      <TableRow key={service.id} className="border-t border-gray-100 hover:bg-gray-50/50">
+                      <TableRow key={service.id} className="border-t border-secondary/5 hover:bg-secondary/5 transition-colors duration-300">
                         <TableCell className="p-4">
                           <p className="font-sans font-bold text-primary text-base">{service.name}</p>
                           <p className="text-sm text-muted-foreground font-light mt-1 line-clamp-2">{service.description}</p>
