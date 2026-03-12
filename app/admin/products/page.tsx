@@ -343,17 +343,20 @@ export default function SuperAdminProducts() {
       return;
     }
     
-    if (!productForm.price || isNaN(parseFloat(productForm.price)) || parseFloat(productForm.price) <= 0) {
-      alert('Please enter a valid price');
-      return;
+    // Only super_admin can set prices - skip price validation for branch admin
+    if (user?.role !== 'admin') {
+      if (!productForm.price || isNaN(parseFloat(productForm.price)) || parseFloat(productForm.price) <= 0) {
+        alert('Please enter a valid price');
+        return;
+      }
+      
+      if (!productForm.cost || isNaN(parseFloat(productForm.cost)) || parseFloat(productForm.cost) <= 0) {
+        alert('Please enter a valid cost');
+        return;
+      }
     }
     
-    if (!productForm.cost || isNaN(parseFloat(productForm.cost)) || parseFloat(productForm.cost) <= 0) {
-      alert('Please enter a valid cost');
-      return;
-    }
-    
-    if (!productForm.totalStock || isNaN(parseInt(productForm.totalStock)) || parseInt(productForm.totalStock) < 0) {
+    if (productForm.totalStock && (isNaN(parseInt(productForm.totalStock)) || parseInt(productForm.totalStock) < 0)) {
       alert('Please enter a valid stock quantity');
       return;
     }
@@ -382,7 +385,7 @@ export default function SuperAdminProducts() {
       
       // Calculate initial status based on stock
       let status: 'active' | 'inactive' | 'low-stock' | 'out-of-stock' = 'active';
-      const stock = parseInt(productForm.totalStock);
+      const stock = productForm.totalStock ? parseInt(productForm.totalStock) : 0;
       if (stock === 0) {
         status = 'out-of-stock';
       } else if (stock < 10) {
@@ -395,9 +398,9 @@ export default function SuperAdminProducts() {
         categoryId: productForm.categoryId,
         description: productForm.description.trim(),
         sku: productForm.sku.trim() || `PROD-${Date.now()}`,
-        price: parseFloat(productForm.price),
-        cost: parseFloat(productForm.cost),
-        totalStock: parseInt(productForm.totalStock),
+        price: productForm.price ? parseFloat(productForm.price) : 0,
+        cost: productForm.cost ? parseFloat(productForm.cost) : 0,
+        totalStock: stock,
         imageUrl: productForm.imageUrl.trim(),
         status: status,
         branches: [finalBranchId], // ✅ Auto-set branch
@@ -441,17 +444,20 @@ export default function SuperAdminProducts() {
       return;
     }
     
-    if (!productForm.price || isNaN(parseFloat(productForm.price)) || parseFloat(productForm.price) <= 0) {
-      alert('Please enter a valid price');
-      return;
+    // Only super_admin can set prices - skip price validation for branch admin
+    if (user?.role !== 'admin') {
+      if (!productForm.price || isNaN(parseFloat(productForm.price)) || parseFloat(productForm.price) <= 0) {
+        alert('Please enter a valid price');
+        return;
+      }
+      
+      if (!productForm.cost || isNaN(parseFloat(productForm.cost)) || parseFloat(productForm.cost) <= 0) {
+        alert('Please enter a valid cost');
+        return;
+      }
     }
     
-    if (!productForm.cost || isNaN(parseFloat(productForm.cost)) || parseFloat(productForm.cost) <= 0) {
-      alert('Please enter a valid cost');
-      return;
-    }
-    
-    if (!productForm.totalStock || isNaN(parseInt(productForm.totalStock)) || parseInt(productForm.totalStock) < 0) {
+    if (productForm.totalStock && (isNaN(parseInt(productForm.totalStock)) || parseInt(productForm.totalStock) < 0)) {
       alert('Please enter a valid stock quantity');
       return;
     }
@@ -480,7 +486,7 @@ export default function SuperAdminProducts() {
       
       // Calculate status based on stock
       let status: 'active' | 'inactive' | 'low-stock' | 'out-of-stock' = productForm.status;
-      const stock = parseInt(productForm.totalStock);
+      const stock = productForm.totalStock ? parseInt(productForm.totalStock) : 0;
       if (stock === 0) {
         status = 'out-of-stock';
       } else if (stock < 10) {
@@ -489,21 +495,28 @@ export default function SuperAdminProducts() {
         status = 'active';
       }
       
-      await updateDoc(productDoc, {
+      // Branch admin cannot change price/cost - only update other fields
+      const updateData: Record<string, unknown> = {
         name: productForm.name.trim(),
         category: categoryName,
         categoryId: productForm.categoryId,
         description: productForm.description.trim(),
         sku: productForm.sku.trim(),
-        price: parseFloat(productForm.price),
-        cost: parseFloat(productForm.cost),
-        totalStock: parseInt(productForm.totalStock),
+        totalStock: stock,
         imageUrl: productForm.imageUrl.trim(),
         status: status,
-        branches: [finalBranchId], // ✅ Auto-set branch
+        branches: [finalBranchId],
         branchNames: finalBranchName ? [finalBranchName] : [],
         updatedAt: serverTimestamp()
-      });
+      };
+      
+      // Only super_admin can update prices
+      if (user?.role !== 'admin') {
+        updateData.price = parseFloat(productForm.price);
+        updateData.cost = parseFloat(productForm.cost);
+      }
+      
+      await updateDoc(productDoc, updateData);
       
       setShowAddProductDialog(false);
       setSelectedProduct(null);
@@ -1168,7 +1181,7 @@ export default function SuperAdminProducts() {
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <Label className="text-xs font-bold uppercase">
-                    Price (AED) *
+                    Price (AED) {user?.role !== 'admin' ? '*' : ''}
                   </Label>
                   <Input
                     type="number"
@@ -1176,14 +1189,17 @@ export default function SuperAdminProducts() {
                     value={productForm.price}
                     onChange={(e) => setProductForm({...productForm, price: e.target.value})}
                     className="mt-1 rounded-lg"
-                    disabled={isAdding || isEditing}
+                    disabled={isAdding || isEditing || user?.role === 'admin'}
                     min="0"
                     step="0.01"
                   />
+                  {user?.role === 'admin' && (
+                    <p className="text-xs text-amber-600 mt-1">Only super admin can set prices</p>
+                  )}
                 </div>
                 <div>
                   <Label className="text-xs font-bold uppercase">
-                    Cost (AED) *
+                    Cost (AED) {user?.role !== 'admin' ? '*' : ''}
                   </Label>
                   <Input
                     type="number"
@@ -1191,14 +1207,14 @@ export default function SuperAdminProducts() {
                     value={productForm.cost}
                     onChange={(e) => setProductForm({...productForm, cost: e.target.value})}
                     className="mt-1 rounded-lg"
-                    disabled={isAdding || isEditing}
+                    disabled={isAdding || isEditing || user?.role === 'admin'}
                     min="0"
                     step="0.01"
                   />
                 </div>
                 <div>
                   <Label className="text-xs font-bold uppercase">
-                    Stock *
+                    Stock
                   </Label>
                   <Input
                     type="number"

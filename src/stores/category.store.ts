@@ -6,7 +6,8 @@ export interface Category {
   name: string;
   description: string;
   type: 'product' | 'service';
-  branchId?: string; // undefined for super admin categories (all branches)
+  branches: string[];      // Array of branch IDs (empty = global/all branches)
+  branchNames?: string[];  // Parallel array of branch names
   image?: string;
   isActive: boolean;
   createdAt: Date;
@@ -69,9 +70,9 @@ export const useCategoryStore = create<CategoryStore>()(
           // Super admin sees all categories
           return get().categories;
         }
-        // Branch admin sees only their branch categories + global categories (no branchId)
+        // Branch admin sees their branch categories + global categories (empty branches)
         return get().categories.filter(cat =>
-          cat.branchId === branchId || !cat.branchId
+          cat.branches.includes(branchId) || !cat.branches || cat.branches.length === 0
         );
       },
 

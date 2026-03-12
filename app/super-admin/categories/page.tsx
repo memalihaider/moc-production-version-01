@@ -40,9 +40,8 @@ export interface Category {
   name: string;
   description: string;
   type: 'product' | 'service';
-  branchId?: string;
-  branchName?: string; // ✅ Store branch name
-  branchCity?: string; // ✅ Store branch city
+  branches: string[];      // Array of branch IDs
+  branchNames: string[];   // Array of branch names (parallel)
   image?: string;
   isActive: boolean;
   createdAt: Date;
@@ -90,7 +89,7 @@ export default function SuperAdminCategories() {
     name: '',
     description: '',
     type: 'product' as 'product' | 'service',
-    branchId: 'global',
+    selectedBranches: [] as string[],
     image: '',
     isActive: true
   });
@@ -114,14 +113,21 @@ export default function SuperAdminCategories() {
             const createdAt = data.createdAt as Timestamp;
             const updatedAt = data.updatedAt as Timestamp;
             
+            // Backward compat: old docs may have branchId (string), convert to arrays
+            let branchesArr: string[] = data.branches || [];
+            let branchNamesArr: string[] = data.branchNames || [];
+            if (branchesArr.length === 0 && data.branchId) {
+              branchesArr = [data.branchId];
+              branchNamesArr = data.branchName ? [data.branchName] : [];
+            }
+
             categoriesData.push({
               id: doc.id,
               name: data.name || '',
               description: data.description || '',
               type: data.type || 'product',
-              branchId: data.branchId || undefined,
-              branchName: data.branchName || undefined, // ✅ Fetch branch name
-              branchCity: data.branchCity || undefined, // ✅ Fetch branch city
+              branches: branchesArr,
+              branchNames: branchNamesArr,
               image: data.image || '',
               isActive: data.isActive !== false,
               createdAt: createdAt?.toDate() || new Date(),
@@ -182,13 +188,11 @@ export default function SuperAdminCategories() {
             });
           });
           
-          // Client-side filtering: Only show active branches
           // Client-side sorting: Sort by name alphabetically
-          const activeBranches = branchesData
-            .filter(branch => branch.status === 'active')
+          const sortedBranches = branchesData
             .sort((a, b) => a.name.localeCompare(b.name));
           
-          setBranches(activeBranches);
+          setBranches(sortedBranches);
           setBranchesLoading(false);
         }, (error) => {
           console.error("Error fetching branches: ", error);
@@ -215,13 +219,23 @@ export default function SuperAdminCategories() {
       name: '',
       description: '',
       type: 'product',
-      branchId: 'global',
+      selectedBranches: [],
       image: '',
       isActive: true
     });
   };
 
-  // 🔥 Add Category to Firebase (WITH BRANCH NAME STORAGE)
+  // Toggle a branch in multi-select
+  const toggleBranch = (branchId: string) => {
+    setFormData(prev => {
+      const selected = prev.selectedBranches.includes(branchId)
+        ? prev.selectedBranches.filter(id => id !== branchId)
+        : [...prev.selectedBranches, branchId];
+      return { ...prev, selectedBranches: selected };
+    });
+  };
+
+  // 🔥 Add Category to Firebase (MULTI-BRANCH)
   const handleAddCategory = async () => {
     if (!formData.name.trim()) {
       alert('Please fill all required fields');
@@ -232,18 +246,18 @@ export default function SuperAdminCategories() {
     try {
       const categoriesRef = collection(db, 'categories');
       
-      // Find selected branch details
-      const selectedBranch = formData.branchId === 'global' 
-        ? null 
-        : branches.find(b => b.id === formData.branchId);
+      // Build branch name array from selected IDs
+      const selectedBranchNames = formData.selectedBranches.map(id => {
+        const b = branches.find(br => br.id === id);
+        return b ? b.name : '';
+      }).filter(Boolean);
       
       const newCategoryData = {
         name: formData.name.trim(),
         description: formData.description.trim(),
         type: formData.type,
-        branchId: formData.branchId === 'global' ? null : formData.branchId,
-        branchName: selectedBranch ? selectedBranch.name : null, // ✅ Store branch name
-        branchCity: selectedBranch ? selectedBranch.city : null, // ✅ Store branch city
+        branches: formData.selectedBranches,
+        branchNames: selectedBranchNames,
         image: formData.image.trim(),
         isActive: formData.isActive,
         createdAt: serverTimestamp(),
@@ -264,7 +278,7 @@ export default function SuperAdminCategories() {
     }
   };
 
-  // 🔥 Edit Category in Firebase (WITH BRANCH NAME STORAGE)
+  // 🔥 Edit Category in Firebase (MULTI-BRANCH)
   const handleEditCategory = async () => {
     if (!selectedCategory || !formData.name.trim()) {
       alert('Please fill all required fields');
@@ -275,18 +289,17 @@ export default function SuperAdminCategories() {
     try {
       const categoryDoc = doc(db, 'categories', selectedCategory.id);
       
-      // Find selected branch details
-      const selectedBranch = formData.branchId === 'global' 
-        ? null 
-        : branches.find(b => b.id === formData.branchId);
+      const selectedBranchNames = formData.selectedBranches.map(id => {
+        const b = branches.find(br => br.id === id);
+        return b ? b.name : '';
+      }).filter(Boolean);
       
       await updateDoc(categoryDoc, {
         name: formData.name.trim(),
         description: formData.description.trim(),
         type: formData.type,
-        branchId: formData.branchId === 'global' ? null : formData.branchId,
-        branchName: selectedBranch ? selectedBranch.name : null, // ✅ Update branch name
-        branchCity: selectedBranch ? selectedBranch.city : null, // ✅ Update branch city
+        branches: formData.selectedBranches,
+        branchNames: selectedBranchNames,
         image: formData.image.trim(),
         isActive: formData.isActive,
         updatedAt: serverTimestamp()
@@ -331,7 +344,7 @@ export default function SuperAdminCategories() {
       name: category.name,
       description: category.description,
       type: category.type,
-      branchId: category.branchId || 'global',
+      selectedBranches: category.branches || [],
       image: category.image || '',
       isActive: category.isActive
     });
@@ -349,8 +362,8 @@ export default function SuperAdminCategories() {
                          category.description.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesType = typeFilter === 'all' || category.type === typeFilter;
     const matchesBranch = branchFilter === 'all' ||
-                         (branchFilter === 'global' && !category.branchId) ||
-                         category.branchId === branchFilter;
+                         (branchFilter === 'global' && category.branches.length === 0) ||
+                         category.branches.includes(branchFilter);
     const matchesStatus = statusFilter === 'all' ||
                          (statusFilter === 'active' && category.isActive) ||
                          (statusFilter === 'inactive' && !category.isActive);
@@ -358,37 +371,22 @@ export default function SuperAdminCategories() {
     return matchesSearch && matchesType && matchesBranch && matchesStatus;
   });
 
-  // Get branch name with stored branch name
-  const getBranchName = (branchId?: string, branchName?: string) => {
-    if (!branchId) return 'All Branches (Global)';
-    return branchName || `Branch (${branchId?.substring(0, 8)}...)`;
-  };
-
-  // ✅ FIXED: Get branch location info with stored branch name and city
+  // Get branch display info for a category
   const getBranchInfo = (category?: Category) => {
-    // ✅ Safety check for null/undefined category
     if (!category) return 'Loading...';
-    
-    // ✅ Check if branchId exists
-    if (!category.branchId) return 'Global Category';
-    
-    // ✅ Use stored branch name and city if available
-    if (category.branchName) {
-      const locationParts = [];
-      if (category.branchCity) locationParts.push(category.branchCity);
-      return `${category.branchName}${locationParts.length > 0 ? ` (${locationParts.join(', ')})` : ''}`;
+    if (!category.branches || category.branches.length === 0) return 'All Branches (Global)';
+    if (category.branchNames && category.branchNames.length > 0) {
+      return category.branchNames.join(', ');
     }
-    
-    // ✅ Fallback to branchId if name not available
-    return `Branch (${category.branchId?.substring(0, 8)}...)`;
+    return `${category.branches.length} branch(es)`;
   };
 
   // Stats calculations
   const productCategories = categories.filter(cat => cat.type === 'product');
   const serviceCategories = categories.filter(cat => cat.type === 'service');
-  const globalCategories = categories.filter(cat => !cat.branchId);
+  const globalCategories = categories.filter(cat => !cat.branches || cat.branches.length === 0);
   const activeCategories = categories.filter(cat => cat.isActive);
-  const branchSpecificCategories = categories.filter(cat => cat.branchId);
+  const branchSpecificCategories = categories.filter(cat => cat.branches && cat.branches.length > 0);
 
   const handleLogout = () => {
     logout();
@@ -769,35 +767,42 @@ export default function SuperAdminCategories() {
                         <Building className="w-4 h-4" />
                         Branch Assignment
                       </Label>
-                      <Select
-                        value={formData.branchId}
-                        onValueChange={(value) => setFormData(prev => ({ ...prev, branchId: value }))}
-                        disabled={isAdding || branchesLoading}
-                      >
-                        <SelectTrigger className="mt-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                          <SelectValue placeholder="Select branch (optional)" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="global">All Branches (Global)</SelectItem>
-                          {branches.map(branch => (
-                            <SelectItem key={branch.id} value={branch.id}>
-                              <div className="flex items-center gap-2">
-                                <Building className="w-3 h-3" />
-                                {branch.name}
-                                {branch.city && (
-                                  <span className="text-xs text-gray-500 ml-1">({branch.city})</span>
-                                )}
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <div className="mt-2 border border-gray-200 rounded-lg max-h-48 overflow-y-auto">
+                        <label className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer border-b border-gray-100">
+                          <input
+                            type="checkbox"
+                            checked={formData.selectedBranches.length === 0}
+                            onChange={() => setFormData(prev => ({ ...prev, selectedBranches: [] }))}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            disabled={isAdding}
+                          />
+                          <span className="text-sm font-medium text-gray-700">All Branches (Global)</span>
+                        </label>
+                        {branches.map(branch => (
+                          <label key={branch.id} className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={formData.selectedBranches.includes(branch.id)}
+                              onChange={() => toggleBranch(branch.id)}
+                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                              disabled={isAdding}
+                            />
+                            <div className="flex items-center gap-2">
+                              <Building className="w-3 h-3 text-gray-400" />
+                              <span className="text-sm text-gray-700">{branch.name}</span>
+                              {branch.city && (
+                                <span className="text-xs text-gray-400">({branch.city})</span>
+                              )}
+                            </div>
+                          </label>
+                        ))}
+                      </div>
                       <p className="text-xs text-gray-500 mt-1">
                         {branchesLoading 
                           ? "Loading branches..." 
-                          : formData.branchId === 'global' 
+                          : formData.selectedBranches.length === 0 
                             ? "This category will be available in all branches"
-                            : "This category will only be available in the selected branch"
+                            : `Selected ${formData.selectedBranches.length} branch(es)`
                         }
                       </p>
                     </div>
@@ -1006,35 +1011,42 @@ export default function SuperAdminCategories() {
                         <Building className="w-4 h-4" />
                         Branch Assignment
                       </Label>
-                      <Select
-                        value={formData.branchId}
-                        onValueChange={(value) => setFormData(prev => ({ ...prev, branchId: value }))}
-                        disabled={isEditing || branchesLoading}
-                      >
-                        <SelectTrigger className="mt-1 focus:ring-2 focus:ring-amber-500 focus:border-amber-500">
-                          <SelectValue placeholder="Select branch (optional)" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="global">All Branches (Global)</SelectItem>
-                          {branches.map(branch => (
-                            <SelectItem key={branch.id} value={branch.id}>
-                              <div className="flex items-center gap-2">
-                                <Building className="w-3 h-3" />
-                                {branch.name}
-                                {branch.city && (
-                                  <span className="text-xs text-gray-500 ml-1">({branch.city})</span>
-                                )}
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <div className="mt-2 border border-gray-200 rounded-lg max-h-48 overflow-y-auto">
+                        <label className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer border-b border-gray-100">
+                          <input
+                            type="checkbox"
+                            checked={formData.selectedBranches.length === 0}
+                            onChange={() => setFormData(prev => ({ ...prev, selectedBranches: [] }))}
+                            className="rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+                            disabled={isEditing}
+                          />
+                          <span className="text-sm font-medium text-gray-700">All Branches (Global)</span>
+                        </label>
+                        {branches.map(branch => (
+                          <label key={branch.id} className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={formData.selectedBranches.includes(branch.id)}
+                              onChange={() => toggleBranch(branch.id)}
+                              className="rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+                              disabled={isEditing}
+                            />
+                            <div className="flex items-center gap-2">
+                              <Building className="w-3 h-3 text-gray-400" />
+                              <span className="text-sm text-gray-700">{branch.name}</span>
+                              {branch.city && (
+                                <span className="text-xs text-gray-400">({branch.city})</span>
+                              )}
+                            </div>
+                          </label>
+                        ))}
+                      </div>
                       <p className="text-xs text-gray-500 mt-1">
                         {branchesLoading 
                           ? "Loading branches..." 
-                          : formData.branchId === 'global' 
+                          : formData.selectedBranches.length === 0 
                             ? "This category will be available in all branches"
-                            : "This category will only be available in the selected branch"
+                            : `Selected ${formData.selectedBranches.length} branch(es)`
                         }
                       </p>
                     </div>

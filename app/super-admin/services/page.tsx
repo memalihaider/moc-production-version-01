@@ -99,6 +99,7 @@ export default function SuperAdminServices() {
   // State for filters
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [branchFilter, setBranchFilter] = useState('all');
 
   // Dialog states
   const [showAddServiceDialog, setShowAddServiceDialog] = useState(false);
@@ -505,7 +506,8 @@ export default function SuperAdminServices() {
     const matchesSearch = service.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          service.description.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = categoryFilter === 'all' || service.category === categoryFilter;
-    return matchesSearch && matchesCategory;
+    const matchesBranch = branchFilter === 'all' || service.branches.includes(branchFilter);
+    return matchesSearch && matchesCategory && matchesBranch;
   });
 
   // Get status color
@@ -678,6 +680,17 @@ export default function SuperAdminServices() {
                         ))}
                       </SelectContent>
                     </Select>
+                    <Select value={branchFilter} onValueChange={setBranchFilter} disabled={loading || branchesLoading}>
+                      <SelectTrigger className="w-full sm:w-48">
+                        <SelectValue placeholder="Filter by branch" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Branches</SelectItem>
+                        {branches.map(branch => (
+                          <SelectItem key={branch.id} value={branch.id}>{branch.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </CardContent>
               </Card>
@@ -693,12 +706,12 @@ export default function SuperAdminServices() {
                   <Scissors className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">No services found</h3>
                   <p className="text-gray-600 mb-4">
-                    {searchTerm || categoryFilter !== 'all'
+                    {searchTerm || categoryFilter !== 'all' || branchFilter !== 'all'
                       ? 'Try adjusting your search or filter criteria'
                       : 'Get started by adding your first service'
                     }
                   </p>
-                  {!searchTerm && categoryFilter === 'all' && (
+                  {!searchTerm && categoryFilter === 'all' && branchFilter === 'all' && (
                     <Button onClick={() => setShowAddServiceDialog(true)}>
                       <Plus className="w-4 h-4 mr-2" />
                       Add Service

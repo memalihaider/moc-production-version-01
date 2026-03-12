@@ -95,6 +95,7 @@ export default function SuperAdminProducts() {
   // State for filters
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [branchFilter, setBranchFilter] = useState('all');
   const [priceFilter, setPriceFilter] = useState('all');
   const [stockFilter, setStockFilter] = useState('all');
 
@@ -297,7 +298,7 @@ export default function SuperAdminProducts() {
       return;
     }
     
-    if (!productForm.totalStock || isNaN(parseInt(productForm.totalStock)) || parseInt(productForm.totalStock) < 0) {
+    if (productForm.totalStock && (isNaN(parseInt(productForm.totalStock)) || parseInt(productForm.totalStock) < 0)) {
       alert('Please enter a valid stock quantity');
       return;
     }
@@ -321,7 +322,7 @@ export default function SuperAdminProducts() {
       
       // Calculate initial status based on stock
       let status: 'active' | 'inactive' | 'low-stock' | 'out-of-stock' = 'active';
-      const stock = parseInt(productForm.totalStock);
+      const stock = productForm.totalStock ? parseInt(productForm.totalStock) : 0;
       if (stock === 0) {
         status = 'out-of-stock';
       } else if (stock < 10) {
@@ -336,7 +337,7 @@ export default function SuperAdminProducts() {
         sku: productForm.sku.trim() || `PROD-AED{Date.now()}`,
         price: parseFloat(productForm.price),
         cost: parseFloat(productForm.cost),
-        totalStock: parseInt(productForm.totalStock),
+        totalStock: productForm.totalStock ? parseInt(productForm.totalStock) : 0,
         imageUrl: productForm.imageUrl.trim(),
         status: status,
         branches: [productForm.branchId],
@@ -388,7 +389,7 @@ export default function SuperAdminProducts() {
       return;
     }
     
-    if (!productForm.totalStock || isNaN(parseInt(productForm.totalStock)) || parseInt(productForm.totalStock) < 0) {
+    if (productForm.totalStock && (isNaN(parseInt(productForm.totalStock)) || parseInt(productForm.totalStock) < 0)) {
       alert('Please enter a valid stock quantity');
       return;
     }
@@ -412,7 +413,7 @@ export default function SuperAdminProducts() {
       
       // Calculate status based on stock
       let status: 'active' | 'inactive' | 'low-stock' | 'out-of-stock' = productForm.status;
-      const stock = parseInt(productForm.totalStock);
+      const stock = productForm.totalStock ? parseInt(productForm.totalStock) : 0;
       if (stock === 0) {
         status = 'out-of-stock';
       } else if (stock < 10) {
@@ -429,7 +430,7 @@ export default function SuperAdminProducts() {
         sku: productForm.sku.trim(),
         price: parseFloat(productForm.price),
         cost: parseFloat(productForm.cost),
-        totalStock: parseInt(productForm.totalStock),
+        totalStock: productForm.totalStock ? parseInt(productForm.totalStock) : 0,
         imageUrl: productForm.imageUrl.trim(),
         status: status,
         branches: [productForm.branchId],
@@ -570,6 +571,7 @@ export default function SuperAdminProducts() {
                          (product.sku && product.sku.toLowerCase().includes(searchTerm.toLowerCase()));
     
     const matchesCategory = categoryFilter === 'all' || product.category === categoryFilter;
+    const matchesBranch = branchFilter === 'all' || product.branches.includes(branchFilter);
     
     const matchesPrice = priceFilter === 'all' ||
                         (priceFilter === 'under-20' && product.price < 20) ||
@@ -581,7 +583,7 @@ export default function SuperAdminProducts() {
                          (stockFilter === 'low-stock' && product.status === 'low-stock') ||
                          (stockFilter === 'out-of-stock' && product.status === 'out-of-stock');
     
-    return matchesSearch && matchesCategory && matchesPrice && matchesStock;
+    return matchesSearch && matchesCategory && matchesBranch && matchesPrice && matchesStock;
   });
 
   // Get status color
@@ -745,6 +747,17 @@ export default function SuperAdminProducts() {
                         ))}
                       </SelectContent>
                     </Select>
+                    <Select value={branchFilter} onValueChange={setBranchFilter}>
+                      <SelectTrigger className="w-full sm:w-48">
+                        <SelectValue placeholder="Filter by branch" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Branches</SelectItem>
+                        {branches.map(branch => (
+                          <SelectItem key={branch.id} value={branch.id}>{branch.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <Select value={priceFilter} onValueChange={setPriceFilter}>
                       <SelectTrigger className="w-full sm:w-48">
                         <SelectValue placeholder="Filter by price" />
@@ -777,12 +790,12 @@ export default function SuperAdminProducts() {
                   <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">No products found</h3>
                   <p className="text-gray-600 mb-4">
-                    {searchTerm || categoryFilter !== 'all' || priceFilter !== 'all' || stockFilter !== 'all'
+                    {searchTerm || categoryFilter !== 'all' || branchFilter !== 'all' || priceFilter !== 'all' || stockFilter !== 'all'
                       ? 'Try adjusting your search or filter criteria'
                       : 'Get started by adding your first product'
                     }
                   </p>
-                  {!searchTerm && categoryFilter === 'all' && priceFilter === 'all' && stockFilter === 'all' && (
+                  {!searchTerm && categoryFilter === 'all' && branchFilter === 'all' && priceFilter === 'all' && stockFilter === 'all' && (
                     <Button onClick={() => setShowAddProductDialog(true)}>
                       <Plus className="w-4 h-4 mr-2" />
                       Add Product
@@ -1076,7 +1089,7 @@ export default function SuperAdminProducts() {
                 </div>
                 <div>
                   <Label className="text-xs font-bold uppercase">
-                    Stock *
+                    Stock
                   </Label>
                   <Input
                     type="number"

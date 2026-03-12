@@ -679,6 +679,13 @@ export default function Home() {
   // Filter categories by branch
   const filteredCategories = categories.filter(category => {
     if (selectedBranch === 'all') return true;
+    if (category.branchNames && category.branchNames.length > 0) {
+      return category.branchNames.includes(selectedBranch);
+    }
+    if (category.branches && category.branches.length > 0) {
+      return category.branches.includes(selectedBranch);
+    }
+    // Backward compat for old single-field docs
     return category.branchName === selectedBranch || category.branchId === selectedBranch;
   });
 

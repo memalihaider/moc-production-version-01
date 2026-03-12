@@ -331,9 +331,12 @@ export default function SuperAdminServices() {
       return;
     }
     
-    if (!serviceForm.price || isNaN(parseFloat(serviceForm.price)) || parseFloat(serviceForm.price) <= 0) {
-      alert('Please enter a valid price');
-      return;
+    // Only super_admin can set prices - skip price validation for branch admin
+    if (user?.role !== 'admin') {
+      if (!serviceForm.price || isNaN(parseFloat(serviceForm.price)) || parseFloat(serviceForm.price) <= 0) {
+        alert('Please enter a valid price');
+        return;
+      }
     }
     
     if (!serviceForm.duration || isNaN(parseInt(serviceForm.duration)) || parseInt(serviceForm.duration) <= 0) {
@@ -368,7 +371,7 @@ export default function SuperAdminServices() {
         category: categoryName,
         categoryId: serviceForm.categoryId,
         description: serviceForm.description.trim(),
-        price: parseFloat(serviceForm.price),
+        price: serviceForm.price ? parseFloat(serviceForm.price) : 0,
         duration: parseInt(serviceForm.duration),
         imageUrl: serviceForm.imageUrl.trim(),
         status: serviceForm.status,
@@ -412,9 +415,12 @@ export default function SuperAdminServices() {
       return;
     }
     
-    if (!serviceForm.price || isNaN(parseFloat(serviceForm.price)) || parseFloat(serviceForm.price) <= 0) {
-      alert('Please enter a valid price');
-      return;
+    // Only super_admin can set prices - skip price validation for branch admin
+    if (user?.role !== 'admin') {
+      if (!serviceForm.price || isNaN(parseFloat(serviceForm.price)) || parseFloat(serviceForm.price) <= 0) {
+        alert('Please enter a valid price');
+        return;
+      }
     }
     
     if (!serviceForm.duration || isNaN(parseInt(serviceForm.duration)) || parseInt(serviceForm.duration) <= 0) {
@@ -444,19 +450,26 @@ export default function SuperAdminServices() {
       const selectedCategory = categories.find(cat => cat.id === serviceForm.categoryId);
       const categoryName = selectedCategory?.name || serviceForm.category;
       
-      await updateDoc(serviceDoc, {
+      // Branch admin cannot change price - only update other fields
+      const updateData: Record<string, unknown> = {
         name: serviceForm.name.trim(),
         category: categoryName,
         categoryId: serviceForm.categoryId,
         description: serviceForm.description.trim(),
-        price: parseFloat(serviceForm.price),
         duration: parseInt(serviceForm.duration),
         imageUrl: serviceForm.imageUrl.trim(),
         status: serviceForm.status,
-        branches: [finalBranchId], // ✅ Auto-set branch
+        branches: [finalBranchId],
         branchNames: finalBranchName ? [finalBranchName] : [],
         updatedAt: serverTimestamp()
-      });
+      };
+      
+      // Only super_admin can update prices
+      if (user?.role !== 'admin') {
+        updateData.price = parseFloat(serviceForm.price);
+      }
+      
+      await updateDoc(serviceDoc, updateData);
       
       setShowAddServiceDialog(false);
       setSelectedService(null);
@@ -1012,7 +1025,7 @@ export default function SuperAdminServices() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-xs font-bold uppercase">
-                    Price (AED) *
+                    Price (AED) {user?.role !== 'admin' ? '*' : ''}
                   </Label>
                   <Input
                     type="number"
@@ -1020,10 +1033,13 @@ export default function SuperAdminServices() {
                     value={serviceForm.price}
                     onChange={(e) => setServiceForm({...serviceForm, price: e.target.value})}
                     className="mt-1 rounded-lg"
-                    disabled={isAdding || isEditing}
+                    disabled={isAdding || isEditing || user?.role === 'admin'}
                     min="0"
                     step="0.01"
                   />
+                  {user?.role === 'admin' && (
+                    <p className="text-xs text-amber-600 mt-1">Only super admin can set prices</p>
+                  )}
                 </div>
                 <div>
                   <Label className="text-xs font-bold uppercase">

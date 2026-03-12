@@ -1923,8 +1923,10 @@ export default function AdminAppointments() {
       const partialMatch = categoryBranchLower.includes(selectedBranchLower) || 
                           selectedBranchLower.includes(categoryBranchLower);
       
-      const branchIdMatch = selectedBranch?.firebaseId && 
-                           category.branchId === selectedBranch.firebaseId;
+      const branchIdMatch = selectedBranch?.firebaseId && (
+        (category.branches && category.branches.includes(selectedBranch.firebaseId)) ||
+        category.branchId === selectedBranch.firebaseId
+      );
       
       return exactMatch || partialMatch || branchIdMatch;
     });
