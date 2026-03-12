@@ -16,6 +16,7 @@ import { create } from 'zustand';
 import { collection, getDocs, query, orderBy, doc, getDoc, onSnapshot, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { cn } from "@/lib/utils";
+import { useCMSStore } from '@/stores/cms.store';
 
 // Types Definition
 interface Branch {
@@ -255,6 +256,8 @@ export default function Branches() {
     hasFetchedInitialData,
     setupRealtimeUpdates 
   } = useBranchesStore();
+  const { fetchCMSData, getPageHero } = useCMSStore();
+  const branchesHero = getPageHero('branches');
   
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCity, setSelectedCity] = useState("All");
@@ -271,6 +274,7 @@ export default function Branches() {
 
   // Check login status
   useEffect(() => {
+    fetchCMSData();
     const checkLogin = () => {
       // Check if user is logged in (update this based on your auth system)
       const user = localStorage.getItem('user'); // or cookies, or context
@@ -575,35 +579,24 @@ export default function Branches() {
         </div>
       )}
 
-  {/* Premium Hero with Video Background - Same as Blog */}
+  {/* Premium Hero with Video Background */}
 <section className="relative h-[600px] md:h-[700px] lg:h-[800px] overflow-hidden">
   {/* Video Background */}
   <div className="absolute inset-0 w-full h-full">
-    <video
-      autoPlay
-      loop
-      muted
-      playsInline
-      className="absolute inset-0 w-full h-full object-cover"
-    >
-      {/* Pexels Video - Direct URL */}
-      <source src="https://www.pexels.com/download/video/3997168/" type="video/mp4" />
-      
-      {/* Fallback for browsers that don't support video */}
-      Your browser does not support the video tag.
-    </video>
+    {branchesHero?.backgroundType === 'video' ? (
+      <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover">
+        <source src={branchesHero?.backgroundUrl || 'https://www.pexels.com/download/video/3997168/'} type="video/mp4" />
+      </video>
+    ) : (
+      <img src={branchesHero?.backgroundUrl || ''} alt="" className="absolute inset-0 w-full h-full object-cover" />
+    )}
     
-    {/* Soft Overlay - video visible rahega aur text readable */}
     <div className="absolute inset-0 bg-gradient-to-br from-black/30 via-black/40 to-black/30"></div>
   </div>
 
   {/* Content Overlay - Centered with proper spacing */}
   <div className="absolute inset-0 z-10 flex flex-col items-center justify-center pointer-events-none">
     <div className="max-w-6xl mx-auto text-center px-4 -mt-16 md:-mt-20">
-      {/* Main Heading - Large spacing from top */}
-
-
-
 
  {/* Floating Elements */}
         <div className="absolute inset-0 overflow-hidden">
@@ -621,31 +614,17 @@ export default function Branches() {
           </div>
         </div>
 
-
-
-
-
-
-
-
-
-
-
-
-
-
       <div className="inline-flex items-center gap-2 bg-secondary/20 px-4 py-2 rounded-full mb-6 border border-secondary/30 backdrop-blur-sm">
             <Sparkles className="w-4 h-4 text-secondary animate-pulse" />
-            <span className="text-white tracking-[0.3em] uppercase text-[10px]">Our Presence</span>
+            <span className="text-white tracking-[0.3em] uppercase text-[10px]">{branchesHero?.badgeText || 'Our Presence'}</span>
             <Sparkles className="w-4 h-4 text-secondary animate-pulse" />
           </div>
       <h1 className="text-5xl md:text-7xl lg:text-8xl font-sans font-bold text-white mb-8 leading-tight drop-shadow-lg">
-        Premium <span className="text-secondary italic">Locations</span>
+        {branchesHero?.heading || 'Premium'} <span className="text-secondary italic">{branchesHero?.headingHighlight || 'Locations'}</span>
       </h1>
       
-      {/* Subheading - More breathing room */}
       <p className="text-white/90 max-w-3xl mx-auto text-lg md:text-xl lg:text-2xl font-light leading-relaxed mb-12 drop-shadow px-4">
-       Experience luxury grooming at any of our strategically located branches.
+       {branchesHero?.subHeading || 'Experience luxury grooming at any of our strategically located branches.'}
       </p>
       
       {/* Real-time Stats */}

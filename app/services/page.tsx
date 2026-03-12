@@ -27,6 +27,7 @@ import {
 import { db } from '@/lib/firebase';
 import { cn } from '@/lib/utils';
 import { useBranchStore } from '@/stores/branchStore';
+import { useCMSStore } from '@/stores/cms.store';
 
 // Types Definition
 interface Service {
@@ -355,6 +356,8 @@ export default function ServicesPage() {
   const router = useRouter();
   
   const { selectedBranch, branches, loading: branchesLoading, setSelectedBranch, fetchBranches } = useBranchStore();
+  const { fetchCMSData, getPageHero } = useCMSStore();
+  const servicesHero = getPageHero('services');
   
   const { 
     addToCart, 
@@ -396,6 +399,7 @@ export default function ServicesPage() {
 
   // Check login status
   useEffect(() => {
+    fetchCMSData();
     const checkLogin = () => {
       const user = localStorage.getItem('user');
       setIsLoggedIn(!!user);
@@ -696,24 +700,28 @@ export default function ServicesPage() {
       {/* Premium Hero Section with Video Background */}
       <section className="relative py-32 px-4 overflow-hidden h-[350px] md:h-[400px]">
         <div className="absolute inset-0 w-full h-full">
-          <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover">
-            <source src="https://www.pexels.com/download/video/7291771/" type="video/mp4" />
-          </video>
+          {servicesHero?.backgroundType === 'video' ? (
+            <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover">
+              <source src={servicesHero?.backgroundUrl || 'https://www.pexels.com/download/video/7291771/'} type="video/mp4" />
+            </video>
+          ) : (
+            <img src={servicesHero?.backgroundUrl || ''} alt="" className="absolute inset-0 w-full h-full object-cover" />
+          )}
           <div className="absolute inset-0 bg-linear-to-b from-black/40 via-black/30 to-primary/70"></div>
         </div>
 
         <div className="max-w-7xl mx-auto text-center relative z-10 h-full flex flex-col justify-center items-center">
           <div className="inline-block bg-white/10 backdrop-blur-md px-6 py-2 rounded-full mb-2 mt-8 border border-white/10">
-            <span className="text-white font-black tracking-[0.5em] uppercase text-[10px]">The Service Menu</span>
+            <span className="text-white font-black tracking-[0.5em] uppercase text-[10px]">{servicesHero?.badgeText || 'The Service Menu'}</span>
           </div>
           
           <h1 className="text-4xl md:text-6xl font-sans font-bold text-white mb-2 leading-[0.85] tracking-tighter">
-            <div className="mb-6">Signature</div>
-            <span className="text-secondary italic">Rituals</span>
+            <div className="mb-6">{servicesHero?.heading || 'Signature'}</div>
+            <span className="text-secondary italic">{servicesHero?.headingHighlight || 'Rituals'}</span>
           </h1>
           
           <p className="text-secondary max-w-2xl mx-auto text-base font-light leading-relaxed italic mb-6">
-            "Artistry is not just a service, it's a transformation."
+            &quot;{servicesHero?.subHeading || "Artistry is not just a service, it's a transformation."}&quot;
           </p>
           <div className="flex items-center justify-center gap-6 flex-wrap">
             <div className="h-px w-12 bg-white/20 hidden md:block"></div>

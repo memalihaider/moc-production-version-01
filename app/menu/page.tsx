@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Search, Building, FolderTree, Sparkles, Tag } from 'lucide-react';
+import { useCMSStore } from '@/stores/cms.store';
 
 interface Service {
   id: string;
@@ -37,11 +38,14 @@ interface Service {
 
 export default function MenuPage() {
   const { selectedBranch, branches } = useBranchStore();
+  const { fetchCMSData, getPageHero } = useCMSStore();
+  const menuHero = getPageHero('menu');
   const [services, setServices] = useState<Service[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
   useEffect(() => {
+    fetchCMSData();
     fetchServices();
   }, []);
 
@@ -105,18 +109,38 @@ export default function MenuPage() {
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
       <Header />
       
-      <main className="pt-24 pb-12">
-        <div className="container mx-auto px-4">
-          
-          {/* Page Header */}
-          <header className="text-center mb-8">
-            <h1 className="text-4xl md:text-5xl font-sans font-bold text-primary mb-2">
-              Our Service <span className="text-secondary">Menu</span>
-            </h1>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
-              Explore our curated list of premium grooming services, tailored for the modern gentleman.
-            </p>
-          </header>
+      <main className="pt-16 pb-12">
+        {/* Hero Section */}
+        <section className="relative h-[350px] md:h-[400px] overflow-hidden">
+          <div className="absolute inset-0 w-full h-full">
+            {menuHero?.backgroundType === 'video' ? (
+              <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover">
+                <source src={menuHero?.backgroundUrl || 'https://www.pexels.com/download/video/7291771/'} type="video/mp4" />
+              </video>
+            ) : menuHero?.backgroundUrl ? (
+              <img src={menuHero.backgroundUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
+            ) : (
+              <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary/90 to-primary/80" />
+            )}
+            <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/30 to-primary/70"></div>
+          </div>
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center">
+            <div className="max-w-6xl mx-auto text-center px-4">
+              <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-6 py-2 rounded-full mb-6 border border-white/20">
+                <Sparkles className="w-4 h-4 text-secondary" />
+                <span className="text-secondary font-black tracking-[0.3em] uppercase text-[10px]">{menuHero?.badgeText || 'Premium Grooming'}</span>
+              </div>
+              <h1 className="text-4xl md:text-6xl font-sans font-bold text-white mb-4 leading-tight">
+                {menuHero?.heading || 'Our Service'} <span className="text-secondary italic">{menuHero?.headingHighlight || 'Menu'}</span>
+              </h1>
+              <p className="text-gray-300 max-w-2xl mx-auto text-lg font-light leading-relaxed">
+                {menuHero?.subHeading || 'Explore our curated list of premium grooming services, tailored for the modern gentleman.'}
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <div className="container mx-auto px-4 mt-8">
 
           {/* Filters Section */}
           <div className="max-w-2xl mx-auto mb-8 p-4 bg-white/60 backdrop-blur-sm rounded-2xl shadow-sm border border-gray-200/80">

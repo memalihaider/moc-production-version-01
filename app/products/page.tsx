@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import Autoplay from "embla-carousel-autoplay";
 import { Search, Star, ShoppingCart, Filter, Package, Check, Sparkles, ChevronRight, TrendingUp, Box, DollarSign, RefreshCw, Trash2, Building } from 'lucide-react';
+import { useCMSStore } from '@/stores/cms.store';
 import { create } from 'zustand';
 import { 
   collection, 
@@ -293,6 +294,8 @@ export default function ProductsPage() {
   
   // ✅ Branch store se values lo
   const { selectedBranch, branches, loading: branchesLoading } = useBranchStore();
+  const { fetchCMSData, getPageHero } = useCMSStore();
+  const productsHero = getPageHero('products');
   
   const { products, fetchProducts } = useProductsStore();
   const { staff, fetchStaff } = useStaffStore();
@@ -313,15 +316,14 @@ export default function ProductsPage() {
 
   // Check login status
   useEffect(() => {
+    fetchCMSData();
     const checkLogin = () => {
       // Check if user is logged in (update this based on your auth system)
       const user = localStorage.getItem('user'); // or cookies, or context
       setIsLoggedIn(!!user);
     };
     
-    checkLogin();
-    
-    // Optional: Listen for storage changes
+    checkLogin;
     window.addEventListener('storage', checkLogin);
     return () => window.removeEventListener('storage', checkLogin);
   }, []);
@@ -664,18 +666,13 @@ export default function ProductsPage() {
       <section className="relative h-[500px] md:h-[500px] lg:h-[600px] overflow-hidden">
         {/* Video Background */}
         <div className="absolute inset-0 w-full h-full">
-          <video
-            autoPlay
-            loop
-            muted
-            playsInline
-            className="absolute inset-0 w-full h-full object-cover"
-          >
-            <source src="https://www.pexels.com/download/video/7291771/" type="video/mp4" />
-            
-            {/* Fallback for browsers that don't support video */}
-            Your browser does not support the video tag.
-          </video>
+          {productsHero?.backgroundType === 'video' ? (
+            <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover">
+              <source src={productsHero?.backgroundUrl || 'https://www.pexels.com/download/video/7291771/'} type="video/mp4" />
+            </video>
+          ) : (
+            <img src={productsHero?.backgroundUrl || ''} alt="" className="absolute inset-0 w-full h-full object-cover" />
+          )}
           
           {/* Light Overlay - text readable with visible video */}
           <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/30 to-primary/70"></div>
@@ -687,11 +684,11 @@ export default function ProductsPage() {
             {/* Badge with proper spacing from top */}
             <div className="inline-flex items-center gap-3 bg-white/10 backdrop-blur-md px-6 py-3 rounded-full mb-8 border border-white/20 shadow-lg">
               <Package className="w-4 h-4 text-secondary" />
-              <span className="text-secondary font-black tracking-[0.3em] uppercase text-[10px]">The Apothecary</span>
+              <span className="text-secondary font-black tracking-[0.3em] uppercase text-[10px]">{productsHero?.badgeText || 'The Apothecary'}</span>
             </div>
             
             <h1 className="text-5xl md:text-7xl font-sans font-bold text-white mb-6 leading-tight">
-              Grooming <span className="text-secondary italic">Collection</span>
+              {productsHero?.heading || 'Grooming'} <span className="text-secondary italic">{productsHero?.headingHighlight || 'Collection'}</span>
             </h1>
             
             {/* Branch count badge - Updated */}
@@ -707,7 +704,7 @@ export default function ProductsPage() {
             </div>
 
             <p className="text-gray-300 max-w-2xl mx-auto text-lg font-light leading-relaxed mb-8">
-              Professional-grade essentials for the modern gentleman. 
+              {productsHero?.subHeading || 'Professional-grade essentials for the modern gentleman.'}
             </p>
 
             {/* Optional: Call to Action Button */}

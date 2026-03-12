@@ -50,6 +50,19 @@ export interface CMSSection {
   updatedAt: number;
 }
 
+export interface PageHero {
+  id: string;
+  pageKey: string;
+  pageName: string;
+  backgroundType: 'image' | 'video';
+  backgroundUrl: string;
+  badgeText: string;
+  heading: string;
+  headingHighlight: string;
+  subHeading: string;
+  updatedAt: number;
+}
+
 export interface CMSSettings {
   siteName: string;
   siteDescription: string;
@@ -68,6 +81,7 @@ interface CMSStore {
   heroSlides: HeroSlide[];
   sections: CMSSection[];
   settings: CMSSettings;
+  pageHeroes: PageHero[];
   lastFetched: number | null;
   isLoading: boolean;
 
@@ -76,6 +90,7 @@ interface CMSStore {
   subscribeToHeroSlides: () => Unsubscribe;
   subscribeToSections: () => Unsubscribe;
   subscribeToSettings: () => Unsubscribe;
+  subscribeToPageHeroes: () => Unsubscribe;
 
   // Hero slides
   saveHeroSlide: (slide: Partial<HeroSlide> & { id?: string }) => Promise<void>;
@@ -87,12 +102,74 @@ interface CMSStore {
   // Settings
   saveSettings: (settings: Partial<CMSSettings>) => Promise<void>;
 
+  // Page heroes
+  savePageHero: (hero: Partial<PageHero> & { pageKey: string }) => Promise<void>;
+  getPageHero: (pageKey: string) => PageHero | undefined;
+
   // Helpers
   getSectionByKey: (key: string) => CMSSection | undefined;
   getActiveHeroSlides: () => HeroSlide[];
 }
 
 const CACHE_DURATION = 2 * 60 * 1000; // 2 min cache
+
+const DEFAULT_PAGE_HEROES: Omit<PageHero, 'id'>[] = [
+  {
+    pageKey: 'services',
+    pageName: 'Services',
+    backgroundType: 'video',
+    backgroundUrl: 'https://www.pexels.com/download/video/7291771/',
+    badgeText: 'The Service Menu',
+    heading: 'Signature',
+    headingHighlight: 'Rituals',
+    subHeading: 'Artistry is not just a service, it\'s a transformation.',
+    updatedAt: Date.now(),
+  },
+  {
+    pageKey: 'products',
+    pageName: 'Products',
+    backgroundType: 'video',
+    backgroundUrl: 'https://www.pexels.com/download/video/7291771/',
+    badgeText: 'The Apothecary',
+    heading: 'Grooming',
+    headingHighlight: 'Collection',
+    subHeading: 'Professional-grade essentials for the modern gentleman.',
+    updatedAt: Date.now(),
+  },
+  {
+    pageKey: 'branches',
+    pageName: 'Branches',
+    backgroundType: 'video',
+    backgroundUrl: 'https://www.pexels.com/download/video/3997168/',
+    badgeText: 'Our Presence',
+    heading: 'Premium',
+    headingHighlight: 'Locations',
+    subHeading: 'Experience luxury grooming at any of our strategically located branches.',
+    updatedAt: Date.now(),
+  },
+  {
+    pageKey: 'blog',
+    pageName: 'Blog',
+    backgroundType: 'video',
+    backgroundUrl: 'https://www.pexels.com/download/video/854416/',
+    badgeText: 'The ManofCave Journal',
+    heading: 'The Grooming',
+    headingHighlight: 'Chronicles',
+    subHeading: 'Expert insights, style guides, and timeless wisdom for the modern gentleman\'s journey to excellence.',
+    updatedAt: Date.now(),
+  },
+  {
+    pageKey: 'menu',
+    pageName: 'Menu',
+    backgroundType: 'video',
+    backgroundUrl: 'https://www.pexels.com/download/video/7291771/',
+    badgeText: 'Premium Grooming',
+    heading: 'Our Service',
+    headingHighlight: 'Menu',
+    subHeading: 'Explore our curated list of premium grooming services, tailored for the modern gentleman.',
+    updatedAt: Date.now(),
+  },
+];
 
 const DEFAULT_SETTINGS: CMSSettings = {
   siteName: 'MAN OF CAVE',
@@ -237,6 +314,7 @@ export const useCMSStore = create<CMSStore>()(
       heroSlides: [],
       sections: [],
       settings: DEFAULT_SETTINGS,
+      pageHeroes: [],
       lastFetched: null,
       isLoading: false,
 
@@ -249,18 +327,20 @@ export const useCMSStore = create<CMSStore>()(
 
         set({ isLoading: true });
         try {
-          const [slidesSnap, sectionsSnap, settingsSnap] = await Promise.all([
+          const [slidesSnap, sectionsSnap, settingsSnap, pageHeroesSnap] = await Promise.all([
             getDocs(query(collection(db, 'cms_hero_slides'), orderBy('order', 'asc'))),
             getDocs(collection(db, 'cms_sections')),
             getDocs(collection(db, 'cms_settings')),
+            getDocs(collection(db, 'cms_page_heroes')),
           ]);
 
           const heroSlides = slidesSnap.docs.map(d => ({ id: d.id, ...d.data() })) as HeroSlide[];
           const sections = sectionsSnap.docs.map(d => ({ id: d.id, ...d.data() })) as CMSSection[];
           const settingsDoc = settingsSnap.docs[0];
           const settings = settingsDoc ? { ...DEFAULT_SETTINGS, ...settingsDoc.data() } as CMSSettings : DEFAULT_SETTINGS;
+          const pageHeroes = pageHeroesSnap.docs.map(d => ({ id: d.id, ...d.data() })) as PageHero[];
 
-          set({ heroSlides, sections, settings, lastFetched: Date.now(), isLoading: false });
+          set({ heroSlides, sections, settings, pageHeroes, lastFetched: Date.now(), isLoading: false });
         } catch (error) {
           console.error('Error fetching CMS data:', error);
           set({ isLoading: false });
@@ -288,6 +368,13 @@ export const useCMSStore = create<CMSStore>()(
             const settings = { ...DEFAULT_SETTINGS, ...snap.docs[0].data() } as CMSSettings;
             set({ settings });
           }
+        });
+      },
+
+      subscribeToPageHeroes: () => {
+        return onSnapshot(collection(db, 'cms_page_heroes'), (snap) => {
+          const pageHeroes = snap.docs.map(d => ({ id: d.id, ...d.data() })) as PageHero[];
+          set({ pageHeroes });
         });
       },
 
@@ -344,6 +431,32 @@ export const useCMSStore = create<CMSStore>()(
         set({ settings: data });
       },
 
+      savePageHero: async (hero) => {
+        const id = hero.pageKey;
+        const existing = get().pageHeroes.find(h => h.pageKey === id);
+        const data: PageHero = {
+          id,
+          pageKey: hero.pageKey,
+          pageName: hero.pageName ?? existing?.pageName ?? '',
+          backgroundType: hero.backgroundType ?? existing?.backgroundType ?? 'video',
+          backgroundUrl: hero.backgroundUrl ?? existing?.backgroundUrl ?? '',
+          badgeText: hero.badgeText ?? existing?.badgeText ?? '',
+          heading: hero.heading ?? existing?.heading ?? '',
+          headingHighlight: hero.headingHighlight ?? existing?.headingHighlight ?? '',
+          subHeading: hero.subHeading ?? existing?.subHeading ?? '',
+          updatedAt: Date.now(),
+        };
+        await setDoc(doc(db, 'cms_page_heroes', id), data);
+      },
+
+      getPageHero: (pageKey) => {
+        const fromStore = get().pageHeroes.find(h => h.pageKey === pageKey);
+        if (fromStore) return fromStore;
+        const def = DEFAULT_PAGE_HEROES.find(h => h.pageKey === pageKey);
+        if (def) return { ...def, id: pageKey } as PageHero;
+        return undefined;
+      },
+
       getSectionByKey: (key) => {
         const fromStore = get().sections.find(s => s.sectionKey === key);
         if (fromStore) return fromStore;
@@ -363,6 +476,7 @@ export const useCMSStore = create<CMSStore>()(
         heroSlides: state.heroSlides,
         sections: state.sections,
         settings: state.settings,
+        pageHeroes: state.pageHeroes,
         lastFetched: state.lastFetched,
       }),
     }

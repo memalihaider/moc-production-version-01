@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import { useCMSStore, HeroSlide, CMSSection, CMSSettings } from '@/stores/cms.store';
+import { useCMSStore, HeroSlide, CMSSection, CMSSettings, PageHero } from '@/stores/cms.store';
 import { uploadImageToStorage, deleteImageFromStorage } from '@/lib/firebase-storage';
 import { storage } from '@/lib/firebase';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
@@ -65,10 +65,10 @@ export default function SuperAdminCMSPage() {
   const { user, isLoading: authLoading } = useAuth();
   const router = useRouter();
   const {
-    heroSlides, sections, settings,
-    fetchCMSData, subscribeToHeroSlides, subscribeToSections, subscribeToSettings,
-    saveHeroSlide, deleteHeroSlide, saveSection, saveSettings,
-    getSectionByKey,
+    heroSlides, sections, settings, pageHeroes,
+    fetchCMSData, subscribeToHeroSlides, subscribeToSections, subscribeToSettings, subscribeToPageHeroes,
+    saveHeroSlide, deleteHeroSlide, saveSection, saveSettings, savePageHero,
+    getSectionByKey, getPageHero,
   } = useCMSStore();
 
   const [activeTab, setActiveTab] = useState('hero');
@@ -80,6 +80,10 @@ export default function SuperAdminCMSPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
+  const [editingPageHero, setEditingPageHero] = useState<string | null>(null);
+  const [pageHeroForm, setPageHeroForm] = useState<Partial<PageHero>>({});
+  const [pageHeroUploading, setPageHeroUploading] = useState(false);
+  const [pageHeroUploadProgress, setPageHeroUploadProgress] = useState(0);
 
   // Auth guard
   useEffect(() => {
@@ -94,8 +98,9 @@ export default function SuperAdminCMSPage() {
     const unsub1 = subscribeToHeroSlides();
     const unsub2 = subscribeToSections();
     const unsub3 = subscribeToSettings();
-    return () => { unsub1(); unsub2(); unsub3(); };
-  }, [fetchCMSData, subscribeToHeroSlides, subscribeToSections, subscribeToSettings]);
+    const unsub4 = subscribeToPageHeroes();
+    return () => { unsub1(); unsub2(); unsub3(); unsub4(); };
+  }, [fetchCMSData, subscribeToHeroSlides, subscribeToSections, subscribeToSettings, subscribeToPageHeroes]);
 
   // Init settings form
   useEffect(() => {
@@ -235,6 +240,63 @@ export default function SuperAdminCMSPage() {
     }
   };
 
+  // ==================== PAGE HERO HANDLERS ====================
+  const pageHeroKeys = ['services', 'products', 'branches', 'blog', 'menu'];
+
+  const handleEditPageHero = (key: string) => {
+    const hero = getPageHero(key);
+    if (hero) {
+      setPageHeroForm(hero);
+      setEditingPageHero(key);
+    }
+  };
+
+  const handlePageHeroMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const isVideo = file.type.startsWith('video/');
+    const maxSize = isVideo ? 100 * 1024 * 1024 : 10 * 1024 * 1024;
+
+    if (file.size > maxSize) {
+      alert(`File too large. Max ${isVideo ? '100MB' : '10MB'}.`);
+      return;
+    }
+
+    setPageHeroUploading(true);
+    setPageHeroUploadProgress(0);
+    try {
+      const url = await uploadMedia(file, 'cms/page-heroes', (p) => setPageHeroUploadProgress(p));
+      setPageHeroForm(prev => ({
+        ...prev,
+        backgroundUrl: url,
+        backgroundType: isVideo ? 'video' : 'image',
+      }));
+    } catch (err) {
+      console.error('Upload error:', err);
+      alert('Failed to upload media.');
+    } finally {
+      setPageHeroUploading(false);
+      setPageHeroUploadProgress(0);
+    }
+  };
+
+  const handleSavePageHero = async () => {
+    if (!editingPageHero) return;
+    setIsSaving(true);
+    try {
+      await savePageHero({ ...pageHeroForm, pageKey: editingPageHero });
+      setEditingPageHero(null);
+      setPageHeroForm({});
+      showSave('Page hero updated!');
+    } catch (err) {
+      console.error('Save error:', err);
+      alert('Failed to save page hero.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleLogout = () => router.push('/login');
 
   if (authLoading || !user) {
@@ -250,7 +312,7 @@ export default function SuperAdminCMSPage() {
       <Header />
       <div className="flex pt-14">
         <AdminSidebar role="super_admin" onLogout={handleLogout} />
-        <main className="flex-1 md:ml-64 p-4 md:p-6 lg:p-8">
+        <main className="flex-1 md:ml-0 p-4 md:p-6 lg:p-8">
           {/* Page Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
             <div>
@@ -274,6 +336,9 @@ export default function SuperAdminCMSPage() {
               </TabsTrigger>
               <TabsTrigger value="sections" className="rounded-lg gap-2 data-[state=active]:bg-secondary data-[state=active]:text-primary">
                 <Layers className="w-4 h-4" /> Sections
+              </TabsTrigger>
+              <TabsTrigger value="page-heroes" className="rounded-lg gap-2 data-[state=active]:bg-secondary data-[state=active]:text-primary">
+                <Globe className="w-4 h-4" /> Page Heroes
               </TabsTrigger>
               <TabsTrigger value="settings" className="rounded-lg gap-2 data-[state=active]:bg-secondary data-[state=active]:text-primary">
                 <Settings className="w-4 h-4" /> Site Settings
@@ -627,6 +692,159 @@ export default function SuperAdminCMSPage() {
                             {section.badgeText}
                           </Badge>
                         )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </TabsContent>
+
+            {/* ==================== PAGE HEROES TAB ==================== */}
+            <TabsContent value="page-heroes" className="space-y-6">
+              <h2 className="text-lg font-bold text-gray-900">Page Hero Sections</h2>
+              <p className="text-sm text-gray-500">Customize the hero/banner section for each page — background media, headings, and descriptions.</p>
+
+              {/* Page Hero Editor */}
+              {editingPageHero && (
+                <Card className="border-secondary/30 shadow-lg">
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Edit className="w-5 h-5" /> Edit Hero: {pageHeroForm.pageName || editingPageHero}
+                    </CardTitle>
+                    <CardDescription>Upload a background image or video and customize the hero content</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    {/* Background Media */}
+                    <div className="space-y-3">
+                      <Label className="font-semibold">Background Media</Label>
+                      <div className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center hover:border-secondary/50 transition-colors relative">
+                        {pageHeroForm.backgroundUrl ? (
+                          <div className="space-y-3">
+                            {pageHeroForm.backgroundType === 'video' ? (
+                              <video src={pageHeroForm.backgroundUrl} className="w-full max-h-48 object-cover rounded-lg" controls muted />
+                            ) : (
+                              <div className="relative w-full h-48 rounded-lg overflow-hidden">
+                                <Image src={pageHeroForm.backgroundUrl} alt="Hero preview" fill className="object-cover" />
+                              </div>
+                            )}
+                            <Badge variant="outline" className="uppercase">
+                              {pageHeroForm.backgroundType}
+                            </Badge>
+                          </div>
+                        ) : (
+                          <div className="py-4">
+                            <div className="flex justify-center gap-3 mb-3">
+                              <ImageIcon className="w-8 h-8 text-gray-400" />
+                              <Video className="w-8 h-8 text-gray-400" />
+                            </div>
+                            <p className="text-sm text-gray-500">Upload image or video for hero background</p>
+                            <p className="text-xs text-gray-400 mt-1">Images: JPG, PNG, WebP (max 10MB) • Videos: MP4, WebM (max 100MB)</p>
+                          </div>
+                        )}
+                        <input
+                          type="file"
+                          accept="image/*,video/*"
+                          onChange={handlePageHeroMediaUpload}
+                          className="absolute inset-0 opacity-0 cursor-pointer"
+                          disabled={pageHeroUploading}
+                        />
+                        {pageHeroUploading && (
+                          <div className="mt-3">
+                            <div className="w-full bg-gray-200 rounded-full h-2">
+                              <div className="bg-secondary h-2 rounded-full transition-all duration-300" style={{ width: `${pageHeroUploadProgress}%` }} />
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">{pageHeroUploadProgress}% uploaded</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Content fields */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Badge Text</Label>
+                        <Input
+                          value={pageHeroForm.badgeText || ''}
+                          onChange={(e) => setPageHeroForm(p => ({ ...p, badgeText: e.target.value }))}
+                          placeholder="The Service Menu"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Heading (Main)</Label>
+                        <Input
+                          value={pageHeroForm.heading || ''}
+                          onChange={(e) => setPageHeroForm(p => ({ ...p, heading: e.target.value }))}
+                          placeholder="Signature"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Heading (Highlighted)</Label>
+                        <Input
+                          value={pageHeroForm.headingHighlight || ''}
+                          onChange={(e) => setPageHeroForm(p => ({ ...p, headingHighlight: e.target.value }))}
+                          placeholder="Rituals"
+                        />
+                        <p className="text-[10px] text-gray-400">This part appears in gold/accent color</p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Sub Heading / Description</Label>
+                        <Input
+                          value={pageHeroForm.subHeading || ''}
+                          onChange={(e) => setPageHeroForm(p => ({ ...p, subHeading: e.target.value }))}
+                          placeholder="Artistry is not just a service..."
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3 pt-2">
+                      <Button onClick={handleSavePageHero} disabled={isSaving || pageHeroUploading} className="bg-secondary hover:bg-secondary/90 text-primary gap-2">
+                        <Save className="w-4 h-4" /> {isSaving ? 'Saving...' : 'Save Hero'}
+                      </Button>
+                      <Button variant="outline" onClick={() => { setEditingPageHero(null); setPageHeroForm({}); }}>
+                        <X className="w-4 h-4 mr-1" /> Cancel
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Page Heroes Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {pageHeroKeys.map((key) => {
+                  const hero = getPageHero(key);
+                  if (!hero) return null;
+                  return (
+                    <Card key={key} className="transition-all hover:shadow-md overflow-hidden">
+                      {/* Preview */}
+                      <div className="relative h-32 bg-gray-100">
+                        {hero.backgroundUrl && (
+                          hero.backgroundType === 'video' ? (
+                            <video src={hero.backgroundUrl} className="w-full h-full object-cover" muted />
+                          ) : (
+                            <Image src={hero.backgroundUrl} alt={hero.pageName} fill className="object-cover" />
+                          )
+                        )}
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                          <div className="text-center">
+                            <p className="text-white font-bold text-lg">{hero.heading} <span className="text-secondary italic">{hero.headingHighlight}</span></p>
+                          </div>
+                        </div>
+                        <Badge className="absolute top-2 left-2 bg-white/20 backdrop-blur-sm text-white text-[10px] uppercase">
+                          {hero.pageName}
+                        </Badge>
+                        {hero.backgroundType && (
+                          <Badge variant="outline" className="absolute top-2 right-2 bg-white/20 backdrop-blur-sm text-white text-[10px] uppercase border-white/30">
+                            {hero.backgroundType === 'video' ? <Video className="w-3 h-3 mr-1" /> : <ImageIcon className="w-3 h-3 mr-1" />}
+                            {hero.backgroundType}
+                          </Badge>
+                        )}
+                      </div>
+                      <CardContent className="p-4">
+                        <p className="text-xs text-gray-500 mb-1">{hero.badgeText}</p>
+                        <p className="text-sm text-gray-600 line-clamp-2 mb-3">{hero.subHeading}</p>
+                        <Button size="sm" variant="outline" onClick={() => handleEditPageHero(key)} className="w-full gap-1">
+                          <Edit className="w-3 h-3" /> Edit Hero
+                        </Button>
                       </CardContent>
                     </Card>
                   );

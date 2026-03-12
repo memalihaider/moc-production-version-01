@@ -29,6 +29,7 @@ import {
   Filter,
   Sparkles
 } from 'lucide-react';
+import { useCMSStore } from '@/stores/cms.store';
 import { cn } from '@/lib/utils';
 
 // Firebase imports
@@ -67,6 +68,8 @@ interface BlogPost {
 
 export default function BlogPage() {
   const router = useRouter();
+  const { fetchCMSData, getPageHero } = useCMSStore();
+  const blogHero = getPageHero('blog');
   const [blogs, setBlogs] = useState<BlogPost[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -81,6 +84,7 @@ export default function BlogPage() {
 
   // Check login status
   useEffect(() => {
+    fetchCMSData();
     const checkLogin = () => {
       // Check if user is logged in (update this based on your auth system)
       const user = localStorage.getItem('user'); // or cookies, or context
@@ -360,36 +364,32 @@ export default function BlogPage() {
       <section className="relative bg-gradient-to-br from-[#FA9DB7] via-white to-[#FA9DB7] py-32 px-4 overflow-hidden">
   {/* Video Background */}
   <div className="absolute inset-0 w-full h-full">
-    <video
-      autoPlay
-      loop
-      muted
-      playsInline
-      className="absolute inset-0 w-full h-full object-cover"
-    >
-      <source src="https://www.pexels.com/download/video/854416/" type="video/mp4" />
-      Your browser does not support the video tag.
-    </video>
+    {blogHero?.backgroundType === 'video' ? (
+      <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover">
+        <source src={blogHero?.backgroundUrl || 'https://www.pexels.com/download/video/854416/'} type="video/mp4" />
+      </video>
+    ) : (
+      <img src={blogHero?.backgroundUrl || ''} alt="" className="absolute inset-0 w-full h-full object-cover" />
+    )}
     
-    {/* Soft Overlay - video visible rahega aur text readable */}
     <div className="absolute inset-0 bg-gradient-to-br from-[#FA9DB7]/30 via-white/40 to-[#FA9DB7]/30"></div>
   </div>
 
-  {/* Texture Overlay (optional - hata bhi sakte ho) */}
+  {/* Texture Overlay */}
   <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/diamond-upholstery.png')] opacity-[0.02] mix-blend-overlay"></div>
   
   <div className="max-w-7xl mx-auto relative z-10">
     <div className="text-center space-y-8">
       <div className="inline-flex items-center gap-2 bg-secondary/20 px-4 py-2 rounded-full mb-6 border border-secondary/30">
             <BookOpen className="w-4 h-4 text-secondary" />
-            <span className="text-black font-black tracking-[0.3em] uppercase text-[10px]">The ManofCave Journal</span>
+            <span className="text-black font-black tracking-[0.3em] uppercase text-[10px]">{blogHero?.badgeText || 'The ManofCave Journal'}</span>
           </div>
       
      <h1 className="text-5xl md:text-7xl font-sans font-bold text-white mb-6 leading-tight">
-            The Grooming <span className="text-secondary italic">Chronicles</span>
+            {blogHero?.heading || 'The Grooming'} <span className="text-secondary italic">{blogHero?.headingHighlight || 'Chronicles'}</span>
           </h1>
           <p className="text-gray-300 max-w-2xl mx-auto text-lg font-light leading-relaxed mb-8">
-            Expert insights, style guides, and timeless wisdom for the modern gentleman's journey to excellence.
+            {blogHero?.subHeading || "Expert insights, style guides, and timeless wisdom for the modern gentleman's journey to excellence."}
           </p>
       {/* Stats */}
           <div className="flex flex-wrap items-center justify-center gap-6">
