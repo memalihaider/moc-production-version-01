@@ -150,6 +150,8 @@ interface Category {
   branchId: string;
   branchName: string;
   branchCity: string;
+  branches?: string[];
+  branchNames?: string[];
   type: string;
   isActive: boolean;
   createdAt: Date;
@@ -485,6 +487,8 @@ const useHomeStore = create<HomeStore>()(
               branchId: data.branchId || '',
               branchName: data.branchName || 'Unknown Branch',
               branchCity: data.branchCity || 'Unknown City',
+              branches: data.branches || [],
+              branchNames: data.branchNames || [],
               type: data.type || 'general',
               isActive: data.isActive || true,
               createdAt,
