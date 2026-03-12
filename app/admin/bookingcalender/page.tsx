@@ -1538,14 +1538,18 @@ export default function AdminAppointments() {
 
   // Auto-set branch for branch admins (fallback if loadFirebaseData hasn't set it)
   useEffect(() => {
-    if (user?.role === 'admin' && user?.branchName && branches.length > 0 && !bookingData.branch) {
-      const adminBranch = branches.find(b => b.name === user.branchName);
-      if (adminBranch) {
-        setSelectedBranch(adminBranch);
-        setBookingData(prev => ({
-          ...prev,
-          branch: user.branchName || ''
-        }));
+    if (user?.role === 'admin' && user?.branchName && !bookingData.branch) {
+      // Set branch immediately even before branches array loads
+      setBookingData(prev => ({
+        ...prev,
+        branch: user.branchName || ''
+      }));
+      // Also set selectedBranch object if branches are loaded
+      if (branches.length > 0) {
+        const adminBranch = branches.find(b => b.name === user.branchName);
+        if (adminBranch) {
+          setSelectedBranch(adminBranch);
+        }
       }
     }
   }, [branches, user]);
@@ -1701,15 +1705,22 @@ export default function AdminAppointments() {
 
           // Filter staff, services, categories for branch admins
           if (userBranch) {
+            const adminBranch = branchesData.find(b => b.name === userBranch);
+            const adminBranchId = adminBranch?.firebaseId;
+
             setStaffMembers(staffData.filter(s => s.branch === userBranch));
             setServices(servicesData.filter(s =>
-              s.branchNames?.includes(userBranch) || s.branches?.includes(userBranch)
+              s.branchNames?.includes(userBranch) ||
+              (adminBranchId && s.branches?.includes(adminBranchId))
             ));
             setCategories(categoriesData.filter(c =>
-              c.branchNames?.includes(userBranch) || c.branches?.includes(userBranch) || c.branchName === userBranch
+              // Global categories (no branches assigned) are for ALL branches
+              ((!c.branches || c.branches.length === 0) && (!c.branchNames || c.branchNames.length === 0) && !c.branchId && !c.branchName) ||
+              c.branchNames?.includes(userBranch) ||
+              (adminBranchId && c.branches?.includes(adminBranchId)) ||
+              c.branchName === userBranch
             ));
             // For branch admin, show only their branch
-            const adminBranch = branchesData.find(b => b.name === userBranch);
             setBranches(adminBranch ? [adminBranch] : branchesData);
             
             // Auto-set branch in booking form immediately (no race condition)
@@ -1932,15 +1943,21 @@ export default function AdminAppointments() {
       if (!category.isActive || category.type !== 'service') return false;
       
       // Global categories (no branches assigned) are always visible
-      if (!category.branches || category.branches.length === 0) {
-        if (!category.branchId && !category.branchName) return true;
+      if ((!category.branches || category.branches.length === 0) && 
+          (!category.branchNames || category.branchNames.length === 0) &&
+          !category.branchId && !category.branchName) {
+        return true;
       }
       
       // Check multi-branch arrays (by ID and by name)
       if (category.branches && category.branches.length > 0) {
         if (selectedBranch?.firebaseId && category.branches.includes(selectedBranch.firebaseId)) return true;
-        // Also check branchNames array (works even when selectedBranch object isn't loaded yet)
         if (category.branchNames && category.branchNames.includes(bookingData.branch)) return true;
+      }
+      
+      // Check branchNames array directly
+      if (category.branchNames && category.branchNames.length > 0) {
+        if (category.branchNames.includes(bookingData.branch)) return true;
       }
       
       // Backward compat: check old branchId field
@@ -1961,7 +1978,7 @@ export default function AdminAppointments() {
     return services.filter(service => {
       if (service.status !== 'active') return false;
       
-      // Filter by branch
+      // Filter by branch - check both name and ID
       const selectedBranchLower = bookingData.branch.toLowerCase().trim();
       
       const hasInBranchNames = service.branchNames?.some(branch => 
@@ -1972,10 +1989,15 @@ export default function AdminAppointments() {
         branch.toLowerCase().trim() === selectedBranchLower
       );
       
-      const branchMatch = hasInBranchNames || hasInBranches;
+      // Also check branch ID match
+      const hasInBranchIds = selectedBranch?.firebaseId && service.branches?.some(branchId => 
+        branchId === selectedBranch.firebaseId
+      );
+      
+      const branchMatch = hasInBranchNames || hasInBranches || hasInBranchIds;
       if (!branchMatch) return false;
       
-      // Filter by selected category (if one is selected)
+      // Filter by selected category (if one is selected) - category only filters, doesn't block
       if (bookingData.category) {
         const categoryMatch = 
           service.category === bookingData.category ||
@@ -1985,7 +2007,7 @@ export default function AdminAppointments() {
       
       return true;
     });
-  }, [bookingData.branch, bookingData.category, selectedCategory, services]);
+  }, [bookingData.branch, bookingData.category, selectedCategory, selectedBranch, services]);
 
   const filteredStaff = useMemo(() => {
     if (!bookingData.branch) return [];
@@ -2036,6 +2058,14 @@ export default function AdminAppointments() {
   };
 
   const handleCategoryChange = (categoryName: string) => {
+    if (categoryName === '__all__') {
+      setSelectedCategory(null);
+      setBookingData(prev => ({
+        ...prev,
+        category: ''
+      }));
+      return;
+    }
     const category = categories.find(c => c.name === categoryName);
     setSelectedCategory(category || null);
     setBookingData(prev => ({
@@ -4157,7 +4187,7 @@ export default function AdminAppointments() {
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
                     <Tag className="w-4 h-4" />
-                    Category
+                    Category <span className="text-xs font-normal text-gray-400">(optional - filters services)</span>
                   </label>
                   <Select 
                     value={bookingData.category} 
@@ -4184,18 +4214,23 @@ export default function AdminAppointments() {
                           </div>
                         </div>
                       ) : (
-                        filteredCategories.map((category) => (
-                          <SelectItem key={category.firebaseId} value={category.name}>
-                            <div className="flex flex-col">
-                              <span className="font-medium">{category.name}</span>
-                              <span className="text-xs text-gray-500">
-                                {category.branchNames && category.branchNames.length > 0 
-                                  ? category.branchNames.join(', ') 
-                                  : category.branchName || 'No branch'}
-                              </span>
-                            </div>
+                        <>
+                          <SelectItem value="__all__">
+                            <span className="font-medium">All Categories</span>
                           </SelectItem>
-                        ))
+                          {filteredCategories.map((category) => (
+                            <SelectItem key={category.firebaseId} value={category.name}>
+                              <div className="flex flex-col">
+                                <span className="font-medium">{category.name}</span>
+                                <span className="text-xs text-gray-500">
+                                  {category.branchNames && category.branchNames.length > 0 
+                                    ? category.branchNames.join(', ') 
+                                    : category.branchName || 'Global'}
+                                </span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </>
                       )}
                     </SelectContent>
                   </Select>

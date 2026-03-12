@@ -106,7 +106,7 @@ export default function SuperAdminServices() {
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
-  // Form state - WITH IMAGE URL
+  // Form state - WITH IMAGE URL & MULTI-BRANCH
   const [serviceForm, setServiceForm] = useState({
     name: '',
     category: '',
@@ -114,9 +114,9 @@ export default function SuperAdminServices() {
     description: '',
     price: '',
     duration: '',
-    imageUrl: '', // ✅ Added imageUrl field
+    imageUrl: '',
     status: 'active' as 'active' | 'inactive',
-    branchId: ''
+    selectedBranches: [] as string[]
   });
 
   // 🔥 Firebase se real-time services fetch
@@ -307,8 +307,8 @@ export default function SuperAdminServices() {
       return;
     }
     
-    if (!serviceForm.branchId) {
-      alert('Please select a branch');
+    if (serviceForm.selectedBranches.length === 0) {
+      alert('Please select at least one branch');
       return;
     }
 
@@ -316,9 +316,12 @@ export default function SuperAdminServices() {
     try {
       const servicesRef = collection(db, 'services');
       
-      // Get selected branch
-      const selectedBranch = branches.find(b => b.id === serviceForm.branchId);
-      const branchName = selectedBranch ? selectedBranch.name : '';
+      // Get selected branches (IDs and Names)
+      const selectedBranchIds = serviceForm.selectedBranches;
+      const selectedBranchNames = selectedBranchIds.map(id => {
+        const branch = branches.find(b => b.id === id);
+        return branch ? branch.name : '';
+      }).filter(Boolean);
       
       // Get selected category
       const selectedCategory = categories.find(cat => cat.id === serviceForm.categoryId);
@@ -331,10 +334,10 @@ export default function SuperAdminServices() {
         description: serviceForm.description.trim(),
         price: parseFloat(serviceForm.price),
         duration: parseInt(serviceForm.duration),
-        imageUrl: serviceForm.imageUrl.trim(), // ✅ Added imageUrl
+        imageUrl: serviceForm.imageUrl.trim(),
         status: serviceForm.status,
-        branches: [serviceForm.branchId],
-        branchNames: branchName ? [branchName] : [],
+        branches: selectedBranchIds,
+        branchNames: selectedBranchNames,
         totalBookings: 0,
         revenue: 0,
         popularity: 'low',
@@ -381,8 +384,8 @@ export default function SuperAdminServices() {
       return;
     }
     
-    if (!serviceForm.branchId) {
-      alert('Please select a branch');
+    if (serviceForm.selectedBranches.length === 0) {
+      alert('Please select at least one branch');
       return;
     }
 
@@ -390,9 +393,12 @@ export default function SuperAdminServices() {
     try {
       const serviceDoc = doc(db, 'services', selectedService.id);
       
-      // Get selected branch
-      const selectedBranch = branches.find(b => b.id === serviceForm.branchId);
-      const branchName = selectedBranch ? selectedBranch.name : '';
+      // Get selected branches (IDs and Names)
+      const selectedBranchIds = serviceForm.selectedBranches;
+      const selectedBranchNames = selectedBranchIds.map(id => {
+        const branch = branches.find(b => b.id === id);
+        return branch ? branch.name : '';
+      }).filter(Boolean);
       
       // Get selected category
       const selectedCategory = categories.find(cat => cat.id === serviceForm.categoryId);
@@ -405,10 +411,10 @@ export default function SuperAdminServices() {
         description: serviceForm.description.trim(),
         price: parseFloat(serviceForm.price),
         duration: parseInt(serviceForm.duration),
-        imageUrl: serviceForm.imageUrl.trim(), // ✅ Added imageUrl
+        imageUrl: serviceForm.imageUrl.trim(),
         status: serviceForm.status,
-        branches: [serviceForm.branchId],
-        branchNames: branchName ? [branchName] : [],
+        branches: selectedBranchIds,
+        branchNames: selectedBranchNames,
         updatedAt: serverTimestamp()
       });
       
@@ -471,9 +477,9 @@ export default function SuperAdminServices() {
       description: '',
       price: '',
       duration: '',
-      imageUrl: '', // ✅ Added imageUrl
+      imageUrl: '',
       status: 'active',
-      branchId: ''
+      selectedBranches: []
     });
   };
 
@@ -486,9 +492,9 @@ export default function SuperAdminServices() {
       description: service.description,
       price: service.price.toString(),
       duration: service.duration.toString(),
-      imageUrl: service.imageUrl || '', // ✅ Added imageUrl
+      imageUrl: service.imageUrl || '',
       status: service.status,
-      branchId: service.branches[0] || ''
+      selectedBranches: service.branches || []
     });
     setShowAddServiceDialog(true);
   };
@@ -973,39 +979,56 @@ export default function SuperAdminServices() {
                 </div>
               </div>
 
-              {/* Branch Dropdown */}
+              {/* Branch Selection - Multi-Select Checkboxes */}
               <div>
                 <Label className="text-xs font-bold uppercase">
-                  Select Branch *
+                  Select Branches * (Choose Multiple)
                 </Label>
-                <select
-                  value={serviceForm.branchId}
-                  onChange={(e) => setServiceForm({
-                    ...serviceForm, 
-                    branchId: e.target.value
-                  })}
-                  className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm"
-                  disabled={isAdding || isEditing || branchesLoading}
-                >
-                  <option value="">Select a branch</option>
-                  {branchesLoading ? (
-                    <option value="" disabled>Loading branches...</option>
-                  ) : branches.length === 0 ? (
-                    <option value="" disabled>No branches available</option>
-                  ) : (
-                    branches.map((branch) => (
-                      <option key={branch.id} value={branch.id}>
-                        {branch.name}
-                        {branch.city && ` (AED{branch.city})`}
-                      </option>
-                    ))
-                  )}
-                </select>
-                {branchesLoading && (
+                {branchesLoading ? (
                   <p className="text-xs text-gray-500 mt-1">Loading branches...</p>
-                )}
-                {!branchesLoading && branches.length === 0 && (
+                ) : branches.length === 0 ? (
                   <p className="text-xs text-red-500 mt-1">No branches available. Please add branches first.</p>
+                ) : (
+                  <div className="mt-1 border border-gray-200 rounded-lg p-3 max-h-48 overflow-y-auto space-y-2">
+                    {branches.map((branch) => {
+                      const isChecked = serviceForm.selectedBranches.includes(branch.id);
+                      return (
+                        <label 
+                          key={branch.id} 
+                          className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors ${
+                            isChecked ? 'bg-secondary/10 border border-secondary/30' : 'hover:bg-gray-50'
+                          } ${(isAdding || isEditing) ? 'opacity-50 pointer-events-none' : ''}`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {
+                              setServiceForm(prev => ({
+                                ...prev,
+                                selectedBranches: isChecked
+                                  ? prev.selectedBranches.filter(id => id !== branch.id)
+                                  : [...prev.selectedBranches, branch.id]
+                              }));
+                            }}
+                            disabled={isAdding || isEditing}
+                            className="w-4 h-4 rounded border-gray-300 text-secondary focus:ring-secondary"
+                          />
+                          <div className="flex-1">
+                            <span className="text-sm font-medium">{branch.name}</span>
+                            {branch.city && (
+                              <span className="text-xs text-gray-500 ml-1">({branch.city})</span>
+                            )}
+                          </div>
+                          {isChecked && <Check className="w-4 h-4 text-secondary" />}
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+                {serviceForm.selectedBranches.length > 0 && (
+                  <p className="text-xs text-green-600 mt-1 font-medium">
+                    {serviceForm.selectedBranches.length} branch(es) selected
+                  </p>
                 )}
               </div>
 
@@ -1048,7 +1071,7 @@ export default function SuperAdminServices() {
               
               {/* Show which fields are missing */}
               {(!serviceForm.name.trim() || !serviceForm.categoryId || !serviceForm.price || 
-                !serviceForm.duration || !serviceForm.branchId) && (
+                !serviceForm.duration || serviceForm.selectedBranches.length === 0) && (
                 <div className="text-xs text-red-500 mt-2">
                   * Required fields must be filled
                 </div>

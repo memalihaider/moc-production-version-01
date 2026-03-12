@@ -102,7 +102,7 @@ export default function SuperAdminServices() {
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
-  // Form state - AUTO-SET BRANCH FOR BRANCH ADMIN
+  // Form state - AUTO-SET BRANCH FOR BRANCH ADMIN, MULTI-BRANCH FOR SUPER ADMIN
   const [serviceForm, setServiceForm] = useState({
     name: '',
     category: '',
@@ -112,7 +112,7 @@ export default function SuperAdminServices() {
     duration: '',
     imageUrl: '',
     status: 'active' as 'active' | 'inactive',
-    branchId: user?.role === 'admin' ? user.branchId || '' : '',
+    selectedBranches: user?.role === 'admin' && user?.branchId ? [user.branchId] : [] as string[],
     branchName: user?.role === 'admin' ? user.branchName || '' : ''
   });
 
@@ -345,16 +345,14 @@ export default function SuperAdminServices() {
     }
 
     // 🔥 IMPORTANT: Ensure branch is set for branch admin
-    let finalBranchId = serviceForm.branchId;
-    let finalBranchName = serviceForm.branchName;
+    let finalBranchIds = serviceForm.selectedBranches;
     
-    if (user?.role === 'admin' && !serviceForm.branchId) {
-      finalBranchId = user.branchId || '';
-      finalBranchName = user.branchName || '';
+    if (user?.role === 'admin' && finalBranchIds.length === 0 && user?.branchId) {
+      finalBranchIds = [user.branchId];
     }
 
-    if (!finalBranchId) {
-      alert('Please select a branch');
+    if (finalBranchIds.length === 0) {
+      alert('Please select at least one branch');
       return;
     }
 
@@ -366,6 +364,17 @@ export default function SuperAdminServices() {
       const selectedCategory = categories.find(cat => cat.id === serviceForm.categoryId);
       const categoryName = selectedCategory?.name || serviceForm.category;
       
+      // Get branch names from IDs
+      const finalBranchNames = finalBranchIds.map(id => {
+        const branch = branches.find(b => b.id === id);
+        return branch ? branch.name : '';
+      }).filter(Boolean);
+      
+      // If branch admin, also use their branchName as fallback
+      if (user?.role === 'admin' && finalBranchNames.length === 0 && user?.branchName) {
+        finalBranchNames.push(user.branchName);
+      }
+      
       const newServiceData = {
         name: serviceForm.name.trim(),
         category: categoryName,
@@ -375,8 +384,8 @@ export default function SuperAdminServices() {
         duration: parseInt(serviceForm.duration),
         imageUrl: serviceForm.imageUrl.trim(),
         status: serviceForm.status,
-        branches: [finalBranchId], // ✅ Auto-set branch
-        branchNames: finalBranchName ? [finalBranchName] : [],
+        branches: finalBranchIds,
+        branchNames: finalBranchNames,
         totalBookings: 0,
         revenue: 0,
         popularity: 'low',
@@ -384,13 +393,13 @@ export default function SuperAdminServices() {
         updatedAt: serverTimestamp()
       };
 
-      console.log('Adding service to branch:', finalBranchName); // Debugging ke liye
+      console.log('Adding service to branches:', finalBranchNames);
       
       await addDoc(servicesRef, newServiceData);
       
       setShowAddServiceDialog(false);
       resetServiceForm();
-      alert(`Service added successfully to ${finalBranchName} branch!`);
+      alert(`Service added successfully to ${finalBranchNames.join(', ')} branch(es)!`);
       
     } catch (error) {
       console.error("Error adding service: ", error);
@@ -429,16 +438,14 @@ export default function SuperAdminServices() {
     }
 
     // 🔥 IMPORTANT: Ensure branch is set for branch admin
-    let finalBranchId = serviceForm.branchId;
-    let finalBranchName = serviceForm.branchName;
+    let finalBranchIds = serviceForm.selectedBranches;
     
-    if (user?.role === 'admin' && !serviceForm.branchId) {
-      finalBranchId = user.branchId || '';
-      finalBranchName = user.branchName || '';
+    if (user?.role === 'admin' && finalBranchIds.length === 0 && user?.branchId) {
+      finalBranchIds = [user.branchId];
     }
 
-    if (!finalBranchId) {
-      alert('Please select a branch');
+    if (finalBranchIds.length === 0) {
+      alert('Please select at least one branch');
       return;
     }
 
@@ -450,6 +457,17 @@ export default function SuperAdminServices() {
       const selectedCategory = categories.find(cat => cat.id === serviceForm.categoryId);
       const categoryName = selectedCategory?.name || serviceForm.category;
       
+      // Get branch names from IDs
+      const finalBranchNames = finalBranchIds.map(id => {
+        const branch = branches.find(b => b.id === id);
+        return branch ? branch.name : '';
+      }).filter(Boolean);
+      
+      // If branch admin, also use their branchName as fallback
+      if (user?.role === 'admin' && finalBranchNames.length === 0 && user?.branchName) {
+        finalBranchNames.push(user.branchName);
+      }
+      
       // Branch admin cannot change price - only update other fields
       const updateData: Record<string, unknown> = {
         name: serviceForm.name.trim(),
@@ -459,8 +477,8 @@ export default function SuperAdminServices() {
         duration: parseInt(serviceForm.duration),
         imageUrl: serviceForm.imageUrl.trim(),
         status: serviceForm.status,
-        branches: [finalBranchId],
-        branchNames: finalBranchName ? [finalBranchName] : [],
+        branches: finalBranchIds,
+        branchNames: finalBranchNames,
         updatedAt: serverTimestamp()
       };
       
@@ -532,7 +550,7 @@ export default function SuperAdminServices() {
       duration: '',
       imageUrl: '',
       status: 'active',
-      branchId: user?.role === 'admin' ? user.branchId || '' : '',
+      selectedBranches: user?.role === 'admin' && user?.branchId ? [user.branchId] : [],
       branchName: user?.role === 'admin' ? user.branchName || '' : ''
     });
   };
@@ -548,7 +566,9 @@ export default function SuperAdminServices() {
       duration: service.duration.toString(),
       imageUrl: service.imageUrl || '',
       status: service.status,
-      branchId: service.branches[0] || (user?.role === 'admin' ? user.branchId || '' : ''),
+      selectedBranches: service.branches?.length > 0 
+        ? service.branches 
+        : (user?.role === 'admin' && user?.branchId ? [user.branchId] : []),
       branchName: service.branchNames?.[0] || (user?.role === 'admin' ? user.branchName || '' : '')
     });
     setShowAddServiceDialog(true);
@@ -1064,7 +1084,7 @@ export default function SuperAdminServices() {
                 </Label>
                 
                 {user?.role === 'admin' ? (
-                  // Branch admin ke liye DISPLAY ONLY field
+                  // Branch admin: display-only, auto-selected branch
                   <div className="mt-2">
                     <div className="flex items-center gap-2 p-2 bg-gray-100 rounded-md border">
                       <Building className="w-4 h-4 text-gray-600" />
@@ -1078,42 +1098,37 @@ export default function SuperAdminServices() {
                     <p className="text-xs text-gray-500 mt-2">
                       <strong>Note:</strong> Service will be automatically added to <strong>{user?.branchName}</strong> branch
                     </p>
-                    {/* Hidden input to store branch ID */}
-                    <input 
-                      type="hidden" 
-                      value={serviceForm.branchId || user.branchId || ''}
-                      onChange={(e) => setServiceForm(prev => ({ ...prev, branchId: e.target.value }))}
-                    />
                   </div>
                 ) : (
-                  // Super admin ke liye normal dropdown
-                  <select
-                    value={serviceForm.branchId}
-                    onChange={(e) => {
-                      const selectedBranch = branches.find(b => b.id === e.target.value);
-                      setServiceForm({
-                        ...serviceForm, 
-                        branchId: e.target.value,
-                        branchName: selectedBranch?.name || ''
-                      });
-                    }}
-                    className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm"
-                    disabled={isAdding || isEditing || branchesLoading}
-                  >
-                    <option value="">Select a branch</option>
+                  // Super admin: multi-branch checkboxes
+                  <div className="mt-2 space-y-2 max-h-48 overflow-y-auto border rounded-lg p-3">
                     {branchesLoading ? (
-                      <option value="" disabled>Loading branches...</option>
+                      <p className="text-sm text-gray-500">Loading branches...</p>
                     ) : branches.length === 0 ? (
-                      <option value="" disabled>No branches available</option>
+                      <p className="text-sm text-gray-500">No branches available</p>
                     ) : (
                       branches.map((branch) => (
-                        <option key={branch.id} value={branch.id}>
-                          {branch.name}
-                          {branch.city && ` (${branch.city})`}
-                        </option>
+                        <label key={branch.id} className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={serviceForm.selectedBranches.includes(branch.id)}
+                            onChange={(e) => {
+                              const updated = e.target.checked
+                                ? [...serviceForm.selectedBranches, branch.id]
+                                : serviceForm.selectedBranches.filter(id => id !== branch.id);
+                              setServiceForm(prev => ({ ...prev, selectedBranches: updated }));
+                            }}
+                            className="rounded border-gray-300"
+                            disabled={isAdding || isEditing}
+                          />
+                          <span className="text-sm">
+                            {branch.name}
+                            {branch.city && <span className="text-gray-400"> ({branch.city})</span>}
+                          </span>
+                        </label>
                       ))
                     )}
-                  </select>
+                  </div>
                 )}
                 
                 {user?.role === 'admin' && (
