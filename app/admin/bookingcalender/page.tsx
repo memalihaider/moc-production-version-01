@@ -1507,6 +1507,7 @@ export default function AdminAppointments() {
   const [selectedServices, setSelectedServices] = useState<FirebaseService[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<FirebaseCategory | null>(null);
   const [selectedBranch, setSelectedBranch] = useState<FirebaseBranch | null>(null);
+  const [serviceSearchTerm, setServiceSearchTerm] = useState('');
 
   const [bookingData, setBookingData] = useState<BookingFormData>({
     customer: '',
@@ -2024,6 +2025,20 @@ export default function AdminAppointments() {
     });
   }, [bookingData.branch, bookingData.category, selectedCategory, selectedBranch, services]);
 
+  const searchableServices = useMemo(() => {
+    const search = serviceSearchTerm.trim().toLowerCase();
+    if (!search) return filteredServices;
+
+    return filteredServices.filter((service) => {
+      const matchesName = service.name.toLowerCase().includes(search);
+      const matchesCategory = (service.category || '').toLowerCase().includes(search);
+      const matchesDuration = String(service.duration || '').includes(search);
+      const matchesPrice = String(service.price || '').includes(search);
+
+      return matchesName || matchesCategory || matchesDuration || matchesPrice;
+    });
+  }, [filteredServices, serviceSearchTerm]);
+
   const filteredStaff = useMemo(() => {
     if (!bookingData.branch) return [];
     
@@ -2105,6 +2120,7 @@ export default function AdminAppointments() {
     
     setSelectedServices([]);
     setSelectedCategory(null);
+    setServiceSearchTerm('');
   };
 
   const handlePaymentMethodToggle = (method: 'cash' | 'card' | 'check' | 'digital') => {
@@ -2690,6 +2706,7 @@ export default function AdminAppointments() {
     setSelectedServices([]);
     setSelectedCategory(null);
     setSelectedBranch(adminBranch);
+    setServiceSearchTerm('');
     setShowBookingDialog(true);
   };
 
@@ -2755,6 +2772,7 @@ export default function AdminAppointments() {
       setSelectedServices([]);
       setSelectedCategory(null);
       setSelectedBranch(adminBranch);
+      setServiceSearchTerm('');
     }
   };
 
@@ -4322,6 +4340,16 @@ export default function AdminAppointments() {
                   <label className="text-sm font-medium text-gray-700">
                     Select Services from Dropdown
                   </label>
+                  <div className="relative">
+                    <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <Input
+                      value={serviceSearchTerm}
+                      onChange={(e) => setServiceSearchTerm(e.target.value)}
+                      placeholder={bookingData.branch ? "Search service by name, category, price..." : "First select a branch"}
+                      disabled={!bookingData.branch || loading.services}
+                      className="pl-9 h-11"
+                    />
+                  </div>
                   <Select 
                     value="" 
                     onValueChange={(serviceName) => handleServiceSelection(serviceName)}
@@ -4336,13 +4364,17 @@ export default function AdminAppointments() {
                           <div className="animate-spin w-4 h-4 border-2 border-primary border-t-transparent rounded-full mx-auto"></div>
                           <p className="text-xs text-gray-600 mt-1">Loading services...</p>
                         </div>
-                      ) : filteredServices.length === 0 && bookingData.branch ? (
+                      ) : searchableServices.length === 0 && bookingData.branch ? (
                         <div className="text-center py-2">
                           <AlertCircle className="w-5 h-5 text-yellow-500 mx-auto mb-1" />
-                          <p className="text-sm text-gray-600">No services available for {bookingData.branch}</p>
+                          <p className="text-sm text-gray-600">
+                            {serviceSearchTerm
+                              ? `No services match "${serviceSearchTerm}"`
+                              : `No services available for ${bookingData.branch}`}
+                          </p>
                         </div>
                       ) : (
-                        filteredServices.map((service) => {
+                        searchableServices.map((service) => {
                           const isSelected = selectedServices.some(s => s.name === service.name);
                           return (
                             <SelectItem 
@@ -4375,7 +4407,7 @@ export default function AdminAppointments() {
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-gray-500">
-                    Use dropdown to select services. Select multiple times to add multiple services.
+                    Search first, then select from dropdown. Select again to remove a selected service.
                   </p>
                 </div>
                 

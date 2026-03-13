@@ -99,6 +99,15 @@ interface Branch {
   country: string;
   openingTime: string;
   closingTime: string;
+  weeklyTimings?: {
+    monday?: { opening: string; closing: string; closed: boolean };
+    tuesday?: { opening: string; closing: string; closed: boolean };
+    wednesday?: { opening: string; closing: string; closed: boolean };
+    thursday?: { opening: string; closing: string; closed: boolean };
+    friday?: { opening: string; closing: string; closed: boolean };
+    saturday?: { opening: string; closing: string; closed: boolean };
+    sunday?: { opening: string; closing: string; closed: boolean };
+  };
   phone: string;
   email: string;
   status: string;
@@ -360,6 +369,7 @@ const useHomeStore = create<HomeStore>()(
               country: data.country || 'Country not available',
               openingTime: data.openingTime || '09:00',
               closingTime: data.closingTime || '18:00',
+              weeklyTimings: data.weeklyTimings || {},
               phone: data.phone || 'N/A',
               email: data.email || 'N/A',
               status: data.status || 'active',
@@ -1691,7 +1701,17 @@ export default function Home() {
                         <div className="pt-3 border-t border-gray-100 space-y-2">
                           <div className="flex items-center gap-2 text-[10px] text-gray-600">
                             <Clock className="w-3 h-3 text-secondary shrink-0" />
-                            <span className="truncate">{branch.openingTime} - {branch.closingTime}</span>
+                            <span className="truncate">
+                              {(() => {
+                                const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;
+                                const todayKey = dayNames[new Date().getDay()];
+                                const todayTiming = branch.weeklyTimings?.[todayKey];
+                                if (todayTiming?.closed) return 'Closed Today';
+                                const opening = todayTiming?.opening || branch.openingTime;
+                                const closing = todayTiming?.closing || branch.closingTime;
+                                return `${opening} - ${closing}`;
+                              })()}
+                            </span>
                           </div>
                           <div className="flex items-center gap-2 text-[10px] text-gray-600">
                             <Phone className="w-3 h-3 text-secondary shrink-0" />

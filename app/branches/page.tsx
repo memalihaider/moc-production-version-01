@@ -35,6 +35,15 @@ interface Branch {
   managerName: string;
   managerEmail: string;
   managerPhone: string;
+  weeklyTimings?: {
+    monday?: { opening: string; closing: string; closed: boolean };
+    tuesday?: { opening: string; closing: string; closed: boolean };
+    wednesday?: { opening: string; closing: string; closed: boolean };
+    thursday?: { opening: string; closing: string; closed: boolean };
+    friday?: { opening: string; closing: string; closed: boolean };
+    saturday?: { opening: string; closing: string; closed: boolean };
+    sunday?: { opening: string; closing: string; closed: boolean };
+  };
   createdAt: any;
   updatedAt: any;
   rating?: number;
@@ -98,6 +107,7 @@ const useBranchesStore = create<BranchesStore>((set, get) => ({
           managerName: data.managerName || 'Not assigned',
           managerEmail: data.managerEmail || 'Not available',
           managerPhone: data.managerPhone || 'Not available',
+          weeklyTimings: data.weeklyTimings || {},
           createdAt: data.createdAt,
           updatedAt: data.updatedAt,
           rating: Math.floor(Math.random() * 5) + 4,
@@ -142,6 +152,7 @@ const useBranchesStore = create<BranchesStore>((set, get) => ({
           managerName: data.managerName || 'Not assigned',
           managerEmail: data.managerEmail || 'Not available',
           managerPhone: data.managerPhone || 'Not available',
+          weeklyTimings: data.weeklyTimings || {},
           createdAt: data.createdAt,
           updatedAt: data.updatedAt,
           rating: Math.floor(Math.random() * 5) + 4,
@@ -213,6 +224,7 @@ const useBranchesStore = create<BranchesStore>((set, get) => ({
             managerName: data.managerName || 'Not assigned',
             managerEmail: data.managerEmail || 'Not available',
             managerPhone: data.managerPhone || 'Not available',
+            weeklyTimings: data.weeklyTimings || {},
             createdAt: data.createdAt,
             updatedAt: data.updatedAt,
             rating: Math.floor(Math.random() * 5) + 4,
@@ -341,15 +353,43 @@ export default function Branches() {
     return matchesSearch && matchesCity && matchesStatus;
   });
 
+  const getTodayTiming = (branch: Branch) => {
+    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;
+    const todayKey = dayNames[new Date().getDay()];
+    const todayTiming = branch.weeklyTimings?.[todayKey];
+
+    if (todayTiming) {
+      if (todayTiming.closed) {
+        return { openingTime: null, closingTime: null, closed: true };
+      }
+      return {
+        openingTime: todayTiming.opening || branch.openingTime,
+        closingTime: todayTiming.closing || branch.closingTime,
+        closed: false,
+      };
+    }
+
+    return {
+      openingTime: branch.openingTime,
+      closingTime: branch.closingTime,
+      closed: false,
+    };
+  };
+
   // Get working hours status
-  const getWorkingHoursStatus = (openingTime: string, closingTime: string) => {
+  const getWorkingHoursStatus = (branch: Branch) => {
+    const todayTiming = getTodayTiming(branch);
+    if (todayTiming.closed || !todayTiming.openingTime || !todayTiming.closingTime) {
+      return { status: 'Closed Today', color: 'bg-red-100 text-red-800', badge: 'bg-red-500' };
+    }
+
     const now = new Date();
     const currentHour = now.getHours();
     const currentMinute = now.getMinutes();
     const currentTime = currentHour * 100 + currentMinute;
     
-    const [openHour, openMinute] = openingTime.split(':').map(Number);
-    const [closeHour, closeMinute] = closingTime.split(':').map(Number);
+    const [openHour, openMinute] = todayTiming.openingTime.split(':').map(Number);
+    const [closeHour, closeMinute] = todayTiming.closingTime.split(':').map(Number);
     
     const opening = openHour * 100 + openMinute;
     const closing = closeHour * 100 + closeMinute;
@@ -766,7 +806,8 @@ export default function Branches() {
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
               {filteredBranches.map((branch) => {
-                const hoursStatus = getWorkingHoursStatus(branch.openingTime, branch.closingTime);
+                const hoursStatus = getWorkingHoursStatus(branch);
+                const todayTiming = getTodayTiming(branch);
                 
                 return (
                   <Card key={branch.id} className="group overflow-hidden border-2 border-gray-100 shadow-[0_10px_40px_rgba(0,0,0,0.04)] bg-white rounded-[3rem] hover:shadow-[0_30px_60px_rgba(0,0,0,0.12)] transition-all duration-700 relative hover:border-secondary/20">
@@ -856,7 +897,9 @@ export default function Branches() {
                                   <div>
                                     <div className="font-bold text-primary">Working Hours</div>
                                     <div className="text-xs text-gray-600">
-                                      {branch.openingTime} - {branch.closingTime}
+                                      {todayTiming.closed || !todayTiming.openingTime || !todayTiming.closingTime
+                                        ? 'Closed Today'
+                                        : `${todayTiming.openingTime} - ${todayTiming.closingTime}`}
                                     </div>
                                   </div>
                                 </div>
