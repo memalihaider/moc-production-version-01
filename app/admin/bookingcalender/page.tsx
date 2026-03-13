@@ -2652,6 +2652,10 @@ export default function AdminAppointments() {
   };
 
   const handleCreateBooking = (barber: string, date: string, time: string) => {
+    // For branch admin, preserve the branch selection
+    const adminBranchName = (user?.role === 'admin' && user?.branchName) ? user.branchName : '';
+    const adminBranch = adminBranchName ? branches.find(b => b.name === adminBranchName) || null : null;
+
     setBookingData({
       customer: '',
       phone: '',
@@ -2681,11 +2685,11 @@ export default function AdminAppointments() {
       cardLast4Digits: '',
       trnNumber: '',
       category: '',
-      branch: ''
+      branch: adminBranchName
     });
     setSelectedServices([]);
     setSelectedCategory(null);
-    setSelectedBranch(null);
+    setSelectedBranch(adminBranch);
     setShowBookingDialog(true);
   };
 
@@ -2712,6 +2716,10 @@ export default function AdminAppointments() {
 
       setShowBookingDialog(false);
       
+      // For branch admin, preserve branch selection after submission
+      const adminBranchName = (user?.role === 'admin' && user?.branchName) ? user.branchName : '';
+      const adminBranch = adminBranchName ? branches.find(b => b.name === adminBranchName) || null : null;
+
       setBookingData({
         customer: '',
         phone: '',
@@ -2741,12 +2749,12 @@ export default function AdminAppointments() {
         cardLast4Digits: '',
         trnNumber: '',
         category: '',
-        branch: ''
+        branch: adminBranchName
       });
       
       setSelectedServices([]);
       setSelectedCategory(null);
-      setSelectedBranch(null);
+      setSelectedBranch(adminBranch);
     }
   };
 
