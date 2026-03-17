@@ -324,13 +324,13 @@ export default function BookingCheckout() {
     clearCart,
   } = useBookingStore();
 
-  // ✅ FIXED: REAL-TIME BRANCHES FETCH - EXACT MATCH FOR YOUR FIREBASE STRUCTURE
+  // ✅ FIXED: REAL-TIME BRANCHES FETCH WITH FALLBACK TO AVOID LOCKED SELECT
   useEffect(() => {
     setBranchesLoading(true);
-    
+
     // Collect branch names from cart items
     let allBranchNames: string[] = [];
-    
+
     if (cartItems.length > 0) {
       console.log("========== 🔍 BRANCH DEBUGGING ==========");
       console.log("🛒 Cart Items:", cartItems.map(item => ({
@@ -351,76 +351,50 @@ export default function BookingCheckout() {
       allBranchNames = [...new Set(allBranchNames)];
       console.log("🎯 Unique branch names to filter:", allBranchNames);
     }
-    
-    if (allBranchNames.length > 0) {
-      console.log("🔍 Querying Firebase for branches with names IN:", allBranchNames);
-      
-      // EXACT MATCH query - works with your Firebase structure
-      const branchesQuery = query(
-        collection(db, 'branches'),
-        where('name', 'in', allBranchNames)
-      );
-      
-      const unsubscribe = onSnapshot(branchesQuery, (snapshot) => {
-        console.log(`📦 Firebase returned ${snapshot.docs.length} branches`);
-        
-        const branchesData = snapshot.docs.map((doc) => {
-          const data = doc.data();
-          console.log(`🏢 Branch from DB: ID=${doc.id}, name="${data.name}"`);
-          return {
-            id: doc.id,
-            ...data
-          };
-        }) as BranchData[];
-        
-        console.log("✅ Available branches:", branchesData.map(b => b.name));
-        
-        // Check if all requested branches were found
-        allBranchNames.forEach(requestedName => {
-          const found = branchesData.some(b => b.name === requestedName);
-          console.log(`   - "${requestedName}": ${found ? '✅ FOUND' : '❌ NOT FOUND'}`);
-        });
-        
-        setBranchesList(branchesData);
-        setBranchesLoading(false);
-        
-        // Auto-select if only one branch
-        if (branchesData.length === 1 && !branch) {
-          console.log(`🤖 Auto-selecting branch: ${branchesData[0].name}`);
-          setBranch(branchesData[0].id);
+
+    const branchesQuery = query(
+      collection(db, 'branches'),
+      where('status', '==', 'active')
+    );
+
+    const unsubscribe = onSnapshot(branchesQuery, (snapshot) => {
+      const activeBranches = snapshot.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data
+        };
+      }) as BranchData[];
+
+      let branchesData = activeBranches;
+
+      if (allBranchNames.length > 0) {
+        const filtered = activeBranches.filter((b) => allBranchNames.includes(b.name));
+        // If filtering returns nothing, fall back to all active branches so dropdown does not lock.
+        branchesData = filtered.length > 0 ? filtered : activeBranches;
+      }
+
+      setBranchesList(branchesData);
+      setBranchesLoading(false);
+
+      if (branchesData.length === 1 && !branch) {
+        setBranch(branchesData[0].id);
+      }
+
+      if (branch) {
+        const stillAvailable = branchesData.some((b) => b.id === branch || b.name === branch);
+        if (!stillAvailable) {
+          setBranch('');
         }
-        
-        // Reset branch if no longer available
-        if (branch) {
-          const stillAvailable = branchesData.some(b => b.id === branch || b.name === branch);
-          if (!stillAvailable) {
-            console.log(`🔄 Resetting branch selection - previously selected branch no longer available`);
-            setBranch('');
-          }
-        }
-        
-        console.log("========== 🔍 DEBUG END ==========");
-      }, (error) => {
-        console.error("❌ Firebase query error:", error);
-        
-        // Handle Firebase index error
-        if (error.code === 'failed-precondition') {
-          console.error("⚠️ Firebase index required! Please create index in Firebase console.");
-          console.error("Index fields: name (Ascending), __name__ (Ascending)");
-        }
-        
-        setBranchesList([]);
-        setBranchesLoading(false);
-      });
-      
-      return () => unsubscribe();
-    } else {
-      console.log("⚠️ No branch names found in cart items - showing empty dropdown");
+      }
+    }, (error) => {
+      console.error("❌ Firebase branch query error:", error);
       setBranchesList([]);
       setBranchesLoading(false);
-      setBranch('');
-    }
-    
+    });
+
+    return () => unsubscribe();
+
   }, [cartItems]);
 
   // 🔥 NEW: Fetch staff from Firebase and filter by selected branch
@@ -550,6 +524,20 @@ export default function BookingCheckout() {
       setAvailableTimeSlots([]);
     }
   }, [selectedStaff, selectedDate]);
+
+  // Ensure time is auto-selected by default when slots are available
+  useEffect(() => {
+    if (availableTimeSlots.length === 0) {
+      if (selectedTime) {
+        setSelectedTime('');
+      }
+      return;
+    }
+
+    if (!selectedTime || !availableTimeSlots.includes(selectedTime)) {
+      setSelectedTime(availableTimeSlots[0]);
+    }
+  }, [availableTimeSlots, selectedTime, setSelectedTime]);
 
   // Helper function to generate time slots from start to end time
   const generateTimeSlots = (startTime: string, endTime: string): string[] => {
@@ -825,6 +813,7 @@ export default function BookingCheckout() {
       const authData = localStorage.getItem('customerAuth');
       let customerId = 'guest';
       let customerData = null;
+      let isNewCustomer = false;
 
       if (authData) {
         try {
@@ -833,6 +822,72 @@ export default function BookingCheckout() {
           customerId = customerData?.id || customerData?.uid || 'guest';
         } catch (error) {
           console.error('Error parsing auth:', error);
+        }
+      } else {
+        // Auto-create customer account if not logged in
+        try {
+          console.log('📝 Creating new customer account...');
+          const newCustomer = {
+            name: customerName,
+            email: customerEmail,
+            phone: customerPhone,
+            status: 'active',
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+            loyaltyPoints: 0,
+            walletBalance: 0
+          };
+          
+          const customersRef = collection(db, 'customers');
+          const docRef = await addDoc(customersRef, newCustomer);
+          customerId = docRef.id;
+          isNewCustomer = true;
+          
+          // Create wallet for new customer
+          const newWallet = {
+            customerId: customerId,
+            customerName: customerName,
+            customerEmail: customerEmail,
+            balance: 0,
+            loyaltyPoints: 0,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+          };
+          
+          await addDoc(collection(db, 'wallets'), newWallet);
+          
+          // Store customer data in localStorage
+          const authPayload = {
+            isAuthenticated: true,
+            customer: {
+              id: customerId,
+              uid: customerId,
+              name: customerName,
+              email: customerEmail,
+              phone: customerPhone,
+              status: 'active',
+              loyaltyPoints: 0,
+              walletBalance: 0
+            }
+          };
+          
+          localStorage.setItem('customerAuth', JSON.stringify(authPayload));
+          setIsLoggedIn(true);
+          setCustomer({
+            id: customerId,
+            name: customerName,
+            email: customerEmail,
+            phone: customerPhone,
+            walletBalance: 0,
+            loyaltyPoints: 0
+          });
+          
+          console.log('✅ New customer account created:', customerId);
+        } catch (createError) {
+          console.error('❌ Error creating customer account:', createError);
+          setValidationError('Failed to create customer account. Please try again.');
+          setIsSubmitting(false);
+          return;
         }
       }
 
@@ -1132,14 +1187,14 @@ export default function BookingCheckout() {
                     </div>
                     
                     {/* ✅ FIXED BRANCH DROPDOWN - EXACT MATCH FOR YOUR FIREBASE STRUCTURE */}
-                    <div className="space-y-1.5">
+                    <div className="space-y-1.5 min-w-0">
                       <Label htmlFor="branch" className="text-[10px] uppercase tracking-widest font-bold">Branch *</Label>
                       <Select 
                         value={branch} 
                         onValueChange={setBranch}
                         disabled={branchesLoading || branchesList.length === 0}
                       >
-                        <SelectTrigger className="rounded-none border-gray-200 h-10 text-sm">
+                        <SelectTrigger className="rounded-none border-gray-200 h-10 text-sm w-full min-w-0 [&>span]:block [&>span]:truncate">
                           <SelectValue placeholder={
                             cartItems.length === 0 
                               ? "Select a service first" 
@@ -1154,9 +1209,11 @@ export default function BookingCheckout() {
                           {/* 🚫 NO DUMMY BRANCHES - ONLY REAL BRANCHES FROM FIREBASE */}
                           {branchesList.map((branchItem) => (
                             <SelectItem key={branchItem.id} value={branchItem.id}>
-                              {branchItem.name} 
-                              {branchItem.city && ` - ${branchItem.city}`}
-                              {branchItem.country && `, ${branchItem.country}`}
+                              <span className="block truncate max-w-[260px]">
+                                {branchItem.name}
+                                {branchItem.city && ` - ${branchItem.city}`}
+                                {branchItem.country && `, ${branchItem.country}`}
+                              </span>
                             </SelectItem>
                           ))}
                         </SelectContent>

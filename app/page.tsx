@@ -635,6 +635,37 @@ export default function Home() {
     }
   };
 
+  const handleServiceBookNow = (service: Service) => {
+    try {
+      const rawCart = localStorage.getItem('bookingCart');
+      const existingCart: any[] = rawCart ? JSON.parse(rawCart) : [];
+
+      const alreadyAdded = existingCart.some((item) => item.id === service.id);
+      if (!alreadyAdded) {
+        existingCart.push({
+          id: service.id,
+          name: service.name,
+          category: service.category || 'Service',
+          duration: String(service.duration || 30),
+          price: Number(service.price || 0),
+          description: service.description || '',
+          image: service.imageUrl || '',
+          rating: 0,
+          reviews: 0,
+          serviceId: service.id,
+          serviceName: service.name,
+          serviceCategory: service.category || 'Service',
+          serviceCategoryId: service.categoryId || '',
+          branchNames: service.branchNames || [],
+        });
+      }
+
+      localStorage.setItem('bookingCart', JSON.stringify(existingCart));
+    } catch (error) {
+      console.error('Failed to update booking cart from home page:', error);
+    }
+  };
+
   // Get current selected branch name for display
   const currentBranchName = selectedBranch === 'all' 
     ? 'All Branches' 
@@ -1085,7 +1116,7 @@ export default function Home() {
                       asChild 
                       className="bg-secondary hover:bg-secondary/90 text-primary font-bold px-6 py-3 rounded-full shadow-xl transform scale-90 group-hover:scale-100 transition-transform duration-300"
                     >
-                      <Link href={`/booking?service=${service.id}`}>
+                      <Link href="/booking" onClick={() => handleServiceBookNow(service)}>
                         BOOK NOW
                       </Link>
                     </Button>
