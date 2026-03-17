@@ -520,17 +520,30 @@ export default function CustomerProfile() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const user = auth.currentUser;
-        if (!user) {
+        const storedAuth = localStorage.getItem('customerAuth');
+        let uid = auth.currentUser?.uid || '';
+        let email = auth.currentUser?.email || '';
+
+        if (!uid && storedAuth) {
+          try {
+            const parsed = JSON.parse(storedAuth);
+            uid = parsed?.customer?.uid || parsed?.customer?.id || '';
+            email = parsed?.customer?.email || '';
+          } catch (parseError) {
+            console.error('Error parsing customerAuth from localStorage:', parseError);
+          }
+        }
+
+        if (!uid) {
           router.push('/customer/login');
           return;
         }
 
-        console.log('👤 Current user UID:', user.uid);
-        console.log('👤 Current user email:', user.email);
+        console.log('👤 Resolved user UID:', uid);
+        console.log('👤 Resolved user email:', email);
 
         // Check in "users" collection first (where data is actually stored)
-        const userDocRef = doc(db, "users", user.uid);
+        const userDocRef = doc(db, "users", uid);
         const userDocSnap = await getDoc(userDocRef);
 
         if (userDocSnap.exists()) {
@@ -538,10 +551,10 @@ export default function CustomerProfile() {
           console.log('✅ User found in users collection:', userData);
           
           setCustomer({
-            id: user.uid,
-            uid: user.uid,
+            id: uid,
+            uid: uid,
             name: userData.name || '',
-            email: userData.email || user.email || '',
+            email: userData.email || email || '',
             phone: userData.phone || '',
             dateOfBirth: userData.dateOfBirth || '',
             gender: userData.gender || '',
@@ -556,7 +569,7 @@ export default function CustomerProfile() {
           
           setFormData({
             name: userData.name || '',
-            email: userData.email || user.email || '',
+            email: userData.email || email || '',
             phone: userData.phone || '',
             dateOfBirth: userData.dateOfBirth || '',
             gender: userData.gender || '',
@@ -573,7 +586,7 @@ export default function CustomerProfile() {
         } else {
           // If not in users, check in customers collection
           console.log('⚠️ User not found in users collection, checking customers...');
-          const customerDocRef = doc(db, "customers", user.uid);
+          const customerDocRef = doc(db, "customers", uid);
           const customerDocSnap = await getDoc(customerDocRef);
           
           if (customerDocSnap.exists()) {
@@ -581,10 +594,10 @@ export default function CustomerProfile() {
             console.log('✅ Customer found in customers collection:', customerData);
             
             setCustomer({
-              id: user.uid,
-              uid: user.uid,
+              id: uid,
+              uid: uid,
               name: customerData.name || '',
-              email: customerData.email || user.email || '',
+              email: customerData.email || email || '',
               phone: customerData.phone || '',
               dateOfBirth: customerData.dateOfBirth || '',
               gender: customerData.gender || '',
@@ -599,7 +612,7 @@ export default function CustomerProfile() {
             
             setFormData({
               name: customerData.name || '',
-              email: customerData.email || user.email || '',
+              email: customerData.email || email || '',
               phone: customerData.phone || '',
               dateOfBirth: customerData.dateOfBirth || '',
               gender: customerData.gender || '',

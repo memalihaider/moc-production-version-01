@@ -17,7 +17,7 @@ import {
   CheckSquare, Percent, CalendarDays, ClipboardList, MoreVertical, Pencil
 } from "lucide-react";
 import { format, addDays, startOfDay, addMinutes, isSameDay, parseISO } from "date-fns";
-import { collection, getDocs, query, where, doc, getDoc ,updateDoc } from "firebase/firestore";
+import { collection, getDocs, query, where, doc, getDoc, updateDoc, addDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
@@ -27,6 +27,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 interface Appointment {
+  customerId?: string;
   staffName: any;
   staff: any;
   customerName: string;
@@ -2368,6 +2369,13 @@ export function AdvancedCalendar({
   const [initialPopupAction, setInitialPopupAction] = useState<'reschedule' | null>(null);
   const [showInvoicePopup, setShowInvoicePopup] = useState(false);
   const [selectedInvoiceAppointment, setSelectedInvoiceAppointment] = useState<Appointment | null>(null);
+  const [showWalletTopupPopup, setShowWalletTopupPopup] = useState(false);
+  const [selectedWalletAppointment, setSelectedWalletAppointment] = useState<Appointment | null>(null);
+  const [walletDocId, setWalletDocId] = useState<string | null>(null);
+  const [walletCustomerId, setWalletCustomerId] = useState<string | null>(null);
+  const [walletCurrentBalance, setWalletCurrentBalance] = useState(0);
+  const [walletTopupAmount, setWalletTopupAmount] = useState('');
+  const [walletTopupLoading, setWalletTopupLoading] = useState(false);
   
   // Load staff data
   useEffect(() => {
@@ -2654,7 +2662,7 @@ const filteredAppointments = useMemo(() => {
     setShowAdvancePopup(true);
   };
 
-  const handleAppointmentAction = (action: 'reschedule' | 'edit' | 'checkin' | 'cancel' | 'delete' | 'checkout', appointment: Appointment) => {
+  const handleAppointmentAction = (action: 'reschedule' | 'edit' | 'checkin' | 'cancel' | 'delete' | 'checkout' | 'topup-wallet', appointment: Appointment) => {
     if (action === 'reschedule') {
       setSelectedAdvanceAppointment(appointment);
       setInitialPopupAction('reschedule');
@@ -2696,6 +2704,158 @@ const filteredAppointments = useMemo(() => {
       } else {
         handleGenerateInvoiceClick(appointment);
       }
+      return;
+    }
+
+    if (action === 'topup-wallet') {
+      setSelectedWalletAppointment(appointment);
+      setWalletTopupAmount('');
+      setWalletCurrentBalance(0);
+      setWalletDocId(null);
+      setWalletCustomerId(null);
+      setShowWalletTopupPopup(true);
+    }
+  };
+
+  useEffect(() => {
+    const loadWalletForTopup = async () => {
+      if (!showWalletTopupPopup || !selectedWalletAppointment) return;
+
+      try {
+        const apt: any = selectedWalletAppointment;
+        let resolvedCustomerId = apt.customerId || null;
+
+        if (!resolvedCustomerId && apt.customerEmail) {
+          const customerByEmailSnap = await getDocs(
+            query(collection(db, 'customers'), where('email', '==', apt.customerEmail))
+          );
+          if (!customerByEmailSnap.empty) {
+            resolvedCustomerId = customerByEmailSnap.docs[0].id;
+          }
+        }
+
+        if (!resolvedCustomerId && apt.customerPhone) {
+          const customerByPhoneSnap = await getDocs(
+            query(collection(db, 'customers'), where('phone', '==', apt.customerPhone))
+          );
+          if (!customerByPhoneSnap.empty) {
+            resolvedCustomerId = customerByPhoneSnap.docs[0].id;
+          }
+        }
+
+        if (!resolvedCustomerId) {
+          alert('Customer account not found for this booking.');
+          return;
+        }
+
+        setWalletCustomerId(resolvedCustomerId);
+
+        let resolvedWalletDocId: string | null = null;
+        let resolvedBalance = 0;
+
+        const directWalletDoc = await getDoc(doc(db, 'wallets', resolvedCustomerId));
+        if (directWalletDoc.exists()) {
+          resolvedWalletDocId = directWalletDoc.id;
+          resolvedBalance = Number(directWalletDoc.data().balance || 0);
+        } else {
+          const walletByCustomerSnap = await getDocs(
+            query(collection(db, 'wallets'), where('customerId', '==', resolvedCustomerId))
+          );
+
+          if (!walletByCustomerSnap.empty) {
+            const walletDoc = walletByCustomerSnap.docs[0];
+            resolvedWalletDocId = walletDoc.id;
+            resolvedBalance = Number(walletDoc.data().balance || 0);
+          }
+        }
+
+        if (!resolvedWalletDocId) {
+          const newWalletRef = await addDoc(collection(db, 'wallets'), {
+            customerId: resolvedCustomerId,
+            customerName: selectedWalletAppointment.customerName || selectedWalletAppointment.customer || 'Customer',
+            customerEmail: selectedWalletAppointment.customerEmail || '',
+            balance: 0,
+            loyaltyPoints: 0,
+            totalPointsEarned: 0,
+            totalPointsRedeemed: 0,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          });
+          resolvedWalletDocId = newWalletRef.id;
+          resolvedBalance = 0;
+        }
+
+        setWalletDocId(resolvedWalletDocId);
+        setWalletCurrentBalance(resolvedBalance);
+      } catch (error) {
+        console.error('Error loading wallet for topup:', error);
+        alert('Failed to load customer wallet.');
+      }
+    };
+
+    loadWalletForTopup();
+  }, [showWalletTopupPopup, selectedWalletAppointment]);
+
+  const handleWalletTopupSubmit = async () => {
+    const amount = Number(walletTopupAmount);
+
+    if (!walletDocId || !walletCustomerId) {
+      alert('Wallet not found.');
+      return;
+    }
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      alert('Please enter a valid topup amount.');
+      return;
+    }
+
+    setWalletTopupLoading(true);
+    try {
+      const walletRef = doc(db, 'wallets', walletDocId);
+      const walletSnap = await getDoc(walletRef);
+      const walletData = walletSnap.exists() ? walletSnap.data() : {};
+
+      const currentBalance = Number(walletData.balance || 0);
+      const currentPoints = Number(walletData.loyaltyPoints || 0);
+      const currentTotalEarned = Number(walletData.totalPointsEarned || 0);
+
+      const pointsToAdd = Math.floor(amount * 100);
+      const updatedBalance = currentBalance + amount;
+      const updatedPoints = currentPoints + pointsToAdd;
+
+      await updateDoc(walletRef, {
+        balance: updatedBalance,
+        loyaltyPoints: updatedPoints,
+        totalPointsEarned: currentTotalEarned + pointsToAdd,
+        updatedAt: new Date()
+      });
+
+      await addDoc(collection(db, 'walletTransactions'), {
+        customerId: walletCustomerId,
+        customerName: selectedWalletAppointment?.customerName || selectedWalletAppointment?.customer || 'Customer',
+        customerEmail: selectedWalletAppointment?.customerEmail || '',
+        amount,
+        amountInPoints: pointsToAdd,
+        type: 'credit',
+        description: `Wallet topup by branch admin for booking ${selectedWalletAppointment?.bookingNumber || selectedWalletAppointment?.id || ''}`,
+        source: 'branch_admin_topup',
+        bookingId: selectedWalletAppointment?.firebaseId || selectedWalletAppointment?.id || '',
+        previousBalance: currentBalance,
+        previousLoyaltyPoints: currentPoints,
+        newBalance: updatedBalance,
+        newLoyaltyPoints: updatedPoints,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+
+      setWalletCurrentBalance(updatedBalance);
+      setWalletTopupAmount('');
+      alert(`Wallet topped up successfully. New balance: ${formatCurrency(updatedBalance)}`);
+    } catch (error) {
+      console.error('Error topping up wallet:', error);
+      alert('Failed to topup wallet. Please try again.');
+    } finally {
+      setWalletTopupLoading(false);
     }
   };
 
@@ -2994,6 +3154,10 @@ const filteredAppointments = useMemo(() => {
                                     <Receipt className="w-4 h-4 mr-2" />
                                     Checkout
                                   </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleAppointmentAction('topup-wallet', appointment)}>
+                                    <Wallet className="w-4 h-4 mr-2" />
+                                    Topup Wallet
+                                  </DropdownMenuItem>
                                   <DropdownMenuItem className="text-red-600" onClick={() => handleAppointmentAction('delete', appointment)}>
                                     <Trash2 className="w-4 h-4 mr-2" />
                                     Delete Booking
@@ -3150,6 +3314,10 @@ const filteredAppointments = useMemo(() => {
                                       <Receipt className="w-4 h-4 mr-2" />
                                       Checkout
                                     </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleAppointmentAction('topup-wallet', appointment)}>
+                                      <Wallet className="w-4 h-4 mr-2" />
+                                      Topup Wallet
+                                    </DropdownMenuItem>
                                     <DropdownMenuItem className="text-red-600" onClick={() => handleAppointmentAction('delete', appointment)}>
                                       <Trash2 className="w-4 h-4 mr-2" />
                                       Delete Booking
@@ -3298,6 +3466,76 @@ const filteredAppointments = useMemo(() => {
           formatCurrency={formatCurrency}
         />
       )}
+
+      <Sheet open={showWalletTopupPopup} onOpenChange={setShowWalletTopupPopup}>
+        <SheetContent className="w-full sm:max-w-md p-6 rounded-2xl mt-6">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <Wallet className="w-5 h-5 text-indigo-600" />
+              Topup Wallet
+            </SheetTitle>
+            <SheetDescription>
+              Add amount to customer wallet and update Firebase in real-time.
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="mt-6 space-y-4">
+            <div className="p-3 bg-gray-50 rounded-lg border">
+              <p className="text-xs text-gray-500">Customer</p>
+              <p className="font-semibold text-gray-900">
+                {selectedWalletAppointment?.customerName || selectedWalletAppointment?.customer || '—'}
+              </p>
+              <p className="text-sm text-gray-600 break-all">
+                {selectedWalletAppointment?.customerEmail || selectedWalletAppointment?.email || '—'}
+              </p>
+            </div>
+
+            <div className="p-3 bg-indigo-50 rounded-lg border border-indigo-200">
+              <p className="text-xs text-indigo-700">Current Wallet Balance</p>
+              <p className="text-xl font-bold text-indigo-900">{formatCurrency(walletCurrentBalance)}</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Topup Amount</Label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="Enter amount"
+                value={walletTopupAmount}
+                onChange={(e) => setWalletTopupAmount(e.target.value)}
+              />
+            </div>
+
+            {walletTopupAmount && Number(walletTopupAmount) > 0 && (
+              <div className="p-3 bg-green-50 rounded-lg border border-green-200">
+                <p className="text-xs text-green-700">Balance After Topup</p>
+                <p className="text-lg font-bold text-green-800">
+                  {formatCurrency(walletCurrentBalance + Number(walletTopupAmount || 0))}
+                </p>
+              </div>
+            )}
+
+            <div className="flex gap-2 pt-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setShowWalletTopupPopup(false)}
+                disabled={walletTopupLoading}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1 bg-indigo-600 hover:bg-indigo-700"
+                onClick={handleWalletTopupSubmit}
+                disabled={walletTopupLoading || !walletDocId || !walletTopupAmount || Number(walletTopupAmount) <= 0}
+              >
+                {walletTopupLoading ? 'Processing...' : 'Topup Wallet'}
+              </Button>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
     </>
   );
 }
