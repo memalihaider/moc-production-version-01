@@ -25,9 +25,11 @@ import {
   query,
   where,
   updateDoc,
-  onSnapshot
+  onSnapshot,
+  setDoc
 } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { db, auth } from '@/lib/firebase';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
 
 // Types
 interface BookingData {
@@ -282,6 +284,7 @@ export default function BookingCheckout() {
   const [confirmedBookingId, setConfirmedBookingId] = useState('');
   const [validationError, setValidationError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [tempPassword, setTempPassword] = useState(''); // Store temp password for auto-created accounts
   
   // Branch states
   const [branch, setBranch] = useState('');
@@ -715,6 +718,27 @@ export default function BookingCheckout() {
     return `BOOK-${Date.now()}${Math.floor(Math.random() * 1000)}`;
   };
 
+  // Generate strong temporary password
+  const generateTempPassword = () => {
+    const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const lowercase = 'abcdefghijklmnopqrstuvwxyz';
+    const numbers = '0123456789';
+    const symbols = '!@#$%^&*';
+    const allChars = uppercase + lowercase + numbers + symbols;
+    
+    let password = '';
+    password += uppercase[Math.floor(Math.random() * uppercase.length)];
+    password += lowercase[Math.floor(Math.random() * lowercase.length)];
+    password += numbers[Math.floor(Math.random() * numbers.length)];
+    password += symbols[Math.floor(Math.random() * symbols.length)];
+    
+    for (let i = 0; i < 8; i++) {
+      password += allChars[Math.floor(Math.random() * allChars.length)];
+    }
+    
+    return password.split('').sort(() => Math.random() - 0.5).join('');
+  };
+
   // Format date for Firebase
   const formatFirebaseDate = () => {
     const now = new Date();
@@ -827,25 +851,38 @@ export default function BookingCheckout() {
         // Auto-create customer account if not logged in
         try {
           console.log('📝 Creating new customer account...');
+          
+          // Generate strong temporary password
+          const generatedPassword = generateTempPassword();
+          console.log('🔐 Generated temporary password');
+          
+          // Create Firebase Auth user
+          const userCredential = await createUserWithEmailAndPassword(auth, customerEmail, generatedPassword);
+          const uid = userCredential.user.uid;
+          customerId = uid;
+          
+          // Create Firestore customer document linked to Auth user
           const newCustomer = {
+            uid: uid,
             name: customerName,
             email: customerEmail,
             phone: customerPhone,
             status: 'active',
+            role: 'customer',
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
             loyaltyPoints: 0,
-            walletBalance: 0
+            walletBalance: 0,
+            emailVerified: false
           };
           
-          const customersRef = collection(db, 'customers');
-          const docRef = await addDoc(customersRef, newCustomer);
-          customerId = docRef.id;
+          // Use uid as document ID to link with Firebase Auth
+          await setDoc(doc(db, 'customers', uid), newCustomer);
           isNewCustomer = true;
           
           // Create wallet for new customer
           const newWallet = {
-            customerId: customerId,
+            customerId: uid,
             customerName: customerName,
             customerEmail: customerEmail,
             balance: 0,
@@ -860,12 +897,13 @@ export default function BookingCheckout() {
           const authPayload = {
             isAuthenticated: true,
             customer: {
-              id: customerId,
-              uid: customerId,
+              id: uid,
+              uid: uid,
               name: customerName,
               email: customerEmail,
               phone: customerPhone,
               status: 'active',
+              role: 'customer',
               loyaltyPoints: 0,
               walletBalance: 0
             }
@@ -874,7 +912,7 @@ export default function BookingCheckout() {
           localStorage.setItem('customerAuth', JSON.stringify(authPayload));
           setIsLoggedIn(true);
           setCustomer({
-            id: customerId,
+            id: uid,
             name: customerName,
             email: customerEmail,
             phone: customerPhone,
@@ -882,7 +920,10 @@ export default function BookingCheckout() {
             loyaltyPoints: 0
           });
           
-          console.log('✅ New customer account created:', customerId);
+          // Store password for display on success screen
+          setTempPassword(generatedPassword);
+          
+          console.log('✅ New customer account created:', uid);
         } catch (createError) {
           console.error('❌ Error creating customer account:', createError);
           setValidationError('Failed to create customer account. Please try again.');
@@ -1081,8 +1122,55 @@ export default function BookingCheckout() {
                     <p className="font-bold text-sm">{selectedStaff}</p>
                   </div>
                 </div>
-                <div className="pt-4 border-t border-gray-100">
-                </div>
+                
+                {/* Show login credentials if account was auto-created */}
+                {tempPassword && (
+                  <div className="pt-4 border-t border-gray-100">
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
+                      <div className="flex items-start gap-2">
+                        <Info className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                        <div className="text-left">
+                          <p className="text-xs font-bold text-blue-900 mb-2">✅ Account Created</p>
+                          <p className="text-xs text-blue-800 mb-3">Your account has been automatically created. Use these credentials to log in:</p>
+                          
+                          <div className="space-y-2 bg-white p-3 rounded border border-blue-100">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Email</p>
+                                <p className="text-sm font-mono font-bold break-all">{customerEmail}</p>
+                              </div>
+                              <button 
+                                onClick={() => {
+                                  navigator.clipboard.writeText(customerEmail);
+                                }}
+                                className="text-xs text-blue-600 hover:text-blue-800 font-bold ml-2"
+                              >
+                                COPY
+                              </button>
+                            </div>
+                            
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Password</p>
+                                <p className="text-sm font-mono font-bold break-all">{tempPassword}</p>
+                              </div>
+                              <button 
+                                onClick={() => {
+                                  navigator.clipboard.writeText(tempPassword);
+                                }}
+                                className="text-xs text-blue-600 hover:text-blue-800 font-bold ml-2"
+                              >
+                                COPY
+                              </button>
+                            </div>
+                          </div>
+                          
+                          <p className="text-xs text-blue-700 mt-3">💡 Save these credentials securely. You can change your password after logging in.</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </Card>
             <div className="pt-6">
