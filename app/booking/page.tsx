@@ -920,8 +920,9 @@ export default function BookingCheckout() {
             loyaltyPoints: 0
           });
           
-          // Store password for display on success screen
+          // Store password for display on success screen and settings page
           setTempPassword(generatedPassword);
+          localStorage.setItem('tempPassword', generatedPassword);
           
           console.log('✅ New customer account created:', uid);
         } catch (createError) {
