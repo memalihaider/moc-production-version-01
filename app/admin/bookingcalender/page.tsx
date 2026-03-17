@@ -2716,6 +2716,29 @@ export default function AdminAppointments() {
     }
   };
 
+  const handleEditBookingFromCalendar = (appointment: any) => {
+    const fullAppointment = allAppointments.find(
+      (apt) => apt.id === appointment.id || apt.firebaseId === appointment.firebaseId
+    );
+    handleEditAppointment((fullAppointment || appointment) as Appointment);
+  };
+
+  const handleDeleteBookingFromCalendar = async (appointment: any) => {
+    const fullAppointment = allAppointments.find(
+      (apt) => apt.id === appointment.id || apt.firebaseId === appointment.firebaseId
+    );
+    await handleDeleteBooking((fullAppointment || appointment) as Appointment);
+  };
+
+  const handleCheckoutFromCalendar = (appointment: any) => {
+    const fullAppointment = allAppointments.find(
+      (apt) => apt.id === appointment.id || apt.firebaseId === appointment.firebaseId
+    );
+    const resolvedAppointment = (fullAppointment || appointment) as Appointment;
+    setSelectedAppointment(resolvedAppointment);
+    handleGenerateInvoiceClick(resolvedAppointment);
+  };
+
   const handleAddInvoiceItem = () => {
     if (invoiceData) {
       const newItems = [...(invoiceData.items || [])];
@@ -3736,6 +3759,9 @@ export default function AdminAppointments() {
                                   }}
                                   onStatusChange={(appointmentId, newStatus) => handleStatusChange(appointmentId.toString(), newStatus)}
                                   onCreateBooking={handleCreateBooking}
+                                  onEditBooking={(appointment: any) => handleEditBookingFromCalendar(appointment)}
+                                  onDeleteBooking={(appointment: any) => { void handleDeleteBookingFromCalendar(appointment); }}
+                                  onCheckoutBooking={(appointment: any) => handleCheckoutFromCalendar(appointment)}
                                   staff={
                                     (user?.role === 'admin' && user?.branchName
                                       ? staffMembers.filter(s =>
