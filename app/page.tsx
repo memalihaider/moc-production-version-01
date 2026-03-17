@@ -1608,29 +1608,43 @@ export default function Home() {
         <h3 className="text-2xl font-sans font-bold text-gray-400 mb-2">No Staff Available</h3>
       </div>
     ) : (
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-        {filteredStaff.map((member) => (
-          <div key={member.id} className="group cursor-pointer">
-            {/* Image */}
-            <div className="relative aspect-[3/4] overflow-hidden rounded-2xl shadow-md">
-              <img
-                src={member.image}
-                alt={member.name}
-                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-                  e.currentTarget.src = '/default-avatar.png';
-                }}
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
-            </div>
-            {/* Info below image */}
-            <div className="mt-2 px-1">
-              <p className="font-sans font-bold text-primary text-sm leading-tight group-hover:text-secondary transition-colors truncate">{member.name}</p>
-              <p className="text-[11px] text-gray-500 mt-0.5 truncate">{member.role}</p>
-            </div>
-          </div>
-        ))}
-      </div>
+      <Carousel 
+        opts={{ 
+          align: "start",
+          loop: true,
+          slidesToScroll: 1
+        }} 
+        className="w-full"
+      >
+        <CarouselContent className="-ml-4">
+          {filteredStaff.map((member) => (
+            <CarouselItem key={member.id} className="pl-4 basis-1/2 sm:basis-1/3 md:basis-1/4 lg:basis-1/5">
+              <div className="group cursor-pointer">
+                <div className="relative aspect-3/4 overflow-hidden rounded-2xl shadow-md">
+                  <img
+                    src={member.image}
+                    alt={member.name}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+                      e.currentTarget.src = '/default-avatar.png';
+                    }}
+                  />
+                  <div className="absolute inset-0 bg-linear-to-t from-black/50 to-transparent"></div>
+                </div>
+                <div className="mt-2 px-1">
+                  <p className="font-sans font-bold text-primary text-sm leading-tight group-hover:text-secondary transition-colors truncate">{member.name}</p>
+                  <p className="text-[11px] text-gray-500 mt-0.5 truncate">{member.role}</p>
+                </div>
+              </div>
+            </CarouselItem>
+          ))}
+        </CarouselContent>
+
+        <div className="flex justify-center gap-3 mt-8">
+          <CarouselPrevious className="static translate-y-0 w-10 h-10 rounded-full border border-secondary/30 text-secondary hover:bg-secondary hover:text-primary transition-all duration-300" />
+          <CarouselNext className="static translate-y-0 w-10 h-10 rounded-full border border-secondary/30 text-secondary hover:bg-secondary hover:text-primary transition-all duration-300" />
+        </div>
+      </Carousel>
     )}
   </div>
 </section>

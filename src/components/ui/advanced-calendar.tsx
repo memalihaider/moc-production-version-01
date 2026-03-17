@@ -2376,6 +2376,8 @@ export function AdvancedCalendar({
   const [walletCurrentBalance, setWalletCurrentBalance] = useState(0);
   const [walletTopupAmount, setWalletTopupAmount] = useState('');
   const [walletTopupLoading, setWalletTopupLoading] = useState(false);
+  const [walletLookupLoading, setWalletLookupLoading] = useState(false);
+  const [walletTopupError, setWalletTopupError] = useState<string | null>(null);
   
   // Load staff data
   useEffect(() => {
@@ -2713,6 +2715,7 @@ const filteredAppointments = useMemo(() => {
       setWalletCurrentBalance(0);
       setWalletDocId(null);
       setWalletCustomerId(null);
+      setWalletTopupError(null);
       setShowWalletTopupPopup(true);
     }
   };
@@ -2721,31 +2724,78 @@ const filteredAppointments = useMemo(() => {
     const loadWalletForTopup = async () => {
       if (!showWalletTopupPopup || !selectedWalletAppointment) return;
 
+      setWalletLookupLoading(true);
+      setWalletTopupError(null);
+
       try {
         const apt: any = selectedWalletAppointment;
-        let resolvedCustomerId = apt.customerId || null;
+        const normalizeEmail = (value: string) => value.trim().toLowerCase();
+        const normalizePhone = (value: string) => value.replace(/[^0-9+]/g, '');
 
-        if (!resolvedCustomerId && apt.customerEmail) {
-          const customerByEmailSnap = await getDocs(
-            query(collection(db, 'customers'), where('email', '==', apt.customerEmail))
-          );
-          if (!customerByEmailSnap.empty) {
-            resolvedCustomerId = customerByEmailSnap.docs[0].id;
-          }
-        }
+        const rawCustomerId = (apt.customerId || '').toString().trim();
+        const emailCandidates = Array.from(new Set([
+          apt.customerEmail,
+          apt.email
+        ].filter(Boolean).map((v: string) => normalizeEmail(String(v)))));
+        const phoneCandidates = Array.from(new Set([
+          apt.customerPhone,
+          apt.phone
+        ].filter(Boolean).map((v: string) => normalizePhone(String(v)))));
 
-        if (!resolvedCustomerId && apt.customerPhone) {
-          const customerByPhoneSnap = await getDocs(
-            query(collection(db, 'customers'), where('phone', '==', apt.customerPhone))
-          );
-          if (!customerByPhoneSnap.empty) {
-            resolvedCustomerId = customerByPhoneSnap.docs[0].id;
+        let resolvedCustomerId: string | null = rawCustomerId || null;
+
+        if (resolvedCustomerId) {
+          const customerByDocIdSnap = await getDoc(doc(db, 'customers', resolvedCustomerId));
+          if (!customerByDocIdSnap.exists()) {
+            const customerByUidSnap = await getDocs(
+              query(collection(db, 'customers'), where('uid', '==', resolvedCustomerId))
+            );
+            if (!customerByUidSnap.empty) {
+              resolvedCustomerId = customerByUidSnap.docs[0].id;
+            } else {
+              resolvedCustomerId = null;
+            }
           }
         }
 
         if (!resolvedCustomerId) {
-          alert('Customer account not found for this booking.');
-          return;
+          for (const email of emailCandidates) {
+            const customerByEmailSnap = await getDocs(
+              query(collection(db, 'customers'), where('email', '==', email))
+            );
+            if (!customerByEmailSnap.empty) {
+              resolvedCustomerId = customerByEmailSnap.docs[0].id;
+              break;
+            }
+          }
+        }
+
+        if (!resolvedCustomerId) {
+          for (const phone of phoneCandidates) {
+            const customerByPhoneSnap = await getDocs(
+              query(collection(db, 'customers'), where('phone', '==', phone))
+            );
+            if (!customerByPhoneSnap.empty) {
+              resolvedCustomerId = customerByPhoneSnap.docs[0].id;
+              break;
+            }
+          }
+        }
+
+        if (!resolvedCustomerId) {
+          const newCustomerRef = await addDoc(collection(db, 'customers'), {
+            uid: rawCustomerId || null,
+            name: apt.customerName || apt.customer || 'Customer',
+            email: emailCandidates[0] || '',
+            phone: phoneCandidates[0] || '',
+            role: 'customer',
+            status: 'active',
+            loyaltyPoints: 0,
+            walletBalance: 0,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          });
+          resolvedCustomerId = newCustomerRef.id;
         }
 
         setWalletCustomerId(resolvedCustomerId);
@@ -2789,7 +2839,9 @@ const filteredAppointments = useMemo(() => {
         setWalletCurrentBalance(resolvedBalance);
       } catch (error) {
         console.error('Error loading wallet for topup:', error);
-        alert('Failed to load customer wallet.');
+        setWalletTopupError('Failed to load customer wallet. Please close and try again.');
+      } finally {
+        setWalletLookupLoading(false);
       }
     };
 
@@ -3507,6 +3559,14 @@ const filteredAppointments = useMemo(() => {
               />
             </div>
 
+            {walletLookupLoading && (
+              <p className="text-xs text-indigo-700">Loading customer wallet...</p>
+            )}
+
+            {walletTopupError && (
+              <p className="text-xs text-red-600">{walletTopupError}</p>
+            )}
+
             {walletTopupAmount && Number(walletTopupAmount) > 0 && (
               <div className="p-3 bg-green-50 rounded-lg border border-green-200">
                 <p className="text-xs text-green-700">Balance After Topup</p>
@@ -3528,9 +3588,9 @@ const filteredAppointments = useMemo(() => {
               <Button
                 className="flex-1 bg-indigo-600 hover:bg-indigo-700"
                 onClick={handleWalletTopupSubmit}
-                disabled={walletTopupLoading || !walletDocId || !walletTopupAmount || Number(walletTopupAmount) <= 0}
+                disabled={walletLookupLoading || walletTopupLoading || !walletDocId || !walletTopupAmount || Number(walletTopupAmount) <= 0}
               >
-                {walletTopupLoading ? 'Processing...' : 'Topup Wallet'}
+                {walletLookupLoading ? 'Loading...' : walletTopupLoading ? 'Processing...' : 'Topup Wallet'}
               </Button>
             </div>
           </div>

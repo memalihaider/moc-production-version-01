@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { User, Building, Menu, X } from "lucide-react";
+import { User, Building, Menu, X, LayoutDashboard, LogOut } from "lucide-react";
 import Image from "next/image";
 import { useState, useEffect } from "react";
 import {
@@ -12,7 +12,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useBranchStore } from "@/stores/branchStore";
+import { useAuth } from "@/contexts/AuthContext";
+
+type ResolvedUser = {
+  role: "customer" | "admin" | "super_admin";
+  name?: string;
+} | null;
 
 const navLinks = [
   { name: "Home", href: "/" },
@@ -24,6 +31,7 @@ const navLinks = [
 ];
 
 export function Header() {
+  const { user, logout } = useAuth();
   const {
     selectedBranch,
     branches,
@@ -33,10 +41,82 @@ export function Header() {
   } = useBranchStore();
 
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [resolvedUser, setResolvedUser] = useState<ResolvedUser>(null);
+
+  const resolveUserFromStorage = () => {
+    if (typeof window === "undefined") return;
+
+    if (user?.role) {
+      setResolvedUser({
+        role: user.role,
+        name: user.name,
+      });
+      return;
+    }
+
+    try {
+      const storedUserRaw = localStorage.getItem("user");
+      if (storedUserRaw) {
+        const storedUser = JSON.parse(storedUserRaw);
+        if (storedUser?.role) {
+          setResolvedUser({
+            role: storedUser.role,
+            name: storedUser.name,
+          });
+          return;
+        }
+      }
+
+      const customerAuthRaw = localStorage.getItem("customerAuth");
+      if (customerAuthRaw) {
+        const parsedCustomerAuth = JSON.parse(customerAuthRaw);
+        if (parsedCustomerAuth?.isAuthenticated) {
+          setResolvedUser({
+            role: "customer",
+            name: parsedCustomerAuth?.customer?.name,
+          });
+          return;
+        }
+      }
+    } catch (error) {
+      console.error("Error resolving header user state:", error);
+    }
+
+    setResolvedUser(null);
+  };
+
+  const getDashboardLink = () => {
+    if (!resolvedUser) return "/customer/login";
+    if (resolvedUser.role === "super_admin") return "/super-admin";
+    if (resolvedUser.role === "admin") return "/admin";
+    return "/customer/portal";
+  };
+
+  const getDashboardLabel = () => {
+    if (!resolvedUser) return "Login";
+    if (resolvedUser.role === "super_admin") return "View Dashboard";
+    if (resolvedUser.role === "admin") return "View Dashboard";
+    return "View Dashboard";
+  };
+
+  const handleAccountLogout = async () => {
+    try {
+      await logout();
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
+  };
 
   useEffect(() => {
     fetchBranches();
   }, [fetchBranches]);
+
+  useEffect(() => {
+    resolveUserFromStorage();
+    const onStorageChange = () => resolveUserFromStorage();
+    window.addEventListener("storage", onStorageChange);
+    return () => window.removeEventListener("storage", onStorageChange);
+  }, [user]);
 
   // Close mobile menu on resize to desktop
   useEffect(() => {
@@ -124,12 +204,30 @@ export function Header() {
 
         {/* Desktop CTA */}
         <div className="hidden md:flex items-center gap-3 shrink-0">
-          <Link
-            href="/customer/portal"
-            className="flex items-center justify-center w-9 h-9 rounded-full bg-secondary hover:bg-secondary/90 transition-all duration-300 shadow-md"
-          >
-            <User className="w-4 h-4 text-white" />
-          </Link>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="flex items-center justify-center w-9 h-9 rounded-full bg-secondary hover:bg-secondary/90 transition-all duration-300 shadow-md"
+                aria-label="Account Menu"
+              >
+                <User className="w-4 h-4 text-white" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuItem asChild>
+                <Link href={getDashboardLink()} className="flex items-center gap-2">
+                  <LayoutDashboard className="w-4 h-4" />
+                  {getDashboardLabel()}
+                </Link>
+              </DropdownMenuItem>
+              {resolvedUser && (
+                <DropdownMenuItem onClick={handleAccountLogout} className="text-red-600 focus:text-red-600">
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Logout
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button asChild className="bg-secondary hover:bg-secondary/90 text-primary rounded-lg px-5 py-2 text-xs tracking-widest font-bold shadow-md shadow-secondary/20 transition-all duration-300 hover:scale-105 active:scale-95">
             <Link href="/services">BOOK NOW</Link>
           </Button>
@@ -137,13 +235,36 @@ export function Header() {
 
         {/* Mobile right side: user icon + hamburger */}
         <div className="flex md:hidden items-center gap-2 shrink-0">
-          <Link
-            href="/customer/portal"
-            className="flex items-center justify-center w-9 h-9 rounded-full bg-secondary hover:bg-secondary/90 transition-all duration-300 shadow-md"
-            onClick={() => setMobileOpen(false)}
-          >
-            <User className="w-4 h-4 text-white"/>
-          </Link>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="flex items-center justify-center w-9 h-9 rounded-full bg-secondary hover:bg-secondary/90 transition-all duration-300 shadow-md"
+                aria-label="Account Menu"
+              >
+                <User className="w-4 h-4 text-white" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuItem asChild>
+                <Link href={getDashboardLink()} className="flex items-center gap-2" onClick={() => setMobileOpen(false)}>
+                  <LayoutDashboard className="w-4 h-4" />
+                  {getDashboardLabel()}
+                </Link>
+              </DropdownMenuItem>
+              {resolvedUser && (
+                <DropdownMenuItem
+                  onClick={async () => {
+                    setMobileOpen(false);
+                    await handleAccountLogout();
+                  }}
+                  className="text-red-600 focus:text-red-600"
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Logout
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
           <button
             onClick={() => setMobileOpen((prev) => !prev)}
             className="flex items-center justify-center w-9 h-9 rounded-lg border border-secondary/20 text-primary hover:bg-secondary/10 transition-colors"

@@ -404,6 +404,7 @@ export default function ServicesPage() {
   }, []);
 
   const heroForRender = isHydrated ? servicesHero : undefined;
+  const heroBackgroundUrl = heroForRender?.backgroundUrl?.trim() || null;
 
   // Check login status
   useEffect(() => {
@@ -710,11 +711,11 @@ export default function ServicesPage() {
         <div className="absolute inset-0 w-full h-full">
           {heroForRender?.backgroundType === 'video' ? (
             <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover">
-              <source src={heroForRender?.backgroundUrl || 'https://www.pexels.com/download/video/7291771/'} type="video/mp4" />
+              <source src={heroBackgroundUrl || 'https://www.pexels.com/download/video/7291771/'} type="video/mp4" />
             </video>
-          ) : (
-            <img src={heroForRender?.backgroundUrl || ''} alt="" className="absolute inset-0 w-full h-full object-cover" />
-          )}
+          ) : heroBackgroundUrl ? (
+            <img src={heroBackgroundUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
+          ) : null}
           <div className="absolute inset-0 bg-linear-to-b from-black/40 via-black/30 to-primary/70"></div>
         </div>
 
