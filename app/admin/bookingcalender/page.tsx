@@ -127,12 +127,57 @@ interface FirebaseStaff {
   role: string;
   specialization: string[];
   branch: string;
+  branchId?: string;
+  branchNames?: string[];
+  branches?: string[];
+  userBranchId?: string;
+  userBranchName?: string;
   avatar: string;
   status: string;
   rating: number;
   createdAt: Date;
   updatedAt: Date;
 }
+
+const normalizeBranchValue = (value: string | undefined | null): string =>
+  (value || '').toLowerCase().trim();
+
+const isStaffActive = (status?: string): boolean =>
+  normalizeBranchValue(status) === 'active';
+
+const staffBelongsToBranch = (
+  staff: FirebaseStaff,
+  branchName?: string,
+  branchId?: string
+): boolean => {
+  if (!branchName && !branchId) return true;
+
+  const normalizedBranchName = normalizeBranchValue(branchName);
+  const normalizedPrimaryBranch = normalizeBranchValue(staff.branch);
+  const normalizedBranchNames = (staff.branchNames || []).map((name) => normalizeBranchValue(name));
+  const normalizedCommaBranches = (staff.branch || '')
+    .split(/[,|]/)
+    .map((name) => normalizeBranchValue(name))
+    .filter(Boolean);
+  const branchIds = staff.branches || [];
+
+  const nameMatches =
+    (!!normalizedBranchName && normalizedPrimaryBranch === normalizedBranchName) ||
+    (!!normalizedBranchName && normalizedBranchNames.includes(normalizedBranchName)) ||
+    (!!normalizedBranchName && normalizedCommaBranches.includes(normalizedBranchName));
+
+  const idMatches =
+    !!branchId && (
+      branchIds.includes(branchId) ||
+      staff.branchId === branchId ||
+      staff.userBranchId === branchId
+    );
+
+  const userBranchNameMatch =
+    !!normalizedBranchName && normalizeBranchValue(staff.userBranchName) === normalizedBranchName;
+
+  return nameMatches || idMatches || userBranchNameMatch;
+};
 
 interface FirebaseService {
   id: string;
@@ -469,7 +514,7 @@ const fetchBookings = async (addNotification: any, userBranch?: string): Promise
 const fetchStaff = async (): Promise<FirebaseStaff[]> => {
   try {
     const staffRef = collection(db, "staff");
-    const q = query(staffRef, where("status", "==", "active"));
+    const q = query(staffRef);
     const querySnapshot = await getDocs(q);
     
     const staff: FirebaseStaff[] = [];
@@ -489,6 +534,11 @@ const fetchStaff = async (): Promise<FirebaseStaff[]> => {
         role: data.role || "staff",
         specialization: Array.isArray(data.specialization) ? data.specialization : [],
         branch: data.branch || "Main Branch",
+        branchId: data.branchId || data.userBranchId || '',
+        branchNames: Array.isArray(data.branchNames) ? data.branchNames : [],
+        branches: Array.isArray(data.branches) ? data.branches : [],
+        userBranchId: data.userBranchId || data.branchId || '',
+        userBranchName: data.userBranchName || '',
         avatar: data.avatar || "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop",
         status: data.status || "active",
         rating: data.rating || 0,
@@ -1459,7 +1509,18 @@ export default function AdminAppointments() {
   const { user, logout } = useAuth();
   const router = useRouter();
   const { formatCurrency } = useCurrencyStore();
-  const { getConfirmedBookings } = useBookingStore();
+  const {
+    getConfirmedBookings,
+    addToCart,
+    clearCart,
+    setCustomerName,
+    setCustomerEmail,
+    setCustomerPhone,
+    setSpecialRequests,
+    setSelectedStaff,
+    setSelectedDate: setStoreSelectedDate,
+    setSelectedTime: setStoreSelectedTime,
+  } = useBookingStore();
   const { getBranchByName } = useBranchStore();
   const { addNotification, notifications, markAsRead } = useNotifications();
 
@@ -1562,7 +1623,8 @@ export default function AdminAppointments() {
   // ✅ FIXED: Load data from Firebase with branch filtering and NO orderBy
   useEffect(() => {
     let isMounted = true;
-    let unsubscribe: (() => void) | undefined;
+    let unsubscribeBookings: (() => void) | undefined;
+    let unsubscribeStaff: (() => void) | undefined;
     
     const loadFirebaseData = async () => {
       setLoading({ 
@@ -1614,7 +1676,7 @@ export default function AdminAppointments() {
           q = query(bookingsRef, orderBy("createdAt", "desc"));
         }
         
-        unsubscribe = onSnapshot(q, (snapshot) => {
+        unsubscribeBookings = onSnapshot(q, (snapshot) => {
           if (!isMounted) return;
           
           const bookingsData: FirebaseBooking[] = [];
@@ -1704,6 +1766,57 @@ export default function AdminAppointments() {
             setLoading(prev => ({ ...prev, bookings: false }));
           }
         });
+
+        const adminBranch = userBranch ? branchesData.find((b) => b.name === userBranch) : null;
+        const adminBranchId = adminBranch?.firebaseId;
+
+        const applyStaffFilter = (staffList: FirebaseStaff[]) => {
+          const activeStaff = staffList.filter((staff) => isStaffActive(staff.status));
+          if (!userBranch) return activeStaff;
+          return activeStaff.filter((staff) => staffBelongsToBranch(staff, userBranch, adminBranchId));
+        };
+
+        const staffRef = collection(db, "staff");
+        const staffQ = query(staffRef);
+
+        unsubscribeStaff = onSnapshot(staffQ, (snapshot) => {
+          if (!isMounted) return;
+
+          const realtimeStaff: FirebaseStaff[] = snapshot.docs.map((staffDoc) => {
+            const staffRecord = staffDoc.data();
+            const createdAt = staffRecord.createdAt?.toDate ? staffRecord.createdAt.toDate() : new Date();
+            const updatedAt = staffRecord.updatedAt?.toDate ? staffRecord.updatedAt.toDate() : new Date();
+
+            return {
+              id: staffDoc.id,
+              firebaseId: staffDoc.id,
+              staffId: `STF-${staffDoc.id.substring(0, 5).toUpperCase()}`,
+              name: staffRecord.name || "Unknown Staff",
+              email: staffRecord.email || "",
+              phone: staffRecord.phone || "",
+              role: staffRecord.role || "staff",
+              specialization: Array.isArray(staffRecord.specialization) ? staffRecord.specialization : [],
+              branch: staffRecord.branch || "Main Branch",
+              branchId: staffRecord.branchId || staffRecord.userBranchId || '',
+              branchNames: Array.isArray(staffRecord.branchNames) ? staffRecord.branchNames : [],
+              branches: Array.isArray(staffRecord.branches) ? staffRecord.branches : [],
+              userBranchId: staffRecord.userBranchId || staffRecord.branchId || '',
+              userBranchName: staffRecord.userBranchName || '',
+              avatar: staffRecord.avatar || "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop",
+              status: staffRecord.status || "active",
+              rating: staffRecord.rating || 0,
+              createdAt,
+              updatedAt,
+            };
+          });
+
+          setStaffMembers(applyStaffFilter(realtimeStaff));
+          setLoading((prev) => ({ ...prev, staff: false }));
+        }, (error) => {
+          if (!isMounted) return;
+          console.error("Error in real-time staff listener:", error);
+          setLoading((prev) => ({ ...prev, staff: false }));
+        });
         
         if (isMounted) {
           setProductOrders(ordersData);
@@ -1713,7 +1826,7 @@ export default function AdminAppointments() {
             const adminBranch = branchesData.find(b => b.name === userBranch);
             const adminBranchId = adminBranch?.firebaseId;
 
-            setStaffMembers(staffData.filter(s => s.branch === userBranch));
+            setStaffMembers(staffData.filter(s => isStaffActive(s.status) && staffBelongsToBranch(s, userBranch, adminBranchId)));
             setServices(servicesData.filter(s =>
               // Global services (no branches assigned) are for ALL branches
               ((!s.branches || s.branches.length === 0) && (!s.branchNames || s.branchNames.length === 0)) ||
@@ -1779,9 +1892,8 @@ export default function AdminAppointments() {
     
     return () => {
       isMounted = false;
-      if (unsubscribe) {
-        unsubscribe();
-      }
+      if (unsubscribeBookings) unsubscribeBookings();
+      if (unsubscribeStaff) unsubscribeStaff();
     };
   }, [user]);
 
@@ -2043,14 +2155,11 @@ export default function AdminAppointments() {
     if (!bookingData.branch) return [];
     
     return staffMembers.filter(staff => {
-      if (staff.status !== 'active') return false;
-      
-      const selectedBranchLower = bookingData.branch.toLowerCase().trim();
-      const staffBranchLower = (staff.branch || '').toLowerCase().trim();
-      
-      return staffBranchLower === selectedBranchLower;
+      if (!isStaffActive(staff.status)) return false;
+
+      return staffBelongsToBranch(staff, bookingData.branch, selectedBranch?.firebaseId);
     });
-  }, [bookingData.branch, staffMembers]);
+  }, [bookingData.branch, selectedBranch?.firebaseId, staffMembers]);
 
   const mockProducts = [
     { name: "Premium Shampoo", category: "Hair Care", price: 15 },
@@ -2667,7 +2776,69 @@ export default function AdminAppointments() {
     }
   };
 
+  const buildCheckoutBookingData = (): BookingFormData => {
+    const serviceNames = selectedServices.map((service) => service.name);
+    const primaryBarber = bookingData.barber || bookingData.teamMembers[0]?.name || '';
+
+    return {
+      ...bookingData,
+      customer: bookingData.customer.trim(),
+      phone: bookingData.phone.trim(),
+      email: bookingData.email.trim(),
+      notes: bookingData.notes.trim(),
+      barber: primaryBarber,
+      services: serviceNames,
+      teamMembers: bookingData.teamMembers.length > 0
+        ? bookingData.teamMembers
+        : (primaryBarber ? [{ name: primaryBarber, tip: 0 }] : []),
+    };
+  };
+
+  const validateCheckoutBookingData = (data: BookingFormData): string | null => {
+    if (!data.customer || !data.date || !data.time) {
+      return 'Please fill customer name, date, and time.';
+    }
+
+    if (selectedServices.length === 0) {
+      return 'Please add at least one service to the booking cart.';
+    }
+
+    if (!data.barber) {
+      return 'Please assign a staff member.';
+    }
+
+    return null;
+  };
+
+  const syncCheckoutToBookingStore = (data: BookingFormData) => {
+    clearCart();
+
+    selectedServices.forEach((service) => {
+      addToCart({
+        id: service.firebaseId || service.id,
+        name: service.name,
+        price: Number(service.price) || 0,
+        duration: `${Number(service.duration) || 0} min`,
+        description: service.description || '',
+        category: service.category || '',
+        rating: 0,
+        reviews: 0,
+        image: service.imageUrl || '',
+      });
+    });
+
+    setCustomerName(data.customer);
+    setCustomerEmail(data.email);
+    setCustomerPhone(data.phone);
+    setSpecialRequests(data.notes);
+    setSelectedStaff(data.barber);
+    setStoreSelectedDate(data.date);
+    setStoreSelectedTime(data.time);
+  };
+
   const handleCreateBooking = (barber: string, date: string, time: string) => {
+    clearCart();
+
     // For branch admin, preserve the branch selection
     const adminBranchName = (user?.role === 'admin' && user?.branchName) ? user.branchName : '';
     const adminBranch = adminBranchName ? branches.find(b => b.name === adminBranchName) || null : null;
@@ -2711,16 +2882,21 @@ export default function AdminAppointments() {
   };
 
   const handleSubmitBooking = async () => {
-    if (!bookingData.customer || !bookingData.barber || !bookingData.date || !bookingData.time || selectedServices.length === 0) {
+    const checkoutBookingData = buildCheckoutBookingData();
+    const validationError = validateCheckoutBookingData(checkoutBookingData);
+
+    if (validationError) {
       addNotification({
         type: 'error',
         title: 'Validation Error',
-        message: 'Please fill in all required fields including at least one service.',
+        message: validationError,
       });
       return;
     }
 
-    const result = await createBookingInFirebase(bookingData, selectedServices, selectedCategory, selectedBranch, addNotification);
+    syncCheckoutToBookingStore(checkoutBookingData);
+
+    const result = await createBookingInFirebase(checkoutBookingData, selectedServices, selectedCategory, selectedBranch, addNotification);
     
     if (result.success && result.booking) {
       setBookings(prev => [result.booking!, ...prev]);
@@ -2728,10 +2904,11 @@ export default function AdminAppointments() {
       addNotification({
         type: 'success',
         title: 'Booking Created Successfully',
-        message: `Appointment for ${bookingData.customer} has been saved with ${selectedServices.length} service(s).`,
+        message: `Appointment for ${checkoutBookingData.customer} has been saved with ${selectedServices.length} service(s).`,
       });
 
       setShowBookingDialog(false);
+      clearCart();
       
       // For branch admin, preserve branch selection after submission
       const adminBranchName = (user?.role === 'admin' && user?.branchName) ? user.branchName : '';
@@ -3561,8 +3738,15 @@ export default function AdminAppointments() {
                                   onCreateBooking={handleCreateBooking}
                                   staff={
                                     (user?.role === 'admin' && user?.branchName
-                                      ? staffMembers.filter(s => s.branch === user.branchName)
-                                      : staffMembers
+                                      ? staffMembers.filter(s =>
+                                          isStaffActive(s.status) &&
+                                          staffBelongsToBranch(
+                                            s,
+                                            user.branchName,
+                                            branches.find((b) => b.name === user.branchName)?.firebaseId
+                                          )
+                                        )
+                                      : staffMembers.filter((s) => isStaffActive(s.status))
                                     ) as any
                                   }
                                   lockedBranch={user?.role === 'admin' ? user.branchName : undefined}
@@ -4140,7 +4324,7 @@ export default function AdminAppointments() {
       </Sheet>
 
       <Sheet open={showBookingDialog} onOpenChange={setShowBookingDialog}>
-        <SheetContent className="sm:max-w-[900px] w-full z-60 overflow-y-auto">
+        <SheetContent className="w-[98vw] sm:max-w-6xl z-60 overflow-y-auto">
           <SheetHeader className="border-b pb-4 mb-6">
             <SheetTitle className="text-xl font-semibold">Create New Booking</SheetTitle>
             <SheetDescription className="text-base">
@@ -4235,7 +4419,7 @@ export default function AdminAppointments() {
                     onValueChange={handleCategoryChange}
                     disabled={!bookingData.branch}
                   >
-                    <SelectTrigger className="h-11">
+                    <SelectTrigger className="h-11 w-full [&>span]:block [&>span]:truncate">
                       <SelectValue placeholder={bookingData.branch ? "Select a category" : "First select a branch"} />
                     </SelectTrigger>
                     <SelectContent>
@@ -4261,8 +4445,8 @@ export default function AdminAppointments() {
                           </SelectItem>
                           {filteredCategories.map((category) => (
                             <SelectItem key={category.firebaseId} value={category.name}>
-                              <div className="flex flex-col">
-                                <span className="font-medium">{category.name}</span>
+                              <div className="flex flex-col min-w-0">
+                                <span className="font-medium truncate">{category.name}</span>
                                 <span className="text-xs text-gray-500">
                                   {category.branchNames && category.branchNames.length > 0 
                                     ? category.branchNames.join(', ') 
@@ -4291,7 +4475,7 @@ export default function AdminAppointments() {
                     value={bookingData.branch} 
                     onValueChange={handleBranchChange}
                   >
-                    <SelectTrigger className="h-11">
+                    <SelectTrigger className="h-11 w-full [&>span]:block [&>span]:truncate">
                       <SelectValue placeholder="Select a branch" />
                     </SelectTrigger>
                     <SelectContent>
@@ -4310,9 +4494,9 @@ export default function AdminAppointments() {
                           .filter(branch => branch.status === 'active')
                           .map((branch) => (
                             <SelectItem key={branch.firebaseId} value={branch.name}>
-                              <div className="flex flex-col">
-                                <span className="font-medium">{branch.name}</span>
-                                <span className="text-xs text-gray-500">{branch.city} • {branch.phone}</span>
+                              <div className="flex flex-col min-w-0">
+                                <span className="font-medium truncate">{branch.name}</span>
+                                <span className="text-xs text-gray-500 truncate">{branch.city} • {branch.phone}</span>
                               </div>
                             </SelectItem>
                           ))
@@ -4355,7 +4539,7 @@ export default function AdminAppointments() {
                     onValueChange={(serviceName) => handleServiceSelection(serviceName)}
                     disabled={!bookingData.branch}
                   >
-                    <SelectTrigger className="h-11">
+                    <SelectTrigger className="h-11 w-full [&>span]:block [&>span]:truncate">
                       <SelectValue placeholder={bookingData.branch ? "Select services from dropdown..." : "First select a branch"} />
                     </SelectTrigger>
                     <SelectContent className="max-h-60">
@@ -4382,12 +4566,12 @@ export default function AdminAppointments() {
                               value={service.name}
                               className={`flex items-center justify-between py-3 ${isSelected ? 'bg-blue-50' : ''}`}
                             >
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2 min-w-0">
                                 {isSelected && (
                                   <CheckCircle className="w-4 h-4 text-green-500" />
                                 )}
-                                <div className="text-left">
-                                  <span className={isSelected ? 'font-medium' : ''}>
+                                <div className="text-left min-w-0">
+                                  <span className={`${isSelected ? 'font-medium' : ''} truncate block`}>
                                     {service.name}
                                   </span>
                                   <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">

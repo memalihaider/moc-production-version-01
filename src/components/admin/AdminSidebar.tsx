@@ -716,6 +716,12 @@ const branchAdminNavItems = [
     pageKey: 'orders'
   },
   {
+    title: 'POS Checkout',
+    href: '/admin/pos',
+    icon: ShoppingCart,
+    pageKey: 'pos'
+  },
+  {
     title: 'Membership',
     href: '/admin/membership',
     icon: Award,
@@ -857,6 +863,12 @@ const superAdminNavItems = [
     href: '/super-admin/orders',
     icon: ShoppingCart,
     pageKey: 'orders'
+  },
+  {
+    title: 'POS Checkout',
+    href: '/super-admin/pos',
+    icon: ShoppingCart,
+    pageKey: 'pos'
   },
   {
     title: 'Membership',
@@ -1190,6 +1202,7 @@ export function getPageKeyFromHref(href: string): string {
     '/admin/analytics': 'analytics',
     '/admin/expenses': 'expenses',
     '/admin/orders': 'orders',
+    '/admin/pos': 'pos',
     '/admin/membership': 'membership',
     '/admin/branches': 'branches',
     '/admin/messages': 'messages',
@@ -1210,6 +1223,7 @@ export function getPageKeyFromHref(href: string): string {
     '/super-admin/analytics': 'analytics',
     '/super-admin/expenses': 'expenses',
     '/super-admin/orders': 'orders',
+    '/super-admin/pos': 'pos',
     '/super-admin/membership': 'membership',
     '/super-admin/branches': 'branches',
     '/super-admin/users': 'users',

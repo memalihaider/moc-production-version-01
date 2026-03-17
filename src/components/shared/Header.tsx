@@ -142,7 +142,7 @@ export function Header() {
             className="flex items-center justify-center w-9 h-9 rounded-full bg-secondary hover:bg-secondary/90 transition-all duration-300 shadow-md"
             onClick={() => setMobileOpen(false)}
           >
-            <User className="w-4 h-4 text-white" />
+            <User className="w-4 h-4 text-white"/>
           </Link>
           <button
             onClick={() => setMobileOpen((prev) => !prev)}

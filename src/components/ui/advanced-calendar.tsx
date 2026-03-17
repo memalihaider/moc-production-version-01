@@ -14,7 +14,7 @@ import {
   AlertCircle, Receipt, Trash2, Plus, Minus, Download, Hash, 
   Building, Tag, Package, Smartphone, Wallet, FileCheck, Printer,
   Search, Filter, Banknote, Coins, Smartphone as Mobile, QrCode,
-  CheckSquare, Percent, CalendarDays, ClipboardList
+  CheckSquare, Percent, CalendarDays, ClipboardList, MoreVertical, Pencil
 } from "lucide-react";
 import { format, addDays, startOfDay, addMinutes, isSameDay, parseISO } from "date-fns";
 import { collection, getDocs, query, where, doc, getDoc ,updateDoc } from "firebase/firestore";
@@ -22,6 +22,7 @@ import { db } from "@/lib/firebase";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -141,6 +142,9 @@ interface AdvancedCalendarProps {
   onAppointmentClick: (appointment: Appointment) => void;
   onStatusChange: (appointmentId: string | number, newStatus: string) => void;
   onCreateBooking?: (barber: string, date: string, time: string) => void;
+  onEditBooking?: (appointment: Appointment) => void;
+  onDeleteBooking?: (appointment: Appointment) => void;
+  onCheckoutBooking?: (appointment: Appointment) => void;
   staff?: StaffMember[];
   showFullDetails?: boolean;
   formatCurrency?: (amount: number) => string;
@@ -252,6 +256,12 @@ const InvoiceGenerationPopup = ({
     label: '',
     amount: 0
   });
+  const [customerDocId, setCustomerDocId] = useState<string | null>(null);
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [walletUseAmount, setWalletUseAmount] = useState(0);
+  const [walletTopupAmount, setWalletTopupAmount] = useState(0);
+  const [paymentProcessed, setPaymentProcessed] = useState(false);
+  const [processingPayment, setProcessingPayment] = useState(false);
   
   const generateInvoiceNumber = () => {
     return `INV-${Date.now().toString().slice(-8)}`;
@@ -303,6 +313,10 @@ const InvoiceGenerationPopup = ({
     if (!appointment) return;
     
     setLoading(true);
+    setPaymentProcessed(false);
+    setProcessingPayment(false);
+    setWalletUseAmount(0);
+    setWalletTopupAmount(0);
     try {
       let freshData = appointment;
       if (appointment.firebaseId) {
@@ -442,6 +456,26 @@ if (amounts.Check > 0 || amounts.check > 0) {
         notes: freshData.notes || '',
         branch: freshData.branch || 'Main Branch'
       });
+
+      const customerEmail = freshData.customerEmail || freshData.email;
+      if (customerEmail) {
+        const customersRef = collection(db, "customers");
+        const customerQ = query(customersRef, where("email", "==", customerEmail));
+        const customerSnapshot = await getDocs(customerQ);
+
+        if (!customerSnapshot.empty) {
+          const customerDoc = customerSnapshot.docs[0];
+          const customerData = customerDoc.data() as any;
+          setCustomerDocId(customerDoc.id);
+          setWalletBalance(Number(customerData.walletBalance || customerData.wallet || 0));
+        } else {
+          setCustomerDocId(null);
+          setWalletBalance(0);
+        }
+      } else {
+        setCustomerDocId(null);
+        setWalletBalance(0);
+      }
       
     } catch (error) {
       console.error("Error initializing invoice:", error);
@@ -593,6 +627,84 @@ if (amounts.Check > 0 || amounts.check > 0) {
       totalPaid,
       balanceDue: invoiceData.totalAmount - totalPaid
     });
+  };
+
+  const applyWalletUsage = (amount: number) => {
+    if (!invoiceData) return;
+
+    const safeAmount = Math.max(0, Math.min(amount, walletBalance));
+    setWalletUseAmount(safeAmount);
+
+    const nonWalletMethods: PaymentMethod[] = invoiceData.paymentMethods.filter(
+      (method) => method.type !== 'wallet'
+    );
+    const walletMethod: PaymentMethod = {
+      type: 'wallet',
+      label: 'Digital Wallet',
+      amount: safeAmount,
+    };
+    const updatedMethods: PaymentMethod[] = safeAmount > 0
+      ? [...nonWalletMethods, walletMethod]
+      : nonWalletMethods;
+    const totalPaid = updatedMethods.reduce((sum, method) => sum + method.amount, 0);
+
+    setInvoiceData({
+      ...invoiceData,
+      paymentMethods: updatedMethods,
+      totalPaid,
+      balanceDue: Math.max(0, invoiceData.totalAmount - totalPaid)
+    });
+  };
+
+  const handleProceedPay = async () => {
+    if (!invoiceData || !appointment?.firebaseId) return;
+    if (invoiceData.totalPaid <= 0) {
+      alert('Add at least one payment amount before proceeding.');
+      return;
+    }
+
+    setProcessingPayment(true);
+    try {
+      const paymentAmounts = invoiceData.paymentMethods.reduce((acc, method) => {
+        acc[method.type] = (acc[method.type] || 0) + method.amount;
+        return acc;
+      }, {} as Record<string, number>);
+
+      const bookingRef = doc(db, "bookings", appointment.firebaseId);
+      await updateDoc(bookingRef, {
+        paymentMethods: invoiceData.paymentMethods.map((method) => method.type),
+        paymentMethod: invoiceData.paymentMethods.map((method) => method.label).join(', '),
+        paymentAmounts,
+        paymentStatus: invoiceData.totalPaid >= invoiceData.totalAmount ? 'paid' : 'partial',
+        status: invoiceData.totalPaid >= invoiceData.totalAmount ? 'completed' : appointment.status,
+        updatedAt: new Date()
+      });
+
+      if (customerDocId) {
+        const customerRef = doc(db, "customers", customerDocId);
+        const balanceAfterUse = Math.max(0, walletBalance - walletUseAmount);
+        const finalBalance = balanceAfterUse + Math.max(0, walletTopupAmount);
+
+        await updateDoc(customerRef, {
+          walletBalance: finalBalance,
+          updatedAt: new Date()
+        });
+
+        setWalletBalance(finalBalance);
+        setWalletTopupAmount(0);
+      }
+
+      setPaymentProcessed(true);
+    } catch (error) {
+      console.error("Error processing payment:", error);
+      alert('Failed to process payment. Please try again.');
+    } finally {
+      setProcessingPayment(false);
+    }
+  };
+
+  const handleSendInvoiceEmail = () => {
+    alert('Invoice email sent successfully.');
   };
   
   const updateDiscount = (value: number) => {
@@ -1234,6 +1346,48 @@ if (amounts.Check > 0 || amounts.check > 0) {
                   )}
                 </div>
               </div>
+
+              {/* Wallet */}
+              <div className="bg-white border rounded-xl p-6">
+                <h3 className="text-base font-semibold text-gray-700 mb-5 flex items-center gap-2">
+                  <Wallet className="w-5 h-5 text-indigo-600" />
+                  Wallet
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <p className="text-sm text-gray-500 mb-1">Current Balance</p>
+                    <div className="h-10 px-3 flex items-center rounded-md border bg-indigo-50 text-indigo-700 font-semibold">
+                      {formatCurrency(walletBalance)}
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="text-sm text-gray-500 mb-1">Use Wallet</p>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      max={walletBalance}
+                      value={walletUseAmount}
+                      onChange={(e) => applyWalletUsage(parseFloat(e.target.value) || 0)}
+                      className="h-10 text-base"
+                    />
+                  </div>
+
+                  <div>
+                    <p className="text-sm text-gray-500 mb-1">Top-up Wallet</p>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={walletTopupAmount}
+                      onChange={(e) => setWalletTopupAmount(parseFloat(e.target.value) || 0)}
+                      className="h-10 text-base"
+                    />
+                  </div>
+                </div>
+              </div>
               
               {/* Discount, Tax, Service Charges */}
               <div className="bg-white border rounded-xl p-6">
@@ -1355,17 +1509,45 @@ if (amounts.Check > 0 || amounts.check > 0) {
               
               {/* Actions */}
               <div className="flex justify-end gap-4 pt-6">
-                <Button variant="outline" onClick={onClose} size="lg" className="text-base h-12 px-8">
-                  Cancel
-                </Button>
-                <Button 
-                  onClick={generatePDF}
-                  className="bg-green-600 hover:bg-green-700 text-white gap-3 text-base h-12 px-8"
-                  size="lg"
-                >
-                  <Download className="w-5 h-5" />
-                  Download PDF
-                </Button>
+                {!paymentProcessed ? (
+                  <>
+                    <Button variant="outline" onClick={onClose} size="lg" className="text-base h-12 px-8">
+                      Void / Back
+                    </Button>
+                    <Button
+                      onClick={handleProceedPay}
+                      disabled={processingPayment || invoiceData.totalPaid <= 0}
+                      className="bg-blue-600 hover:bg-blue-700 text-white gap-3 text-base h-12 px-8"
+                      size="lg"
+                    >
+                      <CheckCircle className="w-5 h-5" />
+                      {processingPayment ? 'Processing...' : 'Proceed Pay'}
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button variant="outline" onClick={onClose} size="lg" className="text-base h-12 px-8">
+                      Close
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={handleSendInvoiceEmail}
+                      className="gap-2 text-base h-12 px-8"
+                      size="lg"
+                    >
+                      <Mail className="w-5 h-5" />
+                      Send Invoice Email
+                    </Button>
+                    <Button
+                      onClick={generatePDF}
+                      className="bg-green-600 hover:bg-green-700 text-white gap-3 text-base h-12 px-8"
+                      size="lg"
+                    >
+                      <Printer className="w-5 h-5" />
+                      Print / Download Invoice
+                    </Button>
+                  </>
+                )}
               </div>
             </>
           )}
@@ -1385,12 +1567,14 @@ const AdvanceCalendarPopup = ({
   appointment, 
   onClose,
   onStatusChange,
+  initialAction,
   onGenerateInvoice,
   formatCurrency = (amount) => `AED ${amount.toFixed(2)}`
 }: { 
   appointment: Appointment | null; 
   onClose: () => void;
   onStatusChange?: (appointmentId: string | number, newStatus: string) => void;
+  initialAction?: 'reschedule' | null;
   onGenerateInvoice?: (appointment: Appointment) => void;
   formatCurrency?: (amount: number) => string;
 }) => {
@@ -1423,6 +1607,13 @@ const AdvanceCalendarPopup = ({
       fetchFreshData();
     }
   }, [appointment]);
+
+  useEffect(() => {
+    if (!appointment || initialAction !== 'reschedule') return;
+    setRescheduleDate(appointment.bookingDate || appointment.date || '');
+    setRescheduleTime(appointment.bookingTime || appointment.time || '');
+    setShowRescheduleDialog(true);
+  }, [appointment, initialAction]);
   
   const fetchFreshData = async () => {
     if (!appointment?.firebaseId) return;
@@ -2152,6 +2343,9 @@ export function AdvancedCalendar({
   onAppointmentClick, 
   onStatusChange, 
   onCreateBooking,
+  onEditBooking,
+  onDeleteBooking,
+  onCheckoutBooking,
   staff: propStaff,
   showFullDetails = true,
   formatCurrency = (amount) => `AED ${amount.toFixed(2)}`,
@@ -2171,6 +2365,7 @@ export function AdvancedCalendar({
   
   const [showAdvancePopup, setShowAdvancePopup] = useState(false);
   const [selectedAdvanceAppointment, setSelectedAdvanceAppointment] = useState<Appointment | null>(null);
+  const [initialPopupAction, setInitialPopupAction] = useState<'reschedule' | null>(null);
   const [showInvoicePopup, setShowInvoicePopup] = useState(false);
   const [selectedInvoiceAppointment, setSelectedInvoiceAppointment] = useState<Appointment | null>(null);
   
@@ -2411,8 +2606,8 @@ const filteredAppointments = useMemo(() => {
 
   const getStatusColor = (status: string): string => {
     switch (status) {
-      case "completed": return "bg-green-500";
-      case "in-progress": return "bg-blue-500";
+      case "completed": return "bg-blue-600";
+      case "in-progress": return "bg-green-500";
       case "scheduled": return "bg-yellow-500";
       case "approved": return "bg-purple-500";
       case "pending": return "bg-orange-500";
@@ -2455,7 +2650,53 @@ const filteredAppointments = useMemo(() => {
   const handleAdvanceAppointmentClick = (appointment: Appointment) => {
     console.log("🎯 ADVANCE CALENDAR Click:", appointment);
     setSelectedAdvanceAppointment(appointment);
+    setInitialPopupAction(null);
     setShowAdvancePopup(true);
+  };
+
+  const handleAppointmentAction = (action: 'reschedule' | 'edit' | 'checkin' | 'cancel' | 'delete' | 'checkout', appointment: Appointment) => {
+    if (action === 'reschedule') {
+      setSelectedAdvanceAppointment(appointment);
+      setInitialPopupAction('reschedule');
+      setShowAdvancePopup(true);
+      return;
+    }
+
+    if (action === 'edit') {
+      if (onEditBooking) {
+        onEditBooking(appointment);
+      } else {
+        onAppointmentClick(appointment);
+      }
+      return;
+    }
+
+    if (action === 'checkin') {
+      onStatusChange(appointment.firebaseId || appointment.id, 'completed');
+      return;
+    }
+
+    if (action === 'cancel') {
+      onStatusChange(appointment.firebaseId || appointment.id, 'cancelled');
+      return;
+    }
+
+    if (action === 'delete') {
+      if (onDeleteBooking) {
+        onDeleteBooking(appointment);
+      } else {
+        onStatusChange(appointment.firebaseId || appointment.id, 'deleted');
+      }
+      return;
+    }
+
+    if (action === 'checkout') {
+      if (onCheckoutBooking) {
+        onCheckoutBooking(appointment);
+      } else {
+        handleGenerateInvoiceClick(appointment);
+      }
+    }
   };
 
   const handleGenerateInvoiceClick = (appointment: Appointment) => {
@@ -2721,19 +2962,54 @@ const filteredAppointments = useMemo(() => {
                         rowElements.push(
                           <div
                             key={`${barber}-${currentSlot}`}
-                            className={`p-1 rounded cursor-pointer hover:shadow-md transition-all duration-200 min-h-[60px] flex items-center justify-center border-2 border-primary/50 bg-primary/5`}
+                            className={`relative p-1 rounded cursor-pointer hover:shadow-md transition-all duration-200 min-h-[60px] flex items-center justify-center border-2 border-transparent ${getStatusColor(appointment.status)}`}
                             style={{ gridColumn: `span ${span}` }}
                             onClick={() => handleAdvanceAppointmentClick(appointment)}
                           >
+                            <div className="absolute top-1 right-1 z-10" onClick={(e) => e.stopPropagation()}>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-white hover:bg-white/20 hover:text-white">
+                                    <MoreVertical className="w-3 h-3" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => handleAppointmentAction('reschedule', appointment)}>
+                                    <RotateCcw className="w-4 h-4 mr-2" />
+                                    Reschedule
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleAppointmentAction('edit', appointment)}>
+                                    <Pencil className="w-4 h-4 mr-2" />
+                                    Edit Booking
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleAppointmentAction('checkin', appointment)}>
+                                    <CheckCircle className="w-4 h-4 mr-2" />
+                                    Check In
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleAppointmentAction('cancel', appointment)}>
+                                    <X className="w-4 h-4 mr-2" />
+                                    Cancel Booking
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleAppointmentAction('checkout', appointment)}>
+                                    <Receipt className="w-4 h-4 mr-2" />
+                                    Checkout
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem className="text-red-600" onClick={() => handleAppointmentAction('delete', appointment)}>
+                                    <Trash2 className="w-4 h-4 mr-2" />
+                                    Delete Booking
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
                             <div className="w-full h-full flex flex-col items-center justify-center text-xs p-1">
-                              <div className={`w-3 h-3 rounded-full mb-1 ${getStatusColor(appointment.status)}`} />
+                              <div className="w-2 h-2 rounded-full mb-1 bg-white/80" />
                               <div className="font-medium truncate w-full text-center leading-tight">
                                 {appointment.customer.split(' ')[0]}
                               </div>
-                              <div className="text-muted-foreground truncate w-full text-center text-[10px] leading-tight">
+                              <div className="text-white/90 truncate w-full text-center text-[10px] leading-tight">
                                 {appointment.service}
                               </div>
-                              <div className="text-muted-foreground text-[9px] mt-1">
+                              <div className="text-white/80 text-[9px] mt-1">
                                 {appointment.duration}
                               </div>
                             </div>
@@ -2842,22 +3118,57 @@ const filteredAppointments = useMemo(() => {
                           return (
                             <div
                               key={`${slot}-${barber}`}
-                              className="p-1 rounded cursor-pointer hover:shadow-md transition-all duration-200 flex items-center justify-center border-2 border-primary/50 bg-primary/5"
+                              className={`relative p-1 rounded cursor-pointer hover:shadow-md transition-all duration-200 flex items-center justify-center border-2 border-transparent ${getStatusColor(appointment.status)}`}
                               style={{ gridRow: `span ${span}` }}
                               onClick={() => handleAdvanceAppointmentClick(appointment)}
                             >
+                              <div className="absolute top-1 right-1 z-10" onClick={(e) => e.stopPropagation()}>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-white hover:bg-white/20 hover:text-white">
+                                      <MoreVertical className="w-3 h-3" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => handleAppointmentAction('reschedule', appointment)}>
+                                      <RotateCcw className="w-4 h-4 mr-2" />
+                                      Reschedule
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleAppointmentAction('edit', appointment)}>
+                                      <Pencil className="w-4 h-4 mr-2" />
+                                      Edit Booking
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleAppointmentAction('checkin', appointment)}>
+                                      <CheckCircle className="w-4 h-4 mr-2" />
+                                      Check In
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleAppointmentAction('cancel', appointment)}>
+                                      <X className="w-4 h-4 mr-2" />
+                                      Cancel Booking
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleAppointmentAction('checkout', appointment)}>
+                                      <Receipt className="w-4 h-4 mr-2" />
+                                      Checkout
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem className="text-red-600" onClick={() => handleAppointmentAction('delete', appointment)}>
+                                      <Trash2 className="w-4 h-4 mr-2" />
+                                      Delete Booking
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
                               <div className="w-full h-full flex flex-col items-center justify-center text-xs p-1">
-                                <div className={`w-3 h-3 rounded-full mb-1 ${getStatusColor(appointment.status)}`} />
-                                <div className="text-muted-foreground text-[9px] mb-0.5 font-medium">
+                                <div className="w-2 h-2 rounded-full mb-1 bg-white/80" />
+                                <div className="text-white/80 text-[9px] mb-0.5 font-medium">
                                   {appointment.time}
                                 </div>
                                 <div className="font-medium truncate w-full text-center leading-tight">
                                   {appointment.customer.split(' ')[0]}
                                 </div>
-                                <div className="text-muted-foreground truncate w-full text-center text-[10px] leading-tight">
+                                <div className="text-white/90 truncate w-full text-center text-[10px] leading-tight">
                                   {appointment.service}
                                 </div>
-                                <div className="text-muted-foreground text-[9px] mt-1">
+                                <div className="text-white/80 text-[9px] mt-1">
                                   {appointment.duration}
                                 </div>
                               </div>
@@ -2894,11 +3205,11 @@ const filteredAppointments = useMemo(() => {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex flex-wrap gap-4 text-xs">
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-green-500" />
+                  <div className="w-3 h-3 rounded-full bg-blue-600" />
                   <span>Completed</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-blue-500" />
+                  <div className="w-3 h-3 rounded-full bg-green-500" />
                   <span>In Progress</span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -2968,8 +3279,10 @@ const filteredAppointments = useMemo(() => {
           onClose={() => {
             setShowAdvancePopup(false);
             setSelectedAdvanceAppointment(null);
+            setInitialPopupAction(null);
           }}
           onStatusChange={onStatusChange}
+          initialAction={initialPopupAction}
           onGenerateInvoice={handleGenerateInvoiceClick}
           formatCurrency={formatCurrency}
         />

@@ -70,6 +70,7 @@ interface BookingData {
   staffName: string;
   staffRole: string;
   status: string;
+  confirmedAt?: any;
   subtotal: number;
   tax: number;
   taxAmount: number;
@@ -903,7 +904,8 @@ export default function BookingCheckout() {
         staffId: staffMember?.id || "",
         staffName: selectedStaff,
         staffRole: staffMember?.role || "makeup",
-        status: "upcoming",
+        status: "confirmed",
+        confirmedAt: serverTimestamp(),
         subtotal: servicesTotal,
         tax: 0,
         taxAmount: 0,

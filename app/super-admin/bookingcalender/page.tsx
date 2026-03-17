@@ -27,7 +27,7 @@ import { CurrencySwitcher } from "@/components/ui/currency-switcher";
 import { getTemplate, InvoiceData } from "@/components/invoice-templates";
 import { generateInvoiceNumber } from "@/lib/invoice-utils";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { collection, getDocs, query, orderBy, where, doc, updateDoc, addDoc, serverTimestamp, onSnapshot, getDoc } from "firebase/firestore";
+import { collection, getDocs, query, orderBy, where, doc, updateDoc, addDoc, serverTimestamp, onSnapshot, getDoc, deleteDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -156,12 +156,57 @@ interface FirebaseStaff {
   role: string;
   specialization: string[];
   branch: string;
+  branchId?: string;
+  branchNames?: string[];
+  branches?: string[];
+  userBranchId?: string;
+  userBranchName?: string;
   avatar: string;
   status: string;
   rating: number;
   createdAt: Date;
   updatedAt: Date;
 }
+
+const normalizeBranchValue = (value: string | undefined | null): string =>
+  (value || '').toLowerCase().trim();
+
+const isStaffActive = (status?: string): boolean =>
+  normalizeBranchValue(status) === 'active';
+
+const staffBelongsToBranch = (
+  staff: FirebaseStaff,
+  branchName?: string,
+  branchId?: string
+): boolean => {
+  if (!branchName && !branchId) return true;
+
+  const normalizedBranchName = normalizeBranchValue(branchName);
+  const normalizedPrimaryBranch = normalizeBranchValue(staff.branch);
+  const normalizedBranchNames = (staff.branchNames || []).map((name) => normalizeBranchValue(name));
+  const normalizedCommaBranches = (staff.branch || '')
+    .split(/[,|]/)
+    .map((name) => normalizeBranchValue(name))
+    .filter(Boolean);
+  const branchIds = staff.branches || [];
+
+  const nameMatches =
+    (!!normalizedBranchName && normalizedPrimaryBranch === normalizedBranchName) ||
+    (!!normalizedBranchName && normalizedBranchNames.includes(normalizedBranchName)) ||
+    (!!normalizedBranchName && normalizedCommaBranches.includes(normalizedBranchName));
+
+  const idMatches =
+    !!branchId && (
+      branchIds.includes(branchId) ||
+      staff.branchId === branchId ||
+      staff.userBranchId === branchId
+    );
+
+  const userBranchNameMatch =
+    !!normalizedBranchName && normalizeBranchValue(staff.userBranchName) === normalizedBranchName;
+
+  return nameMatches || idMatches || userBranchNameMatch;
+};
 
 interface FirebaseService {
   id: string;
@@ -466,7 +511,7 @@ const fetchBookings = async (addNotification: any): Promise<FirebaseBooking[]> =
 const fetchStaff = async (): Promise<FirebaseStaff[]> => {
   try {
     const staffRef = collection(db, "staff");
-    const q = query(staffRef, where("status", "==", "active"));
+    const q = query(staffRef);
     const querySnapshot = await getDocs(q);
     
     const staff: FirebaseStaff[] = [];
@@ -486,6 +531,11 @@ const fetchStaff = async (): Promise<FirebaseStaff[]> => {
         role: data.role || "staff",
         specialization: Array.isArray(data.specialization) ? data.specialization : [],
         branch: data.branch || "Main Branch",
+        branchId: data.branchId || data.userBranchId || '',
+        branchNames: Array.isArray(data.branchNames) ? data.branchNames : [],
+        branches: Array.isArray(data.branches) ? data.branches : [],
+        userBranchId: data.userBranchId || data.branchId || '',
+        userBranchName: data.userBranchName || '',
         avatar: data.avatar || "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop",
         status: data.status || "active",
         rating: data.rating || 0,
@@ -882,14 +932,76 @@ const createBookingInFirebase = async (
     return {success: false};
   }
 };
+
+const updateBookingInFirebase = async (
+  bookingId: string,
+  bookingData: BookingFormData,
+  selectedServices: ServiceItem[],
+  services: FirebaseService[],
+  branches: FirebaseBranch[]
+): Promise<boolean> => {
+  try {
+    const servicesPrice = selectedServices.reduce((sum, s) => sum + s.price, 0);
+    const totalDuration = selectedServices.reduce((sum, s) => {
+      const svc = services.find((sv) => sv.name === s.service);
+      return sum + (svc?.duration || 30);
+    }, 0);
+
+    const mainBranch = selectedServices[0]?.branch || bookingData.branch || "Main Branch";
+    const mainBranchObj = branches.find((b) => b.name === mainBranch);
+    const mainBranchId = mainBranchObj?.firebaseId || '';
+
+    const serviceDetails = selectedServices.map((service) => ({
+      name: service.service,
+      branch: service.branch,
+      staff: service.staff,
+      staffId: service.serviceId || '',
+      price: service.price,
+      duration: services.find((sv) => sv.name === service.service)?.duration || 60,
+    }));
+
+    const firstService = selectedServices[0];
+
+    const bookingRef = doc(db, "bookings", bookingId);
+    await updateDoc(bookingRef, {
+      customerName: bookingData.customer,
+      customerEmail: bookingData.email || '',
+      customerPhone: bookingData.phone || '',
+      bookingDate: bookingData.date,
+      bookingTime: bookingData.time,
+      date: bookingData.date,
+      time: bookingData.time,
+      timeSlot: bookingData.time,
+      serviceName: firstService?.service || bookingData.service || 'Service',
+      services: selectedServices.map((s) => s.service),
+      serviceDetails,
+      servicePrice: servicesPrice,
+      subtotal: servicesPrice,
+      totalAmount: servicesPrice,
+      totalDuration,
+      duration: `${totalDuration} min`,
+      staff: bookingData.barber || firstService?.staff || '',
+      staffName: bookingData.barber || firstService?.staff || '',
+      staffId: firstService?.serviceId || '',
+      branch: mainBranch,
+      branchId: mainBranchId,
+      branchNames: [mainBranch],
+      branches: mainBranchId ? [mainBranchId] : [],
+      notes: bookingData.notes || '',
+      updatedAt: serverTimestamp(),
+    });
+
+    return true;
+  } catch (error) {
+    console.error("Error updating booking in Firebase:", error);
+    return false;
+  }
+};
+
 const deleteBookingInFirebase = async (bookingId: string): Promise<boolean> => {
   try {
     const bookingRef = doc(db, "bookings", bookingId);
-    await updateDoc(bookingRef, {
-      status: "deleted",
-      deletedAt: new Date(),
-      updatedAt: new Date()
-    });
+    await deleteDoc(bookingRef);
     return true;
   } catch (error) {
     console.error("Error deleting booking:", error);
@@ -1323,7 +1435,18 @@ export default function AdminAppointments() {
   const { user, logout } = useAuth();
   const router = useRouter();
   const { formatCurrency } = useCurrencyStore();
-  const { getConfirmedBookings } = useBookingStore();
+  const {
+    getConfirmedBookings,
+    addToCart,
+    clearCart,
+    setCustomerName,
+    setCustomerEmail,
+    setCustomerPhone,
+    setSpecialRequests,
+    setSelectedStaff,
+    setSelectedDate: setStoreSelectedDate,
+    setSelectedTime: setStoreSelectedTime,
+  } = useBookingStore();
   const { getBranchByName } = useBranchStore();
   const { addNotification, notifications, markAsRead } = useNotifications();
 
@@ -1340,6 +1463,7 @@ export default function AdminAppointments() {
   const [showAppointmentDetails, setShowAppointmentDetails] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [editingBookingId, setEditingBookingId] = useState<string | null>(null);
   const [showBookingDialog, setShowBookingDialog] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
@@ -1412,7 +1536,8 @@ export default function AdminAppointments() {
 
   useEffect(() => {
     let isMounted = true;
-    let unsubscribe: (() => void) | undefined;
+    let unsubscribeBookings: (() => void) | undefined;
+    let unsubscribeStaff: (() => void) | undefined;
     
     const loadFirebaseData = async () => {
       setLoading({ orders: true, bookings: true, staff: true, services: true, categories: true, branches: true });
@@ -1440,7 +1565,7 @@ export default function AdminAppointments() {
         const bookingsRef = collection(db, "bookings");
         const q = query(bookingsRef, orderBy("createdAt", "desc"));
         
-        unsubscribe = onSnapshot(q, (snapshot) => {
+        unsubscribeBookings = onSnapshot(q, (snapshot) => {
           if (!isMounted) return;
           
           const bookingsData: FirebaseBooking[] = [];
@@ -1514,6 +1639,48 @@ export default function AdminAppointments() {
             setLoading(prev => ({ ...prev, bookings: false }));
           }
         });
+
+        const staffRef = collection(db, "staff");
+        const staffQ = query(staffRef);
+
+        unsubscribeStaff = onSnapshot(staffQ, (snapshot) => {
+          if (!isMounted) return;
+
+          const realtimeStaff: FirebaseStaff[] = snapshot.docs.map((staffDoc) => {
+            const staffRecord = staffDoc.data();
+            const createdAt = staffRecord.createdAt?.toDate ? staffRecord.createdAt.toDate() : new Date();
+            const updatedAt = staffRecord.updatedAt?.toDate ? staffRecord.updatedAt.toDate() : new Date();
+
+            return {
+              id: staffDoc.id,
+              firebaseId: staffDoc.id,
+              staffId: `STF-${staffDoc.id.substring(0, 5).toUpperCase()}`,
+              name: staffRecord.name || "Unknown Staff",
+              email: staffRecord.email || "",
+              phone: staffRecord.phone || "",
+              role: staffRecord.role || "staff",
+              specialization: Array.isArray(staffRecord.specialization) ? staffRecord.specialization : [],
+              branch: staffRecord.branch || "Main Branch",
+              branchId: staffRecord.branchId || staffRecord.userBranchId || '',
+              branchNames: Array.isArray(staffRecord.branchNames) ? staffRecord.branchNames : [],
+              branches: Array.isArray(staffRecord.branches) ? staffRecord.branches : [],
+              userBranchId: staffRecord.userBranchId || staffRecord.branchId || '',
+              userBranchName: staffRecord.userBranchName || '',
+              avatar: staffRecord.avatar || "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop",
+              status: staffRecord.status || "active",
+              rating: staffRecord.rating || 0,
+              createdAt,
+              updatedAt,
+            };
+          });
+
+          setStaffMembers(realtimeStaff.filter((staff) => isStaffActive(staff.status)));
+          setLoading((prev) => ({ ...prev, staff: false }));
+        }, (error) => {
+          if (!isMounted) return;
+          console.error("Error in real-time staff listener:", error);
+          setLoading((prev) => ({ ...prev, staff: false }));
+        });
         
         if (isMounted) {
           setProductOrders(ordersData);
@@ -1541,7 +1708,8 @@ export default function AdminAppointments() {
     
     return () => {
       isMounted = false;
-      if (unsubscribe) unsubscribe();
+      if (unsubscribeBookings) unsubscribeBookings();
+      if (unsubscribeStaff) unsubscribeStaff();
     };
   }, []);
 
@@ -1822,11 +1990,21 @@ export default function AdminAppointments() {
   };
 
   const fetchStaffForBranch = (branchName: string) => {
-    const filtered = staffMembers.filter(staff => 
-      staff.branch === branchName && staff.status === 'active'
+    const branchId = branches.find((b) => b.name === branchName)?.firebaseId;
+    const filtered = staffMembers.filter((staff) =>
+      isStaffActive(staff.status) && staffBelongsToBranch(staff, branchName, branchId)
     );
     setBranchStaff(filtered);
   };
+
+  useEffect(() => {
+    if (!tempServiceData.branch) {
+      setBranchStaff([]);
+      return;
+    }
+
+    fetchStaffForBranch(tempServiceData.branch);
+  }, [tempServiceData.branch, staffMembers, branches]);
 
   const handleAddService = () => {
     if (!tempServiceData.branch || !tempServiceData.service || !tempServiceData.staff || tempServiceData.price <= 0) {
@@ -1881,7 +2059,74 @@ export default function AdminAppointments() {
     });
   };
 
+  const buildCheckoutBookingData = (): BookingFormData => {
+    const serviceNames = selectedServices.map((service) => service.service);
+    const primaryBarber = bookingData.barber || selectedServices[0]?.staff || '';
+    const normalizedPaymentMethods = bookingData.paymentMethods.length > 0 ? bookingData.paymentMethods : ['cash'];
+
+    return {
+      ...bookingData,
+      customer: bookingData.customer.trim(),
+      phone: bookingData.phone.trim(),
+      email: bookingData.email.trim(),
+      notes: bookingData.notes.trim(),
+      barber: primaryBarber,
+      services: serviceNames,
+      paymentMethods: normalizedPaymentMethods,
+      teamMembers: bookingData.teamMembers.length > 0
+        ? bookingData.teamMembers
+        : (primaryBarber ? [{ name: primaryBarber, tip: 0 }] : []),
+    };
+  };
+
+  const validateCheckoutBookingData = (data: BookingFormData): string | null => {
+    if (!data.customer || !data.date || !data.time) {
+      return 'Please fill customer name, date, and time.';
+    }
+
+    if (selectedServices.length === 0) {
+      return 'Please add at least one service to the booking cart.';
+    }
+
+    if (!data.barber) {
+      return 'Please assign a staff member.';
+    }
+
+    return null;
+  };
+
+  const syncCheckoutToBookingStore = (data: BookingFormData) => {
+    clearCart();
+
+    selectedServices.forEach((service) => {
+      const serviceData = services.find((s) => s.name === service.service);
+
+      addToCart({
+        id: service.serviceId || serviceData?.firebaseId || service.service,
+        name: service.service,
+        price: Number(service.price) || 0,
+        duration: `${Number(serviceData?.duration || 0)} min`,
+        description: serviceData?.description || '',
+        category: serviceData?.category || '',
+        rating: 0,
+        reviews: 0,
+        image: serviceData?.imageUrl || '',
+      });
+    });
+
+    setCustomerName(data.customer);
+    setCustomerEmail(data.email);
+    setCustomerPhone(data.phone);
+    setSpecialRequests(data.notes);
+    setSelectedStaff(data.barber);
+    setStoreSelectedDate(data.date);
+    setStoreSelectedTime(data.time);
+  };
+
   const handleCreateBooking = (barber: string, date: string, time: string) => {
+    clearCart();
+    setEditingBookingId(null);
+
     setBookingData({
       customer: '',
       phone: '',
@@ -1917,26 +2162,181 @@ export default function AdminAppointments() {
     setShowBookingDialog(true);
   };
 
+  const normalizeTimeForInput = (timeValue?: string): string => {
+    if (!timeValue) return '';
+    if (timeValue.includes(':') && !timeValue.includes('AM') && !timeValue.includes('PM')) return timeValue.slice(0, 5);
+
+    const [timePart, period] = timeValue.split(' ');
+    if (!timePart || !period) return timeValue;
+    const [h, m] = timePart.split(':').map((value) => parseInt(value, 10));
+    if (Number.isNaN(h) || Number.isNaN(m)) return '';
+
+    const hour24 = period.toUpperCase() === 'PM' ? (h === 12 ? 12 : h + 12) : (h === 12 ? 0 : h);
+    return `${String(hour24).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  };
+
+  const handleEditBookingFromCalendar = (appointment: any) => {
+    const appointmentId = appointment.firebaseId || String(appointment.id);
+    if (!appointmentId) return;
+
+    const mappedServices: ServiceItem[] = Array.isArray(appointment.serviceDetails) && appointment.serviceDetails.length > 0
+      ? appointment.serviceDetails.map((detail: any, index: number) => ({
+          branch: detail.branch || appointment.branch || '',
+          service: detail.name || detail.serviceName || appointment.services?.[index] || appointment.service || 'Service',
+          serviceId: detail.staffId || appointment.staffId || '',
+          staff: detail.staff || appointment.barber || '',
+          price: Number(detail.price) || 0,
+        }))
+      : (appointment.services && appointment.services.length > 0
+          ? appointment.services.map((serviceName: string) => ({
+              branch: appointment.branch || '',
+              service: serviceName,
+              serviceId: appointment.staffId || '',
+              staff: appointment.barber || '',
+              price: Number(appointment.price) / Math.max(appointment.services?.length || 1, 1) || 0,
+            }))
+          : [{
+              branch: appointment.branch || '',
+              service: appointment.service || 'Service',
+              serviceId: appointment.staffId || '',
+              staff: appointment.barber || '',
+              price: Number(appointment.price) || 0,
+            }]);
+
+    setEditingBookingId(appointmentId);
+    setSelectedServices(mappedServices);
+    setBookingData((prev) => ({
+      ...prev,
+      customer: appointment.customer || '',
+      phone: appointment.phone || '',
+      email: appointment.email || '',
+      barber: appointment.barber || mappedServices[0]?.staff || '',
+      teamMembers: [{ name: appointment.barber || mappedServices[0]?.staff || '', tip: 0 }],
+      date: appointment.date || '',
+      time: normalizeTimeForInput(appointment.time || ''),
+      notes: appointment.notes || '',
+      service: mappedServices[0]?.service || '',
+      services: mappedServices.map((service) => service.service),
+      branch: appointment.branch || mappedServices[0]?.branch || '',
+      paymentMethods: [],
+      paymentAmounts: { cash: 0, card: 0, check: 0, digital: 0 },
+      status: appointment.status || 'upcoming',
+    }));
+
+    setShowBookingDialog(true);
+  };
+
+  const handleDeleteBookingFromCalendar = async (appointment: any) => {
+    if (!appointment.firebaseId) return;
+    const success = await deleteBookingInFirebase(appointment.firebaseId);
+    if (success) {
+      addNotification({
+        type: 'success',
+        title: 'Booking Deleted',
+        message: `${appointment.customer || 'Customer'} booking was deleted.`,
+      });
+    } else {
+      addNotification({
+        type: 'error',
+        title: 'Delete Failed',
+        message: 'Failed to delete booking.',
+      });
+    }
+  };
+
+  const handleCheckoutFromCalendar = (appointment: any) => {
+    setSelectedAppointment(appointment);
+    handleGenerateInvoiceClick(appointment);
+  };
+
   const handleSubmitBooking = async () => {
-    if (!bookingData.customer || !bookingData.date || !bookingData.time || selectedServices.length === 0) {
+    const checkoutBookingData = buildCheckoutBookingData();
+    const validationError = validateCheckoutBookingData(checkoutBookingData);
+
+    if (validationError) {
       addNotification({
         type: 'error',
         title: 'Validation Error',
-        message: 'Please fill customer name, date, time, and at least one service.',
+        message: validationError,
       });
       return;
     }
 
-    const result = await createBookingInFirebase(bookingData, selectedServices, addNotification, services, branches);
+    syncCheckoutToBookingStore(checkoutBookingData);
+
+    if (editingBookingId) {
+      const updated = await updateBookingInFirebase(
+        editingBookingId,
+        checkoutBookingData,
+        selectedServices,
+        services,
+        branches
+      );
+
+      if (updated) {
+        addNotification({
+          type: 'success',
+          title: 'Booking Updated Successfully',
+          message: `Appointment for ${checkoutBookingData.customer} has been updated.`,
+        });
+
+        setShowBookingDialog(false);
+        clearCart();
+        setEditingBookingId(null);
+        setSelectedServices([]);
+        setBookingData({
+          customer: '',
+          phone: '',
+          email: '',
+          service: '',
+          services: [],
+          barber: '',
+          teamMembers: [],
+          date: '',
+          time: '',
+          notes: '',
+          products: [],
+          tax: 5,
+          serviceCharges: 0,
+          discount: 0,
+          discountType: 'fixed',
+          serviceTip: 0,
+          paymentMethods: [],
+          paymentAmounts: {
+            cash: 0,
+            card: 0,
+            check: 0,
+            digital: 0
+          },
+          status: 'upcoming',
+          generateInvoice: false,
+          cardLast4Digits: '',
+          trnNumber: '',
+          category: '',
+          branch: ''
+        });
+      } else {
+        addNotification({
+          type: 'error',
+          title: 'Update Failed',
+          message: 'Failed to update booking. Please try again.',
+        });
+      }
+      return;
+    }
+
+    const result = await createBookingInFirebase(checkoutBookingData, selectedServices, addNotification, services, branches);
     
     if (result.success) {
       addNotification({
         type: 'success',
         title: 'Booking Created Successfully',
-        message: `Appointment for ${bookingData.customer} has been saved with ${selectedServices.length} service(s).`,
+        message: `Appointment for ${checkoutBookingData.customer} has been saved with ${selectedServices.length} service(s).`,
       });
 
       setShowBookingDialog(false);
+      clearCart();
+      setEditingBookingId(null);
       
       setBookingData({
         customer: '',
@@ -2122,15 +2522,6 @@ export default function AdminAppointments() {
   };
 
   const handleGenerateInvoiceClick = (appointment: Appointment) => {
-    if (appointment.status !== 'completed') {
-      addNotification({
-        type: 'error',
-        title: 'Invoice Not Available',
-        message: 'Invoice can only be generated for completed services'
-      });
-      return;
-    }
-    
     const newInvoiceNumber = generateInvoiceNumber();
     setInvoiceNumber(newInvoiceNumber);
     setSelectedAppointmentForInvoice(appointment);
@@ -2607,6 +2998,9 @@ export default function AdminAppointments() {
                     }}
                     onStatusChange={(appointmentId, newStatus) => handleStatusChange(appointmentId.toString(), newStatus)}
                     onCreateBooking={handleCreateBooking}
+                    onEditBooking={(appointment: any) => handleEditBookingFromCalendar(appointment)}
+                    onDeleteBooking={(appointment: any) => { void handleDeleteBookingFromCalendar(appointment); }}
+                    onCheckoutBooking={(appointment: any) => handleCheckoutFromCalendar(appointment)}
                     staff={staffMembers as any}
                     showFullDetails={true}
                   />
@@ -3097,11 +3491,11 @@ export default function AdminAppointments() {
 </Sheet>
 
       <Sheet open={showBookingDialog} onOpenChange={setShowBookingDialog}>
-        <SheetContent className="w-full sm:max-w-full        rounded-2xl z-[60] overflow-y-auto">
+        <SheetContent className="w-[98vw] sm:max-w-6xl rounded-2xl z-[60] overflow-y-auto">
           <SheetHeader className="border-b pb-4 mb-6">
-            <SheetTitle className="text-xl font-semibold">Create New Booking</SheetTitle>
+            <SheetTitle className="text-xl font-semibold">{editingBookingId ? 'Edit Booking' : 'Create New Booking'}</SheetTitle>
             <SheetDescription className="text-base">
-              Schedule a new appointment. Add multiple services if needed.
+              Capture customer details and select one or more services.
             </SheetDescription>
           </SheetHeader>
 
@@ -3113,7 +3507,7 @@ export default function AdminAppointments() {
               </h3>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-2">
+                <div className="space-y-2 md:col-span-3">
                   <label className="text-sm font-medium text-gray-700">Name *</label>
                   <Input
                     placeholder="Customer name"
@@ -3157,7 +3551,7 @@ export default function AdminAppointments() {
                 )}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700">Branch</label>
                   <Select 
@@ -3167,20 +3561,20 @@ export default function AdminAppointments() {
                       fetchServicesForBranch(value);
                     }}
                   >
-                    <SelectTrigger className="h-11">
+                    <SelectTrigger className="h-11 w-full [&>span]:block [&>span]:truncate">
                       <SelectValue placeholder="Select branch" />
                     </SelectTrigger>
                     <SelectContent>
                       {branches.map((branch) => (
-                        <SelectItem key={branch.firebaseId} value={branch.name}>
-                          {branch.name}
+                        <SelectItem key={branch.firebaseId} value={branch.name} className="max-w-full">
+                          <span className="block truncate">{branch.name}</span>
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-2 md:col-span-4">
                   <label className="text-sm font-medium text-gray-700">Service</label>
                   <Select 
                     value={tempServiceData.service}
@@ -3196,15 +3590,15 @@ export default function AdminAppointments() {
                     }}
                     disabled={!tempServiceData.branch}
                   >
-                    <SelectTrigger className="h-11">
+                    <SelectTrigger className="h-11 w-full [&>span]:block [&>span]:truncate">
                       <SelectValue placeholder={tempServiceData.branch ? "Select service" : "First select branch"} />
                     </SelectTrigger>
                     <SelectContent>
                       {branchServices.map((service) => (
                         <SelectItem key={service.firebaseId} value={service.name}>
-                          <div className="flex justify-between items-center w-full">
-                            <span>{service.name}</span>
-                            <span className="text-primary font-medium ml-4">AED {service.price}</span>
+                          <div className="flex justify-between items-center w-full gap-3 min-w-0">
+                            <span className="truncate">{service.name}</span>
+                            <span className="text-primary font-medium ml-2 shrink-0">AED {service.price}</span>
                           </div>
                         </SelectItem>
                       ))}
@@ -3212,27 +3606,27 @@ export default function AdminAppointments() {
                   </Select>
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-2 md:col-span-3">
                   <label className="text-sm font-medium text-gray-700">Staff</label>
                   <Select 
                     value={tempServiceData.staff}
                     onValueChange={(value) => setTempServiceData({...tempServiceData, staff: value})}
                     disabled={!tempServiceData.service}
                   >
-                    <SelectTrigger className="h-11">
+                    <SelectTrigger className="h-11 w-full [&>span]:block [&>span]:truncate">
                       <SelectValue placeholder={tempServiceData.service ? "Select staff" : "First select service"} />
                     </SelectTrigger>
                     <SelectContent>
                       {branchStaff.map((staff) => (
-                        <SelectItem key={staff.firebaseId} value={staff.name}>
-                          {staff.name} - {staff.role}
+                        <SelectItem key={staff.firebaseId} value={staff.name} className="max-w-full">
+                          <span className="block truncate">{staff.name} - {staff.role}</span>
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
 
-                <div className="flex justify-end">
+                <div className="flex justify-end md:col-span-2">
                   <Button
                     type="button"
                     onClick={handleAddService}
@@ -3300,88 +3694,6 @@ export default function AdminAppointments() {
               )}
             </div>
 
-            <div className="space-y-4 p-6 bg-gray-50/50 rounded-lg border">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <DollarSign className="w-5 h-5 text-primary" />
-                Payment
-              </h3>
-
-              <div className="flex gap-2 mb-4">
-                <Input
-                  placeholder="Add custom payment method (e.g., Gift Card)"
-                  value={customPaymentMethod}
-                  onChange={(e) => setCustomPaymentMethod(e.target.value)}
-                  className="h-11 flex-1"
-                />
-                <Button
-                  type="button"
-                  onClick={handleAddCustomPayment}
-                  variant="outline"
-                  className="h-11"
-                  disabled={!customPaymentMethod.trim()}
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add
-                </Button>
-              </div>
-
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {['Cash', 'Card', 'Check', 'Digital', ...customPaymentMethods].map((method) => {
-                  const isSelected = bookingData.paymentMethods.includes(method);
-                  return (
-                    <div key={method} className="space-y-2">
-                      <div 
-                        className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all ${
-                          isSelected ? 'bg-blue-50 border-blue-300' : 'border-gray-200 hover:bg-gray-50'
-                        }`}
-                        onClick={() => handlePaymentMethodToggle(method)}
-                      >
-                        <span className="text-sm font-medium capitalize">{method}</span>
-                        {isSelected && <CheckCircle className="w-4 h-4 text-blue-600" />}
-                      </div>
-                      {isSelected && (
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          placeholder="Amount"
-                          value={bookingData.paymentAmounts[method as keyof typeof bookingData.paymentAmounts] || ''}
-                          onChange={(e) => handlePaymentAmountChange(method, e.target.value)}
-                          className="h-9 text-sm"
-                        />
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-
-              {bookingData.paymentMethods.length > 0 && (
-                <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <div className="text-sm font-medium text-blue-800 mb-2">Payment Summary:</div>
-                  <div className="space-y-1">
-                    {bookingData.paymentMethods.map(method => {
-                      const amount = bookingData.paymentAmounts[method as keyof typeof bookingData.paymentAmounts];
-                      return amount > 0 ? (
-                        <div key={method} className="flex justify-between text-sm">
-                          <span className="capitalize">{method}:</span>
-                          <span className="font-medium">AED {amount}</span>
-                        </div>
-                      ) : null;
-                    })}
-                    <div className="border-t pt-1 mt-1 font-medium">
-                      <div className="flex justify-between">
-                        <span>Total:</span>
-                        <span className="text-green-600">
-                          ${bookingData.paymentMethods.reduce(
-                            (sum, method) => sum + (bookingData.paymentAmounts[method as keyof typeof bookingData.paymentAmounts] || 0), 0
-                          )}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
 
             <div className="space-y-4 p-6 bg-gray-50/50 rounded-lg border">
               <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
@@ -3411,18 +3723,6 @@ export default function AdminAppointments() {
               </div>
             </div>
 
-            <div className="space-y-4 p-6 bg-gray-50/50 rounded-lg border">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <FileText className="w-5 h-5 text-primary" />
-                Notes
-              </h3>
-              <Textarea
-                placeholder="Any special requests or notes..."
-                value={bookingData.notes}
-                onChange={(e) => setBookingData({...bookingData, notes: e.target.value})}
-                className="min-h-[80px]"
-              />
-            </div>
           </div>
 
           <div className="flex justify-end gap-4 pt-8 border-t bg-white px-6 py-4 -mx-6 -mb-6">
@@ -3434,7 +3734,9 @@ export default function AdminAppointments() {
               disabled={selectedServices.length === 0}
               className="px-6 h-11 bg-primary hover:bg-primary/90"
             >
-              Create Booking ({selectedServices.length} service{selectedServices.length !== 1 ? 's' : ''})
+              {editingBookingId
+                ? `Update Booking (${selectedServices.length} service${selectedServices.length !== 1 ? 's' : ''})`
+                : `Create Booking (${selectedServices.length} service${selectedServices.length !== 1 ? 's' : ''})`}
             </Button>
           </div>
         </SheetContent>
