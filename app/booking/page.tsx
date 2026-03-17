@@ -799,7 +799,7 @@ export default function BookingCheckout() {
     }
     
     if ((paymentMethod === 'wallet' || paymentMethod === 'mixed') && !isLoggedIn) {
-      setValidationError('Wallet and Mixed Payment require account. Please sign in or use COD.');
+      setValidationError('Wallet and Mixed Payment require account. Please sign in or use Pay at Saloon.');
       return;
     }
 
@@ -977,14 +977,14 @@ export default function BookingCheckout() {
         customerPhone: customerPhone,
         date: formatFirebaseDate(),
         notes: notes || specialRequests || (paymentMethod === 'mixed' 
-          ? `Payment Method: Mixed Payment. Wallet: AED ${walletPayment.toFixed(2)}, Cash: AED ${cashPayment.toFixed(2)}` 
-          : `Payment Method: ${paymentMethod}. Wallet: AED ${walletPayment.toFixed(2)}, Cash: AED ${cashPayment.toFixed(2)}`),
+          ? `Payment Method: Mixed Payment. Wallet: AED ${walletPayment.toFixed(2)}, Pay at Saloon: AED ${cashPayment.toFixed(2)}` 
+          : `Payment Method: ${paymentMethod === 'pay_at_salon' ? 'Pay at Saloon' : paymentMethod}. Wallet: AED ${walletPayment.toFixed(2)}, Pay at Saloon: AED ${cashPayment.toFixed(2)}`),
         paymentAmounts: {
           wallet: walletPayment,
           cash: cashPayment
         },
         paymentMethod: paymentMethod,
-        paymentStatus: paymentMethod === 'cod' || paymentMethod === 'mixed' ? 'pending' : "paid",
+        paymentStatus: paymentMethod === 'pay_at_salon' || paymentMethod === 'mixed' ? 'pending' : "paid",
         pointsAwarded: false,
         products: [],
         productsTotal: 0,
@@ -1550,19 +1550,35 @@ export default function BookingCheckout() {
                       <span className="text-xs text-gray-500">Online Payment</span>
                     </button>
                     
-                    {/* COD Option */}
+                    {/* Pay at Saloon */}
                     <button
-                      onClick={() => setPaymentMethod('cod')}
+                      onClick={() => setPaymentMethod('pay_at_salon')}
                       className={cn(
                         "p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2",
-                        paymentMethod === 'cod' 
+                        paymentMethod === 'pay_at_salon' 
                           ? "border-secondary bg-secondary/10" 
                           : "border-gray-200 hover:border-gray-300 cursor-pointer"
                       )}
                     >
-                      <Banknote className={cn("w-6 h-6", paymentMethod === 'cod' ? "text-secondary" : "text-gray-500")} />
-                      <span className="text-xs font-bold">Cash on Delivery</span>
-                      <span className="text-xs text-gray-500">Pay at Salon</span>
+                      <Banknote className={cn("w-6 h-6", paymentMethod === 'pay_at_salon' ? "text-secondary" : "text-gray-500")} />
+                      <span className="text-xs font-bold">Pay at Saloon</span>
+                      <span className="text-xs text-gray-500">Pay on Visit</span>
+                    </button>
+                    
+                    {/* Card Online Pay - Coming Soon */}
+                    <button
+                      onClick={() => alert('Card payment will be available soon once payment gateway is connected')}
+                      disabled={true}
+                      className="p-4 rounded-xl border-2 border-gray-100 transition-all flex flex-col items-center gap-2 relative cursor-not-allowed opacity-60"
+                    >
+                      <div className="absolute -top-2 -right-2">
+                        <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+                          <span className="text-xs text-white font-bold">!</span>
+                        </div>
+                      </div>
+                      <CreditCard className="w-6 h-6 text-gray-500" />
+                      <span className="text-xs font-bold">Card Payment</span>
+                      <span className="text-xs text-blue-600 font-semibold">Coming Soon</span>
                     </button>
                   </div>
 
@@ -1609,10 +1625,10 @@ export default function BookingCheckout() {
                             </div>
                           </div>
                           
-                          {/* Cash Amount */}
+                          {/* Pay at Saloon Amount */}
                           <div className="space-y-1.5">
                             <Label className="text-sm font-medium text-purple-900">
-                              Amount from Cash (COD) AED
+                              Amount to Pay at Saloon (AED)
                             </Label>
                             <div className="flex items-center gap-2">
                               <Input
@@ -1743,7 +1759,7 @@ export default function BookingCheckout() {
                     <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-xl">
                       <p className="text-xs text-yellow-700">
                         <Info className="w-4 h-4 inline mr-1" />
-                        <span className="font-bold">Note:</span> Create an account for Mixed Payment and Digital Wallet options. COD is always available.
+                        <span className="font-bold">Note:</span> Create an account for Mixed Payment and Digital Wallet options. Pay at Saloon is always available.
                       </p>
                     </div>
                   )}
