@@ -549,7 +549,13 @@ const useHomeStore = create<HomeStore>()(
 
 // ==================== MAIN COMPONENT ====================
 export default function Home() {
-  const { selectedBranch, branches: allBranches } = useBranchStore();
+  const {
+    selectedBranch,
+    branches: allBranches,
+    loading: branchLoading,
+    setSelectedBranch,
+    fetchBranches,
+  } = useBranchStore();
   const activeBranch = selectedBranch === 'all'
     ? allBranches[0]
     : allBranches.find(b => b.name === selectedBranch) ?? allBranches[0];
@@ -570,6 +576,8 @@ export default function Home() {
   const [showChatPopup, setShowChatPopup] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showBranchFilter, setShowBranchFilter] = useState(false);
+  const [showBranchSelectorPopup, setShowBranchSelectorPopup] = useState(false);
+  const [branchPopupValue, setBranchPopupValue] = useState('all');
 
   // Check login status
   useEffect(() => {
@@ -587,6 +595,22 @@ export default function Home() {
   useEffect(() => {
     fetchHomeData();
   }, [fetchHomeData]);
+
+  // Ensure branch list is available for the homepage selector popup
+  useEffect(() => {
+    fetchBranches();
+  }, [fetchBranches]);
+
+  // One-time branch selector popup on homepage
+  useEffect(() => {
+    if (typeof window === 'undefined' || branchLoading) return;
+
+    const hasShownBranchPopup = localStorage.getItem('branchSelectionPopupShown');
+    if (!hasShownBranchPopup && allBranches.length > 0) {
+      setBranchPopupValue(selectedBranch || 'all');
+      setShowBranchSelectorPopup(true);
+    }
+  }, [allBranches, branchLoading, selectedBranch]);
 
   // CMS data
   const { 
@@ -633,6 +657,18 @@ export default function Home() {
     } else {
       setShowChatPopup(true);
     }
+  };
+
+  const handleApplyBranchSelection = () => {
+    setSelectedBranch(branchPopupValue || 'all');
+    localStorage.setItem('branchSelectionPopupShown', 'true');
+    setShowBranchSelectorPopup(false);
+  };
+
+  const handleSkipBranchSelection = () => {
+    setSelectedBranch('all');
+    localStorage.setItem('branchSelectionPopupShown', 'true');
+    setShowBranchSelectorPopup(false);
   };
 
   const handleServiceBookNow = (service: Service) => {
@@ -844,6 +880,60 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-[#fcfcfc]">
       <Header />
+
+      {showBranchSelectorPopup && (
+        <div className="fixed inset-0 flex items-center justify-center z-70 p-4">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={handleSkipBranchSelection}
+          />
+          <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl border border-gray-100 p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-secondary/15 flex items-center justify-center">
+                <Building className="w-5 h-5 text-secondary" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-primary">Choose Your Branch</h3>
+                <p className="text-xs text-gray-500">You can change this anytime from the navbar filter.</p>
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <label className="text-xs font-semibold text-gray-600 uppercase tracking-widest mb-2 block">
+                Branch Preference
+              </label>
+              <select
+                value={branchPopupValue}
+                onChange={(e) => setBranchPopupValue(e.target.value)}
+                className="w-full h-11 rounded-lg border border-gray-200 px-3 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-secondary/30"
+              >
+                <option value="all">All Branches</option>
+                {allBranches.map((branch) => (
+                  <option key={branch.id} value={branch.name}>
+                    {branch.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={handleSkipBranchSelection}
+              >
+                Continue with All
+              </Button>
+              <Button
+                className="flex-1 bg-secondary hover:bg-secondary/90 text-primary font-bold"
+                onClick={handleApplyBranchSelection}
+              >
+                Apply Filter
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ✅ Branch Filter Notification */}
       {showBranchFilter && (

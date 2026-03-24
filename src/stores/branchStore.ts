@@ -86,11 +86,16 @@ export const useBranchStore = create<BranchStore>((set, get) => ({
       // Local storage se selected branch lo agar pehle se save hai
       if (typeof window !== 'undefined') {
         const savedBranch = localStorage.getItem('selectedBranch');
-        if (savedBranch) {
+        const isValidSavedBranch =
+          savedBranch === 'all' ||
+          branchesData.some((branch) => branch.name === savedBranch);
+
+        if (savedBranch && isValidSavedBranch) {
           set({ selectedBranch: savedBranch });
-        } else if (branchesData.length > 0) {
-          // Agar koi branch save nahi hai to pehli branch select karo
-          set({ selectedBranch: branchesData[0].name });
+        } else {
+          // Default always stays on all branches
+          set({ selectedBranch: 'all' });
+          localStorage.setItem('selectedBranch', 'all');
         }
       }
     } catch (error) {
