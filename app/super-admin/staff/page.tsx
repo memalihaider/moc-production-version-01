@@ -2320,7 +2320,11 @@ export default function SuperAdminStaff() {
     setDeleteDialogOpen(true);
   };
 
-  const roles = [...new Set(staff.map(member => member.role))];
+  const roles = [...new Set(
+    staff
+      .map((member) => member.role?.trim())
+      .filter((role): role is string => Boolean(role))
+  )];
   const nationalities = [...new Set(staff.map(member => member.nationality).filter(Boolean))] as string[];
 
   const filteredStaff = staff.filter(member => {

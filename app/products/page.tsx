@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import Autoplay from "embla-carousel-autoplay";
-import { Search, Star, ShoppingCart, Filter, Package, Check, Sparkles, ChevronRight, TrendingUp, Box, DollarSign, RefreshCw, Trash2, Building } from 'lucide-react';
+import { Search, Star, ShoppingCart, Filter, Package, Check, Sparkles, ChevronRight, TrendingUp, RefreshCw, Trash2, Building } from 'lucide-react';
 import { useCMSStore } from '@/stores/cms.store';
 import { create } from 'zustand';
 import { 
@@ -483,8 +483,6 @@ export default function ProductsPage() {
   };
 
   // Calculate statistics
-  const totalProducts = products.length;
-  const totalValue = products.reduce((sum, p) => sum + (p.price * p.totalStock), 0);
   const totalSold = products.reduce((sum, p) => sum + p.totalSold, 0);
   const totalRevenue = products.reduce((sum, p) => sum + p.revenue, 0);
   const outOfStockProducts = products.filter(p => p.totalStock <= 0).length;
@@ -1083,37 +1081,9 @@ export default function ProductsPage() {
             </div>
           )}
 
-          {/* Footer Stats */}
+          {/* Footer Section */}
           {filteredAndSortedProducts.length > 0 && (
             <div className="mt-12 pt-8 border-t border-gray-100">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Inventory Value */}
-                <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                      <DollarSign className="w-6 h-6 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Inventory Value</p>
-                      <p className="text-2xl font-bold text-primary">AED {totalValue.toLocaleString()}</p>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Total Products */}
-                <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-xl bg-secondary/10 flex items-center justify-center">
-                      <Box className="w-6 h-6 text-secondary" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Total Products</p>
-                      <p className="text-2xl font-bold text-secondary">{totalProducts}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
               {/* Cart Summary - Only shows if items in cart */}
               {cartItems.length > 0 && (
                 <div className="mt-6 bg-secondary/10 border border-secondary/20 rounded-2xl p-6">
@@ -1128,7 +1098,6 @@ export default function ProductsPage() {
                         </p>
                       </div>
                     </div>
-                    {/* This button also manually redirects to checkout */}
                     <div className="flex gap-3">
                       <Button 
                         onClick={() => setShowClearCartConfirm(true)}
