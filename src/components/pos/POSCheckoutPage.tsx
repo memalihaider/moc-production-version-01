@@ -472,7 +472,9 @@ export default function POSCheckoutPage({ portalType }: POSCheckoutPageProps) {
       return;
     }
 
-    const emailExists = customers.some((customer) => customer.email.toLowerCase() === email);
+    const emailExists = customers.some(
+      (customer) => (customer.email || '').toLowerCase() === email
+    );
     if (emailExists) {
       alert('Email already exists.');
       return;
