@@ -29,8 +29,7 @@ import { generateInvoiceNumber } from "@/lib/invoice-utils";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { collection, getDocs, query, orderBy, where, doc, updateDoc, addDoc, serverTimestamp, onSnapshot, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import { generateUnifiedInvoicePdf } from "@/lib/unified-invoice-pdf";
 
 // ===================== UPDATED TYPE DEFINITIONS =====================
 
@@ -891,189 +890,104 @@ const createBookingInFirebase = async (
   }
 };
 
-const generatePDFInvoice = (invoiceData: ExtendedInvoiceData) => {
+const generatePDFInvoice = async (invoiceData: ExtendedInvoiceData) => {
   try {
-    const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.width;
-    const pageHeight = doc.internal.pageSize.height;
-    
-    doc.setFontSize(16);
-    doc.setTextColor(0, 0, 0);
-    doc.setFont("helvetica", "bold");
-    doc.text('MAN OF CAVE', 20, 20);
-    
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.text('BASEMENT, NEAR TO CARRYFOUR, MARINA MALL', 20, 28);
-    doc.text('Contact : 028766460', 20, 33);
-    doc.text('Email : manofcave2020@gmail.com', 20, 38);
-    doc.text('Website : www.manofcave.com', 20, 43);
-    doc.text('VAT No : 104943305300003', 20, 48);
-    
-    doc.setFontSize(18);
-    doc.setFont("helvetica", "bold");
-    doc.text('TAX INVOICE', pageWidth - 70, 20);
-    
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.text('(Branch : Marina Mall Branch)', pageWidth - 90, 28);
-    
-    doc.setDrawColor(0, 0, 0);
-    doc.setLineWidth(0.5);
-    doc.line(20, 55, pageWidth - 20, 55);
-    
-    const customerY = 65;
-    doc.setFontSize(11);
-    doc.setFont("helvetica", "bold");
-    doc.text('Customer Information:', 20, customerY);
-    
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    
-    const customerDetails = [
-      ['Customer Name', invoiceData.customer],
-      ['Mobile No', invoiceData.phone || '971585389633'],
-      ['Email', invoiceData.email || 'N/A'],
-      ['Wallet Balance', 'AED 1,238.00/-'],
-      ['Customer Address', invoiceData.customerAddress || 'N/A'],
-      ['TRN Number', invoiceData.trnNumber || 'N/A']
-    ];
-    
-    let yPos = customerY + 8;
-    customerDetails.forEach(([label, value]) => {
-      if (value !== 'N/A') {
-        doc.text(`${label} : ${value}`, 20, yPos);
-        yPos += 6;
-      }
-    });
-    
-    const invoiceY = customerY;
-    const invoiceDetails = [
-      ['Invoice No', invoiceData.invoiceNumber || '#INV6584'],
-      ['Invoice Date', `${new Date().toLocaleDateString('en-GB')} ${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`],
-      ['Card Last 4 Digits', invoiceData.cardLast4Digits || 'N/A'],
-      ['Payment Method', invoiceData.paymentMethod || 'Multiple']
-    ];
-    
-    yPos = invoiceY;
-    invoiceDetails.forEach(([label, value]) => {
-      if (value !== 'N/A') {
-        doc.text(`${label} : ${value}`, pageWidth - 80, yPos);
-        yPos += 6;
-      }
-    });
-    
-    const tableY = Math.max(customerY + 35, invoiceY + 25);
-    
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(10);
-    
-    doc.setDrawColor(0);
-    doc.setLineWidth(0.3);
-    doc.rect(20, tableY - 5, pageWidth - 40, 100);
-    
-    const headers = ['Service & Product', 'Provider', 'Rate', 'Dis', 'Qty', 'Total'];
-    const colPositions = [25, 95, 135, 160, 180, pageWidth - 50];
-    
-    headers.forEach((header, index) => {
-      doc.text(header, colPositions[index], tableY);
-    });
-    
-    doc.line(20, tableY + 2, pageWidth - 20, tableY + 2);
-    
-    let currentY = tableY + 10;
-    
-    if (invoiceData.services && Array.isArray(invoiceData.services)) {
-      invoiceData.services.forEach((service, index) => {
-        doc.setFont("helvetica", "normal");
-        const servicePrice = 85;
-        const discountPercent = 25;
-        const discountedPrice = servicePrice * (1 - discountPercent/100);
-        
-        doc.text(`Service ${service}`, 25, currentY);
-        doc.text(invoiceData.barber || 'Vasid', 95, currentY);
-        doc.text(`AED ${servicePrice.toFixed(2)}`, 135, currentY);
-        doc.text(`${discountPercent}`, 160, currentY);
-        doc.text('1', 180, currentY);
-        doc.text(`AED ${discountedPrice.toFixed(2)}`, pageWidth - 50, currentY);
-        currentY += 8;
-      });
-    } else {
-      if (invoiceData.service) {
-        doc.setFont("helvetica", "normal");
-        const servicePrice = invoiceData.price || 0;
-        const discountPercent = 25;
-        const discountedPrice = servicePrice * (1 - discountPercent/100);
-        
-        doc.text(`Service ${invoiceData.service}`, 25, currentY);
-        doc.text(invoiceData.barber || 'Vasid', 95, currentY);
-        doc.text(`AED ${servicePrice.toFixed(2)}`, 135, currentY);
-        doc.text(`${discountPercent}`, 160, currentY);
-        doc.text('1', 180, currentY);
-        doc.text(`AED ${discountedPrice.toFixed(2)}`, pageWidth - 50, currentY);
-        currentY += 8;
-      }
-    }
-    
-    if (invoiceData.items && invoiceData.items.length > 0) {
-      invoiceData.items.forEach((item) => {
-        doc.text(`Product ${item.name}`, 25, currentY);
-        doc.text('N/A', 95, currentY);
-        doc.text(`AED ${item.price.toFixed(2)}`, 135, currentY);
-        doc.text('0', 160, currentY);
-        doc.text(item.quantity.toString(), 180, currentY);
-        doc.text(`AED ${item.total.toFixed(2)}`, pageWidth - 50, currentY);
-        currentY += 8;
+    const serviceItems = (invoiceData.serviceDetails && invoiceData.serviceDetails.length > 0)
+      ? invoiceData.serviceDetails.map((service) => ({
+          description: service.serviceName || 'Service',
+          quantity: 1,
+          unitPrice: Number(service.price || 0),
+          lineTotal: Number(service.price || 0),
+          details: [service.branch, service.staff].filter(Boolean).join(' - '),
+        }))
+      : (invoiceData.services && invoiceData.services.length > 0)
+      ? invoiceData.services.map((service) => ({
+          description: service,
+          quantity: 1,
+          unitPrice: Number(invoiceData.price || 0),
+          lineTotal: Number(invoiceData.price || 0),
+          details: [invoiceData.branch, invoiceData.barber].filter(Boolean).join(' - '),
+        }))
+      : [];
+
+    const productItems = (invoiceData.items || []).map((item) => ({
+      description: item.name,
+      quantity: Number(item.quantity || 1),
+      unitPrice: Number(item.price || 0),
+      lineTotal: Number(item.total || item.price || 0),
+      details: 'Product',
+    }));
+
+    const invoiceItems = [...serviceItems, ...productItems];
+    if (invoiceItems.length === 0) {
+      invoiceItems.push({
+        description: invoiceData.service || 'Service',
+        quantity: 1,
+        unitPrice: Number(invoiceData.price || 0),
+        lineTotal: Number(invoiceData.price || 0),
+        details: [invoiceData.branch, invoiceData.barber].filter(Boolean).join(' - '),
       });
     }
-    
-    doc.text('Service FOOT MASSAGE 30MINS', 25, currentY);
-    doc.text('Devi', 95, currentY);
-    doc.text('AED 85.00', 135, currentY);
-    doc.text('25', 160, currentY);
-    doc.text('1', 180, currentY);
-    doc.text('AED 63.75', pageWidth - 50, currentY);
-    currentY += 8;
-    
-    doc.line(20, currentY + 2, pageWidth - 20, currentY + 2);
-    
-    const summaryY = currentY + 10;
-    
-    const subtotal = invoiceData.subtotal || 154.00;
-    const taxPercent = 5;
-    const taxAmount = 7.32;
-    const discountAmount = invoiceData.discountAmount || 51.25;
-    const total = invoiceData.total || 154.00;
-    
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.text(`Total Qty : 2`, 20, summaryY);
-    doc.text(`Payment Mode : Coupon Dis : 0`, 20, summaryY + 6);
-    doc.text(`E-wallet Discount : ${discountAmount.toFixed(2)}`, 20, summaryY + 12);
-    doc.text(`Tax Type : Inclusive`, 20, summaryY + 18);
-    doc.text(`VAT(5%) : ${taxAmount.toFixed(2)}`, 20, summaryY + 24);
-    
-    const summaryRightX = pageWidth - 80;
-    doc.setFillColor(240, 240, 240);
-    doc.rect(summaryRightX - 10, summaryY - 5, 70, 60, 'F');
-    
-    doc.setFont("helvetica", "bold");
-    doc.text(`Total : AED ${total.toFixed(2)}`, summaryRightX, summaryY);
-    doc.text(`Advance : AED 0.00`, summaryRightX, summaryY + 8);
-    doc.text(`Amount Paid : AED ${total.toFixed(2)}`, summaryRightX, summaryY + 16);
-    doc.text(`Amount Due : AED 0.00`, summaryRightX, summaryY + 24);
-    
-    doc.setFont("helvetica", "normal");
-    doc.text(`Service Charges : AED ${(invoiceData.serviceCharges || 0).toFixed(2)}`, summaryRightX, summaryY + 32);
-    doc.text(`Total Tips : AED ${(invoiceData.serviceTip || 0).toFixed(2)}`, summaryRightX, summaryY + 40);
-    
-    const footerY = pageHeight - 20;
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.text('****THANK YOU. PLEASE VISIT AGAIN****', pageWidth / 2, footerY, { align: 'center' });
-    
-    doc.save(`Invoice-${invoiceData.invoiceNumber || 'MANOFCAVE'}.pdf`);
-    
+
+    const servicesSubtotal = Number(invoiceData.serviceDetails?.reduce((sum, s) => sum + Number(s.price || 0), 0)
+      || invoiceData.price
+      || 0);
+    const productsSubtotal = Number((invoiceData.items || []).reduce((sum, item) => sum + Number(item.total || 0), 0));
+    const subtotalWithoutCharges = servicesSubtotal + productsSubtotal;
+    const serviceCharges = Number(invoiceData.serviceCharges || 0);
+
+    const discountValue = Number(invoiceData.discount || 0);
+    const discountAmount = invoiceData.discountType === 'percentage'
+      ? Math.min(subtotalWithoutCharges + serviceCharges, Math.max(0, ((subtotalWithoutCharges + serviceCharges) * discountValue) / 100))
+      : Math.min(subtotalWithoutCharges + serviceCharges, Math.max(0, discountValue));
+
+    const taxPercent = Number(invoiceData.tax || 0);
+    const taxableAmount = Math.max(0, subtotalWithoutCharges + serviceCharges - discountAmount);
+    const taxAmount = Math.max(0, (taxableAmount * taxPercent) / 100);
+
+    const teamTips = Number(invoiceData.teamMembers?.reduce((sum, tm) => sum + Number(tm.tip || 0), 0) || 0);
+    const tipAmount = Number(invoiceData.serviceTip || 0) + teamTips;
+    const totalAmount = taxableAmount + taxAmount + tipAmount;
+
+    const paymentMethods = invoiceData.paymentAmounts
+      ? Object.entries(invoiceData.paymentAmounts)
+          .filter(([, amount]) => Number(amount || 0) > 0)
+          .map(([method, amount]) => ({
+            label: method.replace(/_/g, ' ').toUpperCase(),
+            amount: Number(amount || 0),
+          }))
+      : [];
+
+    if (paymentMethods.length === 0) {
+      const label = (invoiceData.paymentMethod || 'Cash').replace(/,/g, ' / ').toUpperCase();
+      paymentMethods.push({ label, amount: totalAmount });
+    }
+
+    await generateUnifiedInvoicePdf({
+      invoiceNumber: invoiceData.invoiceNumber || `INV-${Date.now()}`,
+      invoiceDate: invoiceData.date || new Date().toLocaleDateString(),
+      companyName: 'MAN OF CAVE BARBERSHOP',
+      customerName: invoiceData.customer || 'Customer',
+      customerPhone: invoiceData.phone,
+      customerEmail: invoiceData.email,
+      serviceDate: invoiceData.date,
+      serviceTime: invoiceData.time,
+      branchName: invoiceData.branch || 'Main Branch',
+      items: invoiceItems,
+      subtotal: subtotalWithoutCharges,
+      discountAmount,
+      taxAmount,
+      taxPercent,
+      serviceCharges,
+      tipAmount,
+      totalAmount,
+      paymentMethods,
+      notes: invoiceData.notes,
+      trnNumber: invoiceData.trnNumber,
+      logoPath: '/manofcave.png',
+      fileName: `Invoice-${invoiceData.invoiceNumber || 'MANOFCAVE'}.pdf`,
+    });
+
     return true;
   } catch (error) {
     console.error('Error generating PDF:', error);
@@ -2759,7 +2673,7 @@ export default function AdminAppointments() {
     }
   };
 
-  const handleDownloadInvoicePDF = () => {
+  const handleDownloadInvoicePDF = async () => {
     if (!invoiceData) {
       addNotification({
         type: 'error',
@@ -2770,7 +2684,7 @@ export default function AdminAppointments() {
     }
     
     try {
-      const success = generatePDFInvoice(invoiceData);
+      const success = await generatePDFInvoice(invoiceData);
       
       if (success) {
         addNotification({

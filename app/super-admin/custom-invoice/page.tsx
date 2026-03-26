@@ -28,6 +28,7 @@ import { useRouter } from "next/navigation";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import html2canvas from "html2canvas";
+import { generateUnifiedInvoicePdf } from "@/lib/unified-invoice-pdf";
 
 // Firebase imports
 import { 
@@ -1094,34 +1095,81 @@ export default function SuperAdminInvoices() {
     setIsGenerating(true);
     
     try {
-      const doc = new jsPDF('p', 'mm', 'a4');
-      
-      // Select template based on user choice
-      switch(templateType) {
-        case 'modern':
-          generateModernTemplate(doc, invoice);
-          break;
-        case 'professional':
-          generateProfessionalTemplate(doc, invoice);
-          break;
-        case 'colorful':
-          generateColorfulTemplate(doc, invoice);
-          break;
-        case 'minimal':
-          generateMinimalTemplate(doc, invoice);
-          break;
-        default:
-          generateClassicTemplate(doc, invoice);
-      }
-      
       if (download) {
-        doc.save(`Invoice_${invoice.invoiceNumber}_${templateType}.pdf`);
+        const productsSubtotal = invoice.products.reduce((sum, p) => sum + (Number(p.price || 0) * Number(p.quantity || 0)), 0);
+        const serviceSubtotal = Number(invoice.price || 0);
+        const subtotalWithoutCharges = serviceSubtotal + productsSubtotal;
+        const serviceCharges = Number(invoice.serviceCharges || 0);
+        const discountBase = subtotalWithoutCharges + serviceCharges;
+        const discountAmount = invoice.discountType === 'percentage'
+          ? Math.min(discountBase, Math.max(0, (discountBase * Number(invoice.discount || 0)) / 100))
+          : Math.min(discountBase, Math.max(0, Number(invoice.discount || 0)));
+        const taxableAmount = Math.max(0, discountBase - discountAmount);
+        const taxPercent = Number(invoice.tax || 0);
+        const taxAmount = Math.max(0, (taxableAmount * taxPercent) / 100);
+        const tipAmount = Number(invoice.serviceTip || 0)
+          + invoice.teamMembers.reduce((sum, tm) => sum + Number(tm.tip || 0), 0);
+        const totalAmount = taxableAmount + taxAmount + tipAmount;
+
+        const paymentMethods = Object.entries(invoice.paymentAmounts)
+          .filter(([, amount]) => Number(amount || 0) > 0)
+          .map(([method, amount]) => ({
+            label: method.toUpperCase(),
+            amount: Number(amount || 0),
+          }));
+
+        if (paymentMethods.length === 0) {
+          paymentMethods.push({ label: 'CASH', amount: totalAmount });
+        }
+
+        await generateUnifiedInvoicePdf({
+          invoiceNumber: invoice.invoiceNumber,
+          invoiceDate: invoice.date || new Date().toLocaleDateString(),
+          companyName: 'MAN OF CAVE BARBERSHOP',
+          companyPhone: invoice.brandPhone,
+          companyEmail: invoice.brandEmail,
+          trnNumber: invoice.trnNumber,
+          customerName: invoice.customer || 'Customer',
+          customerPhone: invoice.phone,
+          customerEmail: invoice.email,
+          serviceDate: invoice.date,
+          serviceTime: invoice.time,
+          branchName: invoice.branch || 'Main Branch',
+          items: [
+            {
+              description: invoice.service || 'Service',
+              quantity: 1,
+              unitPrice: Number(invoice.price || 0),
+              lineTotal: Number(invoice.price || 0),
+              details: [invoice.category, invoice.staff].filter(Boolean).join(' - '),
+            },
+            ...invoice.products.map((p) => ({
+              description: p.name,
+              quantity: Number(p.quantity || 1),
+              unitPrice: Number(p.price || 0),
+              lineTotal: Number(p.price || 0) * Number(p.quantity || 1),
+              details: 'Product',
+            })),
+          ],
+          subtotal: subtotalWithoutCharges,
+          discountAmount,
+          taxAmount,
+          taxPercent,
+          serviceCharges,
+          tipAmount,
+          totalAmount,
+          paymentMethods,
+          notes: invoice.notes,
+          logoPath: '/manofcave.png',
+          fileName: `Invoice_${invoice.invoiceNumber}_${templateType}.pdf`,
+        });
       }
-      
-      return doc;
+
+      return true;
     } catch (error) {
       console.error("Error generating PDF:", error);
       alert("Failed to generate PDF");
+      return false;
     } finally {
       setIsGenerating(false);
     }

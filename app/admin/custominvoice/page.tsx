@@ -27,6 +27,7 @@ import { useRouter } from "next/navigation";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import html2canvas from "html2canvas";
+import { generateUnifiedInvoicePdf } from "@/lib/unified-invoice-pdf";
 
 // Firebase imports
 import { 
@@ -425,140 +426,81 @@ export default function SuperAdminInvoices() {
     setIsGenerating(true);
     
     try {
-      const doc = new jsPDF('p', 'mm', 'a4');
-      
-      // Brand Header
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(24);
-      doc.setTextColor(59, 130, 246); // Blue color
-      doc.text("INVOICE", 105, 20, { align: "center" });
-      
-      doc.setFontSize(10);
-      doc.setTextColor(100, 100, 100);
-      doc.text(`#${invoice.invoiceNumber}`, 105, 28, { align: "center" });
-      
-      // Brand Info
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(0, 0, 0);
-      doc.setFontSize(12);
-      doc.text("Company Name", 20, 40);
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(10);
-      doc.text(`Email: ${invoice.brandEmail}`, 20, 46);
-      doc.text(`Phone: ${invoice.brandPhone}`, 20, 52);
-      
-      // Invoice Details
-      doc.setFont("helvetica", "bold");
-      doc.text("Invoice Details", 150, 40);
-      doc.setFont("helvetica", "normal");
-      doc.text(`Date: ${invoice.date}`, 150, 46);
-      doc.text(`Time: ${invoice.time}`, 150, 52);
-      doc.text(`Status: ${invoice.status.toUpperCase()}`, 150, 58);
-      
-      // Customer Info
-      doc.setFont("helvetica", "bold");
-      doc.text("Bill To:", 20, 70);
-      doc.setFont("helvetica", "normal");
-      doc.text(invoice.customer, 20, 76);
-      doc.text(`Email: ${invoice.email}`, 20, 82);
-      doc.text(`Phone: ${invoice.phone}`, 20, 88);
-      if (invoice.trnNumber) {
-        doc.text(`TRN: ${invoice.trnNumber}`, 20, 94);
-      }
-      
-      // Service Details
-      doc.setFont("helvetica", "bold");
-      doc.text("Service Details", 20, 105);
-      doc.setFont("helvetica", "normal");
-      doc.text(`Service: ${invoice.service}`, 20, 111);
-      doc.text(`Category: ${invoice.category}`, 20, 117);
-      doc.text(`Branch: ${invoice.branch}`, 20, 123);
-      doc.text(`Staff: ${invoice.staff}`, 20, 129);
-      
-      if (invoice.teamMembers.length > 0) {
-        doc.text("Team Members:", 20, 135);
-        invoice.teamMembers.forEach((tm, idx) => {
-          doc.text(`  • ${tm.name} (Tip: AED ${tm.tip})`, 20, 141 + (idx * 6));
+      if (download) {
+        const productsSubtotal = invoice.products.reduce((sum, p) => sum + (Number(p.price || 0) * Number(p.quantity || 0)), 0);
+        const serviceSubtotal = Number(invoice.price || 0);
+        const subtotalWithoutCharges = serviceSubtotal + productsSubtotal;
+        const serviceCharges = Number(invoice.serviceCharges || 0);
+        const discountBase = subtotalWithoutCharges + serviceCharges;
+        const discountAmount = invoice.discountType === 'percentage'
+          ? Math.min(discountBase, Math.max(0, (discountBase * Number(invoice.discount || 0)) / 100))
+          : Math.min(discountBase, Math.max(0, Number(invoice.discount || 0)));
+        const taxableAmount = Math.max(0, discountBase - discountAmount);
+        const taxPercent = Number(invoice.tax || 0);
+        const taxAmount = Math.max(0, (taxableAmount * taxPercent) / 100);
+        const tipAmount = Number(invoice.serviceTip || 0)
+          + invoice.teamMembers.reduce((sum, tm) => sum + Number(tm.tip || 0), 0);
+        const totalAmount = taxableAmount + taxAmount + tipAmount;
+
+        const paymentMethods = Object.entries(invoice.paymentAmounts)
+          .filter(([, amount]) => Number(amount || 0) > 0)
+          .map(([method, amount]) => ({
+            label: method.toUpperCase(),
+            amount: Number(amount || 0),
+          }));
+
+        if (paymentMethods.length === 0) {
+          paymentMethods.push({ label: 'CASH', amount: totalAmount });
+        }
+
+        await generateUnifiedInvoicePdf({
+          invoiceNumber: invoice.invoiceNumber,
+          invoiceDate: invoice.date || new Date().toLocaleDateString(),
+          companyName: 'MAN OF CAVE BARBERSHOP',
+          companyPhone: invoice.brandPhone,
+          companyEmail: invoice.brandEmail,
+          trnNumber: invoice.trnNumber,
+          customerName: invoice.customer || 'Customer',
+          customerPhone: invoice.phone,
+          customerEmail: invoice.email,
+          serviceDate: invoice.date,
+          serviceTime: invoice.time,
+          branchName: invoice.branch || 'Main Branch',
+          items: [
+            {
+              description: invoice.service || 'Service',
+              quantity: 1,
+              unitPrice: Number(invoice.price || 0),
+              lineTotal: Number(invoice.price || 0),
+              details: [invoice.category, invoice.staff].filter(Boolean).join(' - '),
+            },
+            ...invoice.products.map((p) => ({
+              description: p.name,
+              quantity: Number(p.quantity || 1),
+              unitPrice: Number(p.price || 0),
+              lineTotal: Number(p.price || 0) * Number(p.quantity || 1),
+              details: 'Product',
+            })),
+          ],
+          subtotal: subtotalWithoutCharges,
+          discountAmount,
+          taxAmount,
+          taxPercent,
+          serviceCharges,
+          tipAmount,
+          totalAmount,
+          paymentMethods,
+          notes: invoice.notes,
+          logoPath: '/manofcave.png',
+          fileName: `Invoice_${invoice.invoiceNumber}.pdf`,
         });
       }
-      
-      // Items Table
-      const tableStartY = invoice.teamMembers.length > 0 ? 141 + (invoice.teamMembers.length * 6) : 141;
-      
-      autoTable(doc, {
-        startY: tableStartY,
-        head: [['Description', 'Qty', 'Unit Price (AED)', 'Total (AED)']],
-        body: [
-          // Service row
-          [invoice.service, '1', invoice.price.toFixed(2), invoice.price.toFixed(2)],
-          // Products rows
-          ...invoice.products.map(p => [
-            p.name,
-            p.quantity.toString(),
-            p.price.toFixed(2),
-            (p.price * p.quantity).toFixed(2)
-          ]),
-          // Service charges
-          ['Service Charges', '1', invoice.serviceCharges.toFixed(2), invoice.serviceCharges.toFixed(2)]
-        ],
-        theme: 'grid',
-        headStyles: { fillColor: [59, 130, 246] },
-        margin: { left: 20, right: 20 }
-      });
-      
-      // Summary
-      const finalY = (doc as any).lastAutoTable.finalY + 20;
-      
-      doc.setFontSize(10);
-      doc.setTextColor(100, 100, 100);
-      doc.text("Subtotal:", 140, finalY);
-      doc.text(`AED ${calculateSubtotal().toFixed(2)}`, 170, finalY, { align: "right" });
-      
-      doc.text(`Discount (${invoice.discountType}):`, 140, finalY + 6);
-      doc.text(`-AED ${calculateDiscount().toFixed(2)}`, 170, finalY + 6, { align: "right" });
-      
-      doc.text(`Tax (${invoice.tax}%):`, 140, finalY + 12);
-      doc.text(`AED ${calculateTax().toFixed(2)}`, 170, finalY + 12, { align: "right" });
-      
-      doc.text(`Tips:`, 140, finalY + 18);
-      const totalTips = invoice.serviceTip + invoice.teamMembers.reduce((sum, tm) => sum + tm.tip, 0);
-      doc.text(`AED ${totalTips.toFixed(2)}`, 170, finalY + 18, { align: "right" });
-      
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(12);
-      doc.setTextColor(0, 0, 0);
-      doc.text("TOTAL:", 140, finalY + 28);
-      doc.text(`AED ${calculateTotal().toFixed(2)}`, 170, finalY + 28, { align: "right" });
-      
-      // Payment Summary
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(10);
-      doc.text("Payment Summary:", 20, finalY + 40);
-      
-      invoice.paymentMethods.forEach((method, idx) => {
-        const amount = invoice.paymentAmounts[method];
-        if (amount > 0) {
-          doc.text(`${method.toUpperCase()}: AED ${amount.toFixed(2)}`, 20, finalY + 46 + (idx * 6));
-        }
-      });
-      
-      doc.text(`Total Paid: AED ${calculateTotalPaid().toFixed(2)}`, 20, finalY + 46 + (invoice.paymentMethods.length * 6));
-      doc.text(`Balance: AED ${(calculateTotal() - calculateTotalPaid()).toFixed(2)}`, 20, finalY + 52 + (invoice.paymentMethods.length * 6));
-      
-      // Footer
-      doc.setFontSize(8);
-      doc.setTextColor(150, 150, 150);
-      doc.text("Thank you for your business!", 105, 280, { align: "center" });
-      doc.text("Generated on: " + new Date().toLocaleDateString(), 105, 284, { align: "center" });
-      
-      if (download) {
-        doc.save(`Invoice_${invoice.invoiceNumber}.pdf`);
-      }
-      
-      return doc;
+
+      return true;
     } catch (error) {
       console.error("Error generating PDF:", error);
       alert("Failed to generate PDF");
+      return false;
     } finally {
       setIsGenerating(false);
     }
