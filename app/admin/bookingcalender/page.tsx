@@ -323,14 +323,34 @@ interface InvoiceItem {
   total: number;
 }
 
+interface ServiceInvoiceDetail {
+  serviceName: string;
+  branch: string;
+  staff: string;
+  staffId?: string;
+  price: number;
+  tip?: number;
+}
+
 interface ExtendedInvoiceData extends InvoiceData {
   customerAddress?: string;
   paymentMethod?: string;
+  paymentMethods?: string[];
+  paymentAmounts?: {
+    cash?: number;
+    card?: number;
+    check?: number;
+    digital?: number;
+    [key: string]: number | undefined;
+  };
+  branch?: string;
   subtotal?: number;
   total?: number;
   items?: InvoiceItem[];
+  serviceDetails?: ServiceInvoiceDetail[];
   taxAmount?: number;
   discountAmount?: number;
+  discountType?: 'fixed' | 'percentage';
   cardLast4Digits?: string;
   trnNumber?: string;
   teamMembers?: Array<{name: string, tip: number}>;
