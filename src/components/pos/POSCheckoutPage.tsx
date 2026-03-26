@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { db } from '@/lib/firebase';
 import {
   addDoc,
@@ -30,7 +31,14 @@ import {
   Trash2,
   ShoppingCart,
   Loader2,
+  CalendarDays,
+  UserRound,
+  Clock3,
+  Eye,
+  Printer,
+  FileDown,
 } from 'lucide-react';
+import { generateUnifiedInvoicePdf } from '@/lib/unified-invoice-pdf';
 
 type PortalType = 'admin' | 'super_admin';
 type ItemType = 'service' | 'product';
@@ -59,6 +67,16 @@ type Branch = {
   id: string;
   name: string;
   status?: string;
+};
+
+type StaffMember = {
+  id: string;
+  name: string;
+  role?: string;
+  status?: string;
+  branch?: string;
+  branchNames?: string[];
+  branches?: string[];
 };
 
 type Customer = {
@@ -99,9 +117,12 @@ type ReceiptData = {
   totalAmount: number;
   paymentRows: Array<{ label: string; amount: number }>;
   notes: string;
+  serviceDate?: string;
+  serviceTime?: string;
 };
 
 const formatCurrency = (amount: number) => `AED ${amount.toFixed(2)}`;
+const DEFAULT_TAX_PERCENT = 5;
 
 export default function POSCheckoutPage({ portalType }: POSCheckoutPageProps) {
   const { user, logout } = useAuth();
@@ -113,23 +134,31 @@ export default function POSCheckoutPage({ portalType }: POSCheckoutPageProps) {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [services, setServices] = useState<CatalogService[]>([]);
   const [products, setProducts] = useState<CatalogProduct[]>([]);
+  const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [recentCheckouts, setRecentCheckouts] = useState<any[]>([]);
 
   const [selectedBranchId, setSelectedBranchId] = useState('all');
   const [customerId, setCustomerId] = useState('walk-in');
   const [walkInName, setWalkInName] = useState('Walk-in Customer');
+  const [walkInPhone, setWalkInPhone] = useState('');
+  const [walkInEmail, setWalkInEmail] = useState('');
+  const [selectedStaffId, setSelectedStaffId] = useState('unassigned');
+  const [bookingDate, setBookingDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [bookingTime, setBookingTime] = useState('09:00');
   const [paymentMode, setPaymentMode] = useState<'single' | 'split'>('single');
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [splitCashAmount, setSplitCashAmount] = useState('0');
   const [splitCardAmount, setSplitCardAmount] = useState('0');
   const [discountType, setDiscountType] = useState<'fixed' | 'percentage'>('fixed');
   const [discountValue, setDiscountValue] = useState('0');
-  const [taxPercent, setTaxPercent] = useState('0');
   const [notes, setNotes] = useState('');
   const [serviceSearch, setServiceSearch] = useState('');
   const [productSearch, setProductSearch] = useState('');
+  const [activeCatalogTab, setActiveCatalogTab] = useState<'services' | 'products'>('services');
   const [lastReceipt, setLastReceipt] = useState<ReceiptData | null>(null);
+  const [selectedRecentReceipt, setSelectedRecentReceipt] = useState<ReceiptData | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   const [cart, setCart] = useState<CartLine[]>([]);
 
@@ -212,6 +241,31 @@ export default function POSCheckoutPage({ portalType }: POSCheckoutPageProps) {
 
     unsubscribers.push(
       onSnapshot(
+        collection(db, 'staff'),
+        (snapshot) => {
+          const next = snapshot.docs.map((d) => {
+            const data = d.data() as any;
+            return {
+              id: d.id,
+              name: data.name || 'Staff',
+              role: data.role || '',
+              status: data.status || 'active',
+              branch: data.branch || '',
+              branchNames: Array.isArray(data.branchNames) ? data.branchNames : [],
+              branches: Array.isArray(data.branches) ? data.branches : [],
+            };
+          });
+
+          setStaffMembers(next.filter((s) => (s.status || '').toLowerCase() === 'active'));
+        },
+        (error) => {
+          console.error('POS staff listener error:', error);
+        }
+      )
+    );
+
+    unsubscribers.push(
+      onSnapshot(
         collection(db, 'customers'),
         (snapshot) => {
           const next = snapshot.docs.map((d) => {
@@ -259,15 +313,43 @@ export default function POSCheckoutPage({ portalType }: POSCheckoutPageProps) {
   }, []);
 
   useEffect(() => {
-    if (user?.role === 'admin' && user.branchId) {
+    if (user?.role !== 'admin') return;
+
+    if (user.branchId) {
       setSelectedBranchId(user.branchId);
+      return;
     }
-  }, [user]);
+
+    if (user.branchName && branches.length > 0) {
+      const matchedBranch = branches.find(
+        (branch) => branch.name.trim().toLowerCase() === user.branchName?.trim().toLowerCase()
+      );
+      if (matchedBranch) {
+        setSelectedBranchId(matchedBranch.id);
+      }
+    }
+  }, [user?.role, user?.branchId, user?.branchName, branches.length]);
+
+  useEffect(() => {
+    if (user?.role !== 'admin' && selectedBranchId === 'all' && branches.length > 0) {
+      setSelectedBranchId(branches[0].id);
+    }
+  }, [user?.role, selectedBranchId, branches.length, branches[0]?.id]);
 
   const selectedBranch = useMemo(() => {
     if (selectedBranchId === 'all') return null;
     return branches.find((b) => b.id === selectedBranchId) || null;
   }, [branches, selectedBranchId]);
+
+  const selectedCustomer = useMemo(
+    () => customers.find((c) => c.id === customerId) || null,
+    [customers, customerId]
+  );
+
+  const selectedStaff = useMemo(
+    () => staffMembers.find((s) => s.id === selectedStaffId) || null,
+    [staffMembers, selectedStaffId]
+  );
 
   const branchAllows = (
     branchNames: string[] | undefined,
@@ -303,6 +385,62 @@ export default function POSCheckoutPage({ portalType }: POSCheckoutPageProps) {
     });
   }, [products, selectedBranchId, productSearch, branches]);
 
+  const filteredStaff = useMemo(() => {
+    if (selectedBranchId === 'all') return staffMembers;
+
+    const selectedBranchName =
+      branches.find((branch) => branch.id === selectedBranchId)?.name?.trim().toLowerCase() || '';
+
+    return staffMembers.filter((staff) => {
+      const byId = Array.isArray(staff.branches) && staff.branches.includes(selectedBranchId);
+      if (byId) return true;
+
+      const normalizedPrimaryBranch = (staff.branch || '').trim().toLowerCase();
+      const byPrimaryBranch = !!selectedBranchName && normalizedPrimaryBranch === selectedBranchName;
+      if (byPrimaryBranch) return true;
+
+      const byBranchNames =
+        !!selectedBranchName &&
+        Array.isArray(staff.branchNames) &&
+        staff.branchNames.some((name) => name?.trim().toLowerCase() === selectedBranchName);
+
+      return byBranchNames;
+    });
+  }, [staffMembers, selectedBranchId, branches]);
+
+  useEffect(() => {
+    if (selectedStaffId === 'unassigned') return;
+    const existsInCurrentBranch = filteredStaff.some((s) => s.id === selectedStaffId);
+    if (!existsInCurrentBranch) {
+      setSelectedStaffId('unassigned');
+    }
+  }, [filteredStaff, selectedStaffId]);
+
+  const availableTimeSlots = useMemo(() => {
+    const slots: string[] = [];
+    for (let hour = 9; hour < 22; hour++) {
+      slots.push(`${String(hour).padStart(2, '0')}:00`);
+      slots.push(`${String(hour).padStart(2, '0')}:30`);
+    }
+
+    const now = new Date();
+    const isToday = bookingDate === now.toISOString().split('T')[0];
+    if (!isToday) return slots;
+
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    return slots.filter((slot) => {
+      const [h, m] = slot.split(':').map(Number);
+      return h * 60 + m >= nowMinutes;
+    });
+  }, [bookingDate]);
+
+  useEffect(() => {
+    if (!availableTimeSlots.length) return;
+    if (!availableTimeSlots.includes(bookingTime)) {
+      setBookingTime(availableTimeSlots[0]);
+    }
+  }, [availableTimeSlots, bookingTime]);
+
   const subtotal = useMemo(
     () => cart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0),
     [cart]
@@ -318,9 +456,8 @@ export default function POSCheckoutPage({ portalType }: POSCheckoutPageProps) {
 
   const taxableAmount = useMemo(() => Math.max(0, subtotal - discountAmount), [subtotal, discountAmount]);
   const taxAmount = useMemo(() => {
-    const rawTax = Number(taxPercent || 0);
-    return Math.max(0, (taxableAmount * rawTax) / 100);
-  }, [taxPercent, taxableAmount]);
+    return Math.max(0, (taxableAmount * DEFAULT_TAX_PERCENT) / 100);
+  }, [taxableAmount]);
   const totalAmount = useMemo(() => taxableAmount + taxAmount, [taxableAmount, taxAmount]);
 
   const splitCash = Number(splitCashAmount || 0);
@@ -328,6 +465,15 @@ export default function POSCheckoutPage({ portalType }: POSCheckoutPageProps) {
   const totalPaid = paymentMode === 'split' ? splitCash + splitCard : totalAmount;
 
   const addToCart = (itemType: ItemType, sourceId: string, name: string, unitPrice: number) => {
+    if (itemType === 'product') {
+      const product = products.find((p) => p.id === sourceId);
+      const currentQty = cart.find((line) => line.itemType === 'product' && line.sourceId === sourceId)?.quantity || 0;
+      if (!product || (product.totalStock || 0) <= currentQty) {
+        alert('Insufficient stock for this product.');
+        return;
+      }
+    }
+
     setCart((prev) => {
       const existing = prev.find((line) => line.itemType === itemType && line.sourceId === sourceId);
       if (existing) {
@@ -356,6 +502,15 @@ export default function POSCheckoutPage({ portalType }: POSCheckoutPageProps) {
     if (nextQty <= 0) {
       setCart((prev) => prev.filter((line) => line.lineId !== lineId));
       return;
+    }
+
+    const line = cart.find((item) => item.lineId === lineId);
+    if (line?.itemType === 'product') {
+      const product = products.find((p) => p.id === line.sourceId);
+      if (product && nextQty > (product.totalStock || 0)) {
+        alert('Quantity exceeds available stock.');
+        return;
+      }
     }
 
     setCart((prev) => prev.map((line) => (line.lineId === lineId ? { ...line, quantity: nextQty } : line)));
@@ -442,6 +597,85 @@ export default function POSCheckoutPage({ portalType }: POSCheckoutPageProps) {
     printWindow.print();
   };
 
+  const checkoutToReceipt = (checkout: any): ReceiptData => {
+    const createdAtDate = checkout?.createdAt?.seconds
+      ? new Date(checkout.createdAt.seconds * 1000)
+      : checkout?.createdAt?.toDate
+      ? checkout.createdAt.toDate()
+      : new Date();
+
+    const items = Array.isArray(checkout?.items)
+      ? checkout.items.map((item: any) => ({
+          itemType: item.itemType === 'product' ? 'product' : 'service',
+          itemName: item.itemName || item.name || 'Item',
+          quantity: Number(item.quantity || 0),
+          unitPrice: Number(item.unitPrice || 0),
+          lineTotal: Number(item.lineTotal || (Number(item.quantity || 0) * Number(item.unitPrice || 0))),
+        }))
+      : [];
+
+    const paymentRows = (() => {
+      if (checkout?.paymentMode === 'split') {
+        const cash = Number(checkout?.paymentBreakdown?.cash || 0);
+        const card = Number(checkout?.paymentBreakdown?.card || 0);
+        return [
+          { label: 'Cash', amount: cash },
+          { label: 'Card', amount: card },
+        ];
+      }
+
+      const method = String(checkout?.paymentMethod || 'cash').replaceAll('_', ' ').toUpperCase();
+      return [{ label: method, amount: Number(checkout?.totalPaid || checkout?.totalAmount || 0) }];
+    })();
+
+    return {
+      checkoutNumber: checkout?.checkoutNumber || checkout?.id || 'POS',
+      createdAt: createdAtDate,
+      branchName: checkout?.branchName || 'Branch',
+      customerName: checkout?.customerName || 'Customer',
+      items,
+      subtotal: Number(checkout?.subtotal || 0),
+      discountAmount: Number(checkout?.discountAmount || 0),
+      taxAmount: Number(checkout?.taxAmount || 0),
+      totalAmount: Number(checkout?.totalAmount || 0),
+      paymentRows,
+      notes: checkout?.notes || '',
+      serviceDate: checkout?.bookingDate || checkout?.date || '',
+      serviceTime: checkout?.bookingTime || checkout?.time || '',
+    };
+  };
+
+  const downloadReceiptPdf = async (receipt: ReceiptData) => {
+    const taxableAmount = Math.max(0, receipt.subtotal - receipt.discountAmount);
+    const taxPercent = taxableAmount > 0 ? (receipt.taxAmount / taxableAmount) * 100 : DEFAULT_TAX_PERCENT;
+
+    await generateUnifiedInvoicePdf({
+      invoiceNumber: receipt.checkoutNumber,
+      invoiceDate: receipt.createdAt.toLocaleDateString(),
+      companyName: receipt.branchName || 'MAN OF CAVE BARBERSHOP',
+      customerName: receipt.customerName,
+      serviceDate: receipt.serviceDate || receipt.createdAt.toLocaleDateString(),
+      serviceTime: receipt.serviceTime || receipt.createdAt.toLocaleTimeString(),
+      branchName: receipt.branchName,
+      items: receipt.items.map((item) => ({
+        description: item.itemName,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        lineTotal: item.lineTotal,
+        details: item.itemType === 'service' ? 'Service' : 'Product',
+      })),
+      subtotal: receipt.subtotal,
+      discountAmount: receipt.discountAmount,
+      taxAmount: receipt.taxAmount,
+      taxPercent,
+      totalAmount: receipt.totalAmount,
+      paymentMethods: receipt.paymentRows,
+      notes: receipt.notes,
+      logoPath: '/manofcave.png',
+      fileName: `${receipt.checkoutNumber}.pdf`,
+    });
+  };
+
   const handleCheckout = async () => {
     if (!user) return;
     if (cart.length === 0) {
@@ -451,6 +685,12 @@ export default function POSCheckoutPage({ portalType }: POSCheckoutPageProps) {
 
     if (selectedBranchId === 'all') {
       alert('Select a branch for POS checkout.');
+      return;
+    }
+
+    const hasService = cart.some((line) => line.itemType === 'service');
+    if (!hasService) {
+      alert('Add at least one service to create a booking from POS.');
       return;
     }
 
@@ -466,8 +706,30 @@ export default function POSCheckoutPage({ portalType }: POSCheckoutPageProps) {
       }
     }
 
-    const selectedCustomer = customers.find((c) => c.id === customerId);
+    if (!bookingDate || !bookingTime) {
+      alert('Select booking date and time.');
+      return;
+    }
+
+    if (!availableTimeSlots.includes(bookingTime)) {
+      alert('Selected time is not available. Please choose a current or future time slot.');
+      return;
+    }
+
     const checkoutNumber = `POS-${Date.now()}`;
+    const bookingNumber = `BOOK-${Date.now()}`;
+    const customerName =
+      customerId === 'walk-in'
+        ? walkInName.trim() || 'Walk-in Customer'
+        : selectedCustomer?.name || 'Customer';
+    const customerEmail = customerId === 'walk-in' ? walkInEmail.trim() : selectedCustomer?.email || '';
+    const customerPhone = customerId === 'walk-in' ? walkInPhone.trim() : selectedCustomer?.phone || '';
+    const serviceLines = cart.filter((line) => line.itemType === 'service');
+    const productLines = cart.filter((line) => line.itemType === 'product');
+    const totalDuration = serviceLines.reduce((sum, line) => {
+      const foundService = services.find((s) => s.id === line.sourceId);
+      return sum + ((foundService?.duration || 30) * line.quantity);
+    }, 0);
 
     setSubmitting(true);
     try {
@@ -476,12 +738,9 @@ export default function POSCheckoutPage({ portalType }: POSCheckoutPageProps) {
         branchId: selectedBranchId,
         branchName: selectedBranch?.name || user.branchName || 'Unknown Branch',
         customerId: selectedCustomer?.id || null,
-        customerName:
-          customerId === 'walk-in'
-            ? walkInName.trim() || 'Walk-in Customer'
-            : selectedCustomer?.name || 'Customer',
-        customerEmail: selectedCustomer?.email || '',
-        customerPhone: selectedCustomer?.phone || '',
+        customerName,
+        customerEmail,
+        customerPhone,
         items: cart.map((line) => ({
           itemType: line.itemType,
           itemId: line.sourceId,
@@ -494,7 +753,7 @@ export default function POSCheckoutPage({ portalType }: POSCheckoutPageProps) {
         discountType,
         discountValue: Number(discountValue || 0),
         discountAmount,
-        taxPercent: Number(taxPercent || 0),
+        taxPercent: DEFAULT_TAX_PERCENT,
         taxAmount,
         totalAmount,
         paymentMode,
@@ -534,10 +793,7 @@ export default function POSCheckoutPage({ portalType }: POSCheckoutPageProps) {
 
       await addDoc(collection(db, 'transactions'), {
         customerId: selectedCustomer?.id || null,
-        customerName:
-          customerId === 'walk-in'
-            ? walkInName.trim() || 'Walk-in Customer'
-            : selectedCustomer?.name || 'Customer',
+        customerName,
         type: 'pos_checkout',
         amount: -totalAmount,
         status: 'success',
@@ -547,6 +803,83 @@ export default function POSCheckoutPage({ portalType }: POSCheckoutPageProps) {
         branchId: selectedBranchId,
         branchName: selectedBranch?.name || user.branchName || 'Unknown Branch',
         createdAt: serverTimestamp(),
+      });
+
+      const paymentMethodsForBooking =
+        paymentMode === 'split' ? ['cash', 'card'] : [paymentMethod];
+
+      const paymentAmountsForBooking =
+        paymentMode === 'split'
+          ? { cash: splitCash, card: splitCard }
+          : { [paymentMethod]: totalAmount };
+
+      const assignedStaffName = selectedStaff?.name || 'Not Assigned';
+
+      await addDoc(collection(db, 'bookings'), {
+        bookingNumber,
+        bookingDate,
+        bookingTime,
+        date: bookingDate,
+        time: bookingTime,
+        timeSlot: bookingTime,
+        customerName,
+        customerEmail,
+        customerPhone,
+        customerId: selectedCustomer?.id || '',
+        serviceName: serviceLines[0]?.name || 'Service',
+        serviceDuration: totalDuration,
+        services: serviceLines.map((line) => line.name),
+        serviceDetails: serviceLines.map((line) => {
+          const foundService = services.find((s) => s.id === line.sourceId);
+          return {
+            id: line.sourceId,
+            name: line.name,
+            quantity: line.quantity,
+            price: line.unitPrice,
+            duration: foundService?.duration || 30,
+            branch: selectedBranch?.name || user.branchName || 'Unknown Branch',
+            staff: selectedStaff?.name || 'Unassigned',
+            staffId: selectedStaff?.id || '',
+          };
+        }),
+        products: productLines.map((line) => ({
+          id: line.sourceId,
+          name: line.name,
+          quantity: line.quantity,
+          price: line.unitPrice,
+          total: line.unitPrice * line.quantity,
+        })),
+        productsTotal: productLines.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0),
+        servicePrice: serviceLines.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0),
+        subtotal,
+        discount: Number(discountValue || 0),
+        discountAmount,
+        discountType,
+        tax: DEFAULT_TAX_PERCENT,
+        taxAmount,
+        totalPrice: totalAmount,
+        totalAmount,
+        duration: `${totalDuration} min`,
+        totalDuration,
+        paymentMethod: paymentMode === 'split' ? 'split_cash_card' : paymentMethod,
+        paymentMethods: paymentMethodsForBooking,
+        paymentAmounts: paymentAmountsForBooking,
+        paymentStatus: Math.abs(totalAmount - totalPaid) <= 0.01 ? 'paid' : 'partial',
+        status: 'upcoming',
+        notes: notes.trim(),
+        branchId: selectedBranchId,
+        branch: selectedBranch?.name || user.branchName || 'Unknown Branch',
+        branchNames: [selectedBranch?.name || user.branchName || 'Unknown Branch'],
+        branches: [selectedBranchId],
+        staff: assignedStaffName,
+        staffName: assignedStaffName,
+        barber: assignedStaffName,
+        staffId: selectedStaff?.id || '',
+        source: 'pos_booking',
+        createdBy: user.role,
+        createdById: user.id,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       });
 
       const receipt: ReceiptData = {
@@ -589,9 +922,11 @@ export default function POSCheckoutPage({ portalType }: POSCheckoutPageProps) {
       setSplitCardAmount('0');
       setDiscountType('fixed');
       setDiscountValue('0');
-      setTaxPercent('0');
       setCustomerId('walk-in');
-      alert(`Checkout completed successfully: ${checkoutNumber}`);
+      setWalkInPhone('');
+      setWalkInEmail('');
+      setSelectedStaffId('unassigned');
+      alert(`Checkout + booking created successfully: ${checkoutNumber}`);
     } catch (error) {
       console.error('POS checkout failed:', error);
       alert('Failed to complete POS checkout. Please try again.');
@@ -601,7 +936,7 @@ export default function POSCheckoutPage({ portalType }: POSCheckoutPageProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="flex h-screen overflow-hidden bg-gray-50">
       <AdminSidebar
         role={user?.role === 'super_admin' ? 'super_admin' : 'branch_admin'}
         onLogout={logout}
@@ -610,11 +945,11 @@ export default function POSCheckoutPage({ portalType }: POSCheckoutPageProps) {
         allowedPages={user?.allowedPages || []}
       />
 
-      <div className="lg:pl-64 transition-all duration-300">
+      <div className="flex-1 flex flex-col min-w-0">
         <div className="sticky top-0 z-30 bg-white border-b px-4 py-3 flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-semibold">POS Checkout</h1>
-            <p className="text-sm text-gray-500">Live product + service checkout with Firebase sync</p>
+            <h1 className="text-xl font-semibold">Fast POS Booking</h1>
+            <p className="text-sm text-gray-500">Quickly book services and products from one clean checkout screen</p>
             {uiError && <p className="text-xs text-red-600 mt-1">{uiError}</p>}
           </div>
           <AdminMobileSidebar
@@ -626,25 +961,25 @@ export default function POSCheckoutPage({ portalType }: POSCheckoutPageProps) {
           />
         </div>
 
-        <div className="p-4 grid grid-cols-1 xl:grid-cols-3 gap-4">
+        <div className="flex-1 overflow-auto">
+          <div className="p-4 grid grid-cols-1 xl:grid-cols-3 gap-4">
           <div className="xl:col-span-2 space-y-4">
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-base">Checkout Context</CardTitle>
+                <CardTitle className="text-base">Booking + Checkout Context</CardTitle>
               </CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div>
                   <Label>Branch</Label>
                   <Select
                     value={selectedBranchId}
                     onValueChange={setSelectedBranchId}
-                    disabled={user?.role === 'admin' && !!user.branchId}
+                    disabled={user?.role === 'admin'}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select branch" />
                     </SelectTrigger>
                     <SelectContent>
-                      {user?.role !== 'admin' && <SelectItem value="all">All Branches</SelectItem>}
                       {branches.map((branch) => (
                         <SelectItem key={branch.id} value={branch.id}>
                           {branch.name}
@@ -672,6 +1007,60 @@ export default function POSCheckoutPage({ portalType }: POSCheckoutPageProps) {
                 </div>
 
                 <div>
+                  <Label className="flex items-center gap-1">
+                    <UserRound className="w-3 h-3" />
+                    Staff
+                  </Label>
+                  <Select value={selectedStaffId} onValueChange={setSelectedStaffId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select staff" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="unassigned">Unassigned</SelectItem>
+                      {filteredStaff.map((staff) => (
+                        <SelectItem key={staff.id} value={staff.id}>
+                          {staff.name}{staff.role ? ` • ${staff.role}` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label className="flex items-center gap-1">
+                    <CalendarDays className="w-3 h-3" />
+                    Booking Date
+                  </Label>
+                  <Input
+                    type="date"
+                    value={bookingDate}
+                    min={new Date().toISOString().split('T')[0]}
+                    onChange={(e) => setBookingDate(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <Label className="flex items-center gap-1">
+                    <Clock3 className="w-3 h-3" />
+                    Booking Time
+                  </Label>
+                  <Select value={bookingTime} onValueChange={setBookingTime} disabled={availableTimeSlots.length === 0}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select time" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableTimeSlots.length === 0 ? (
+                        <SelectItem value="no-slots" disabled>No available slots</SelectItem>
+                      ) : (
+                        availableTimeSlots.map((slot) => (
+                          <SelectItem key={slot} value={slot}>{slot}</SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
                   <Label>Payment Mode</Label>
                   <Select value={paymentMode} onValueChange={(value: 'single' | 'split') => setPaymentMode(value)}>
                     <SelectTrigger>
@@ -684,15 +1073,46 @@ export default function POSCheckoutPage({ portalType }: POSCheckoutPageProps) {
                   </Select>
                 </div>
 
-                <div>
-                  <Label>Walk-in Name</Label>
-                  <Input
-                    value={walkInName}
-                    onChange={(e) => setWalkInName(e.target.value)}
-                    disabled={customerId !== 'walk-in'}
-                    placeholder="Walk-in customer"
-                  />
-                </div>
+                {customerId === 'walk-in' ? (
+                  <>
+                    <div>
+                      <Label>Walk-in Name</Label>
+                      <Input
+                        value={walkInName}
+                        onChange={(e) => setWalkInName(e.target.value)}
+                        placeholder="Walk-in customer"
+                      />
+                    </div>
+                    <div>
+                      <Label>Walk-in Phone</Label>
+                      <Input
+                        value={walkInPhone}
+                        onChange={(e) => setWalkInPhone(e.target.value)}
+                        placeholder="03xx xxxxxxx"
+                      />
+                    </div>
+                    <div>
+                      <Label>Walk-in Email</Label>
+                      <Input
+                        type="email"
+                        value={walkInEmail}
+                        onChange={(e) => setWalkInEmail(e.target.value)}
+                        placeholder="optional@email.com"
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <Label>Customer Phone</Label>
+                      <Input value={selectedCustomer?.phone || ''} disabled />
+                    </div>
+                    <div>
+                      <Label>Customer Email</Label>
+                      <Input value={selectedCustomer?.email || ''} disabled />
+                    </div>
+                  </>
+                )}
 
                 <div>
                   <Label>Discount Type</Label>
@@ -719,14 +1139,8 @@ export default function POSCheckoutPage({ portalType }: POSCheckoutPageProps) {
                 </div>
 
                 <div>
-                  <Label>Tax (%)</Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={taxPercent}
-                    onChange={(e) => setTaxPercent(e.target.value)}
-                  />
+                  <Label>Tax</Label>
+                  <Input value={`${DEFAULT_TAX_PERCENT}% (Default)`} disabled />
                 </div>
 
                 {paymentMode === 'single' ? (
@@ -771,89 +1185,103 @@ export default function POSCheckoutPage({ portalType }: POSCheckoutPageProps) {
               </CardContent>
             </Card>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Scissors className="w-4 h-4" />
-                    Services
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="relative mb-3">
-                    <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                    <Input
-                      className="pl-9"
-                      value={serviceSearch}
-                      onChange={(e) => setServiceSearch(e.target.value)}
-                      placeholder="Search services"
-                    />
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between gap-3">
+                  <CardTitle className="text-base">Catalog</CardTitle>
+                  <div className="inline-flex rounded-lg border bg-white p-1">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={activeCatalogTab === 'services' ? 'default' : 'ghost'}
+                      className="h-8"
+                      onClick={() => setActiveCatalogTab('services')}
+                    >
+                      <Scissors className="w-4 h-4 mr-1" />
+                      Services
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={activeCatalogTab === 'products' ? 'default' : 'ghost'}
+                      className="h-8"
+                      onClick={() => setActiveCatalogTab('products')}
+                    >
+                      <Package className="w-4 h-4 mr-1" />
+                      Products
+                    </Button>
                   </div>
-                  <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-                    {filteredServices.map((service) => (
-                      <div key={service.id} className="border rounded-lg p-2 flex items-center justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="font-medium truncate">{service.name}</p>
-                          <p className="text-xs text-gray-500">{formatCurrency(service.price)}</p>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {activeCatalogTab === 'services' ? (
+                  <>
+                    <div className="relative mb-3">
+                      <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <Input
+                        className="pl-9"
+                        value={serviceSearch}
+                        onChange={(e) => setServiceSearch(e.target.value)}
+                        placeholder="Search services"
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-80 overflow-y-auto pr-1">
+                      {filteredServices.map((service) => (
+                        <div key={service.id} className="border rounded-lg p-2 flex items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="font-medium truncate">{service.name}</p>
+                            <p className="text-xs text-gray-500">
+                              {formatCurrency(service.price)}{service.duration ? ` • ${service.duration} min` : ''}
+                            </p>
+                          </div>
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => addToCart('service', service.id, service.name, service.price)}
+                          >
+                            <Plus className="w-4 h-4" />
+                          </Button>
                         </div>
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={() => addToCart('service', service.id, service.name, service.price)}
-                        >
-                          <Plus className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    ))}
-                    {filteredServices.length === 0 && (
-                      <p className="text-sm text-gray-500">No services found.</p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Package className="w-4 h-4" />
-                    Products
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="relative mb-3">
-                    <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                    <Input
-                      className="pl-9"
-                      value={productSearch}
-                      onChange={(e) => setProductSearch(e.target.value)}
-                      placeholder="Search products"
-                    />
-                  </div>
-                  <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-                    {filteredProducts.map((product) => (
-                      <div key={product.id} className="border rounded-lg p-2 flex items-center justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="font-medium truncate">{product.name}</p>
-                          <p className="text-xs text-gray-500">
-                            {formatCurrency(product.price)} • Stock {product.totalStock || 0}
-                          </p>
+                      ))}
+                    </div>
+                    {filteredServices.length === 0 && <p className="text-sm text-gray-500">No services found.</p>}
+                  </>
+                ) : (
+                  <>
+                    <div className="relative mb-3">
+                      <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <Input
+                        className="pl-9"
+                        value={productSearch}
+                        onChange={(e) => setProductSearch(e.target.value)}
+                        placeholder="Search products"
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-80 overflow-y-auto pr-1">
+                      {filteredProducts.map((product) => (
+                        <div key={product.id} className="border rounded-lg p-2 flex items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="font-medium truncate">{product.name}</p>
+                            <p className="text-xs text-gray-500">
+                              {formatCurrency(product.price)} • Stock {product.totalStock || 0}
+                            </p>
+                          </div>
+                          <Button
+                            type="button"
+                            size="sm"
+                            disabled={(product.totalStock || 0) <= 0}
+                            onClick={() => addToCart('product', product.id, product.name, product.price)}
+                          >
+                            <Plus className="w-4 h-4" />
+                          </Button>
                         </div>
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={() => addToCart('product', product.id, product.name, product.price)}
-                        >
-                          <Plus className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    ))}
-                    {filteredProducts.length === 0 && (
-                      <p className="text-sm text-gray-500">No products found.</p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+                      ))}
+                    </div>
+                    {filteredProducts.length === 0 && <p className="text-sm text-gray-500">No products found.</p>}
+                  </>
+                )}
+              </CardContent>
+            </Card>
           </div>
 
           <div className="space-y-4">
@@ -921,7 +1349,7 @@ export default function POSCheckoutPage({ portalType }: POSCheckoutPageProps) {
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Tax</span>
+                  <span className="text-sm text-gray-600">Tax ({DEFAULT_TAX_PERCENT}%)</span>
                   <span className="font-semibold">{formatCurrency(taxAmount)}</span>
                 </div>
 
@@ -971,6 +1399,40 @@ export default function POSCheckoutPage({ portalType }: POSCheckoutPageProps) {
                       {checkout.customerName || 'Customer'} • {checkout.branchName || 'Branch'}
                     </p>
                     <p className="text-sm font-medium mt-1">{formatCurrency(Number(checkout.totalAmount || 0))}</p>
+                    <div className="mt-2 flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedRecentReceipt(checkoutToReceipt(checkout));
+                          setDetailsOpen(true);
+                        }}
+                      >
+                        <Eye className="w-3.5 h-3.5 mr-1" />
+                        View
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => printReceipt(checkoutToReceipt(checkout))}
+                      >
+                        <Printer className="w-3.5 h-3.5 mr-1" />
+                        Print
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          void downloadReceiptPdf(checkoutToReceipt(checkout));
+                        }}
+                      >
+                        <FileDown className="w-3.5 h-3.5 mr-1" />
+                        PDF
+                      </Button>
+                    </div>
                   </div>
                 ))}
                 {recentCheckouts.length === 0 && (
@@ -978,7 +1440,66 @@ export default function POSCheckoutPage({ portalType }: POSCheckoutPageProps) {
                 )}
               </CardContent>
             </Card>
+
+            <Sheet open={detailsOpen} onOpenChange={setDetailsOpen}>
+              <SheetContent className="sm:max-w-xl w-full overflow-y-auto">
+                <SheetHeader>
+                  <SheetTitle>Checkout Details</SheetTitle>
+                </SheetHeader>
+
+                {selectedRecentReceipt && (
+                  <div className="mt-4 space-y-3">
+                    <div className="text-sm space-y-1">
+                      <p><span className="text-gray-500">Receipt:</span> {selectedRecentReceipt.checkoutNumber}</p>
+                      <p><span className="text-gray-500">Date:</span> {selectedRecentReceipt.createdAt.toLocaleString()}</p>
+                      <p><span className="text-gray-500">Branch:</span> {selectedRecentReceipt.branchName}</p>
+                      <p><span className="text-gray-500">Customer:</span> {selectedRecentReceipt.customerName}</p>
+                    </div>
+
+                    <div className="border rounded-lg divide-y">
+                      {selectedRecentReceipt.items.map((item, idx) => (
+                        <div key={`${item.itemName}-${idx}`} className="p-2 text-sm flex items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="font-medium truncate">{item.itemName}</p>
+                            <p className="text-xs text-gray-500">{item.itemType} • Qty {item.quantity} • {formatCurrency(item.unitPrice)}</p>
+                          </div>
+                          <p className="font-semibold">{formatCurrency(item.lineTotal)}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="text-sm space-y-1 border rounded-lg p-3">
+                      <div className="flex justify-between"><span>Subtotal</span><span>{formatCurrency(selectedRecentReceipt.subtotal)}</span></div>
+                      <div className="flex justify-between"><span>Discount</span><span>- {formatCurrency(selectedRecentReceipt.discountAmount)}</span></div>
+                      <div className="flex justify-between"><span>Tax</span><span>{formatCurrency(selectedRecentReceipt.taxAmount)}</span></div>
+                      <div className="flex justify-between font-semibold border-t pt-1"><span>Total</span><span>{formatCurrency(selectedRecentReceipt.totalAmount)}</span></div>
+                    </div>
+
+                    {selectedRecentReceipt.notes && (
+                      <p className="text-sm text-gray-600 border rounded-lg p-3">{selectedRecentReceipt.notes}</p>
+                    )}
+
+                    <div className="flex items-center gap-2">
+                      <Button type="button" variant="outline" onClick={() => printReceipt(selectedRecentReceipt)}>
+                        <Printer className="w-4 h-4 mr-2" />
+                        Print
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={() => {
+                          void downloadReceiptPdf(selectedRecentReceipt);
+                        }}
+                      >
+                        <FileDown className="w-4 h-4 mr-2" />
+                        Download PDF
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </SheetContent>
+            </Sheet>
           </div>
+        </div>
         </div>
       </div>
     </div>

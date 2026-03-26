@@ -1456,7 +1456,7 @@ export default function AdminAppointments() {
   };
 
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const [viewMode, setViewMode] = useState<'calendar' | 'advanced-calendar' | 'list' | 'approvals' | 'product-orders'>('calendar');
+  const [viewMode, setViewMode] = useState<'calendar' | 'advanced-calendar' | 'list' | 'approvals' | 'product-orders'>('advanced-calendar');
   const [statusFilter, setStatusFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
@@ -2818,9 +2818,7 @@ export default function AdminAppointments() {
               <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as 'calendar' | 'advanced-calendar' | 'list' | 'approvals' | 'product-orders')}>
                 <div className="flex items-center justify-between mb-6">
                   <TabsList>
-                    <TabsTrigger value="calendar">Calendar View</TabsTrigger>
                     <TabsTrigger value="advanced-calendar">Advanced Calendar</TabsTrigger>
-                    <TabsTrigger value="approvals">Booking Approvals</TabsTrigger>
                   </TabsList>
                 </div>
 

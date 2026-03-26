@@ -68,8 +68,15 @@ import {
   MoreVertical,
   Copy,
   Check,
-  CheckCheck
+  CheckCheck,
+  User
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
@@ -1422,7 +1429,7 @@ export default function SuperAdminDashboard() {
         )}
       >
         {/* Modern Header */}
-        <header className="bg-gradient-to-r from-[#FA9DB7] via-[#FA9DB7]/95 to-[#B84A68]/90 shadow-lg shadow-[#FA9DB7]/20 border-b border-[#FA9DB7]/30 shrink-0">
+        <header className="bg-gradient-to-r from-primary via-primary to-primary/90 shadow-lg shadow-primary/20 border-b border-primary/30 shrink-0">
           <div className="flex items-center justify-between px-1 py-1">
             <div className="flex items-center gap-4">
               <AdminMobileSidebar
@@ -1434,168 +1441,34 @@ export default function SuperAdminDashboard() {
                 onToggle={() => setSidebarOpen(!sidebarOpen)}
                 allowedPages={user?.allowedPages || []}
               />
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm">
-                  <Building className="h-7 w-7 text-white" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-3">
-                    <h1 className="text-2xl font-bold text-white font-sans">
-                      {user?.role === "admin"
-                        ? "Branch Dashboard"
-                        : "Super Admin Dashboard"}
-                    </h1>
-                    {user?.role === "admin" && user?.branchName && (
-                      <Badge className="bg-white/20 text-white border-0 px-3 py-1 rounded-full backdrop-blur-sm hover:bg-white/30 transition-colors">
-                        🏢 {user.branchName}
-                      </Badge>
-                    )}
-                    {user?.role === "super_admin" && (
-                      <Badge className="bg-gradient-to-r from-amber-500 to-amber-600 text-white border-0 px-3 py-1 rounded-full">
-                        👑 Super Admin
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="text-sm text-white/90 mt-1 flex items-center gap-2">
-                    <Activity className="h-3 w-3 animate-pulse" />
-                    {user?.role === "admin"
-                      ? `Showing data for ${user?.branchName || 'your branch'}`
-                      : "Showing data for all branches"}
-                  </p>
-                </div>
-              </div>
+              <h1 className="text-lg md:text-xl font-bold text-white font-sans">
+                Branch Portal: {user?.branchName || "Your Branch"}
+              </h1>
             </div>
 
-            <div className="flex items-center gap-4">
-              {/* ✅ Real-time Notifications */}
-              <div className="relative">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="relative rounded-xl bg-white/10 hover:bg-white/20 text-white"
-                  onClick={() => setShowNotifications(!showNotifications)}
+                  className="rounded-xl bg-white/10 hover:bg-white/20 text-white"
                 >
-                  <Bell className="h-5 w-5" />
-                  {unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 h-5 w-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center animate-pulse">
-                      {unreadCount > 9 ? '9+' : unreadCount}
-                    </span>
-                  )}
+                  <User className="h-5 w-5" />
                 </Button>
-
-                {/* Notifications Dropdown */}
-                {showNotifications && (
-                  <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 z-50">
-                    <div className="p-3 border-b border-gray-100 flex items-center justify-between">
-                      <h3 className="font-semibold text-gray-900">Notifications</h3>
-                      {unreadCount > 0 && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-xs text-[#B84A68] hover:text-[#B84A68]/80 h-8"
-                          onClick={markAllAsRead}
-                        >
-                          Mark all as read
-                        </Button>
-                      )}
-                    </div>
-                    <div className="max-h-96 overflow-y-auto">
-                      {notifications.length === 0 ? (
-                        <div className="p-6 text-center text-gray-500">
-                          <Bell className="h-8 w-8 mx-auto mb-2 text-gray-300" />
-                          <p className="text-sm">
-                            {user?.role === "admin" 
-                              ? `No notifications for ${user?.branchName || 'your branch'}`
-                              : "No notifications"}
-                          </p>
-                        </div>
-                      ) : (
-                        notifications.slice(0, 10).map((notification) => (
-                          <div
-                            key={notification.id}
-                            className={cn(
-                              "p-3 border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors relative group",
-                              !notification.read && "bg-[#FA9DB7]/5"
-                            )}
-                          >
-                            <div className="flex items-start gap-3">
-                              <div className={cn(
-                                "p-2 rounded-lg",
-                                notification.type === 'message' ? 'bg-blue-100' :
-                                notification.type === 'booking' ? 'bg-green-100' :
-                                notification.type === 'feedback' ? 'bg-purple-100' : 'bg-gray-100'
-                              )}>
-                                {notification.type === 'message' && <MessageCircle className="h-4 w-4 text-blue-600" />}
-                                {notification.type === 'booking' && <Calendar className="h-4 w-4 text-green-600" />}
-                                {notification.type === 'feedback' && <Star className="h-4 w-4 text-purple-600" />}
-                              </div>
-                              <div className="flex-1">
-                                <p className="text-sm font-medium text-gray-900">
-                                  {notification.title}
-                                </p>
-                                <p className="text-xs text-gray-500 mt-0.5">
-                                  {notification.message}
-                                </p>
-                                {notification.type === 'message' && notification.data?.fromTo && (
-                                  <p className="text-xs text-[#B84A68] mt-1 flex items-center gap-1">
-                                    <MessageCircle className="h-3 w-3" />
-                                    {notification.data.fromTo}
-                                  </p>
-                                )}
-                                <p className="text-xs text-gray-400 mt-1">
-                                  {calculateTimeAgo(notification.timestamp?.toDate?.())}
-                                </p>
-                              </div>
-                              {!notification.read && (
-                                <div className="w-2 h-2 bg-[#FA9DB7] rounded-full"></div>
-                              )}
-                            </div>
-                            
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="absolute top-2 right-2 h-6 w-6 p-0 opacity-100 group-hover:opacity-100 transition-opacity"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                markNotificationAsRead(notification.id);
-                              }}
-                              title="Mark as read"
-                            >
-                              <Check className="h-3 w-3 text-green-600" /> 
-                            </Button>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                    <div className="p-2 border-t border-gray-100"></div>
-                  </div>
-                )}
-              </div>
-
-              {/* User Profile */}
-              <div className="flex items-center gap-3 bg-white/10 px-4 py-2.5 rounded-2xl backdrop-blur-sm hover:bg-white/20 transition-colors cursor-pointer">
-                <Avatar className="h-10 w-10 border-2 border-white/30">
-                  <AvatarFallback className="bg-gradient-to-r from-[#FA9DB7] to-[#B84A68] text-white font-bold">
-                    {user?.email?.charAt(0).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="text-white">
-                  <p className="text-sm font-semibold">{user?.email}</p>
-                  <p className="text-xs opacity-90 capitalize">
-                    {user?.role?.replace("_", " ")}
-                  </p>
-                </div>
-              </div>
-
-              {/* Logout Button */}
-              <Button
-                onClick={handleLogout}
-                className="bg-white text-[#B84A68] hover:bg-gray-100 shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-4"
-              >
-                <LogOut className="h-4 w-4 mr-2" />
-                Logout
-              </Button>
-            </div>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuItem asChild>
+                  <Link href="/admin">Dashboard</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/admin/settings">Settings</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-600">
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </header>
 

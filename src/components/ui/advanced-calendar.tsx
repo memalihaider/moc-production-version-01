@@ -23,8 +23,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFo
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import { generateUnifiedInvoicePdf } from "@/lib/unified-invoice-pdf";
 
 interface Appointment {
   customerId?: string;
@@ -240,10 +239,14 @@ const getPaymentMethodColor = (type: string): string => {
 const InvoiceGenerationPopup = ({ 
   appointment, 
   onClose,
+  selectedBranchName,
+  branchDirectory = [],
   formatCurrency = (amount) => `AED ${amount.toFixed(2)}`
 }: { 
   appointment: Appointment | null; 
   onClose: () => void;
+  selectedBranchName?: string;
+  branchDirectory?: Branch[];
   formatCurrency?: (amount: number) => string;
 }) => {
   const [loading, setLoading] = useState(true);
@@ -263,6 +266,35 @@ const InvoiceGenerationPopup = ({
   const [walletTopupAmount, setWalletTopupAmount] = useState(0);
   const [paymentProcessed, setPaymentProcessed] = useState(false);
   const [processingPayment, setProcessingPayment] = useState(false);
+  const [invoiceBranchDetails, setInvoiceBranchDetails] = useState<Branch | null>(null);
+
+  const normalizeText = (value: string | undefined | null) => (value || '').trim().toLowerCase();
+
+  const computeInvoiceTotals = (
+    subtotal: number,
+    discountValue: number,
+    discountType: 'fixed' | 'percentage',
+    taxPercent: number,
+    serviceCharges: number,
+    serviceTip: number
+  ) => {
+    const safeSubtotal = Math.max(0, Number(subtotal || 0));
+    const safeDiscountValue = Math.max(0, Number(discountValue || 0));
+    const safeTaxPercent = Math.max(0, Number(taxPercent || 0));
+    const safeServiceCharges = Math.max(0, Number(serviceCharges || 0));
+    const safeServiceTip = Math.max(0, Number(serviceTip || 0));
+
+    const discountAmount =
+      discountType === 'percentage'
+        ? Math.min(safeSubtotal, (safeSubtotal * safeDiscountValue) / 100)
+        : Math.min(safeSubtotal, safeDiscountValue);
+
+    const taxableAmount = Math.max(0, safeSubtotal - discountAmount);
+    const taxAmount = (taxableAmount * safeTaxPercent) / 100;
+    const totalAmount = taxableAmount + taxAmount + safeServiceCharges + safeServiceTip;
+
+    return { discountAmount, taxAmount, totalAmount };
+  };
   
   const generateInvoiceNumber = () => {
     return `INV-${Date.now().toString().slice(-8)}`;
@@ -334,7 +366,7 @@ const InvoiceGenerationPopup = ({
             taxAmount: firebaseData.taxAmount || 0,
             serviceCharges: firebaseData.serviceCharges || 0,
             discount: firebaseData.discount || 0,
-            discountType: 'percentage',
+            discountType: firebaseData.discountType || appointment.discountType || 'fixed',
             tax: firebaseData.tax || 5,
             cardLast4Digits: firebaseData.cardLast4Digits || '',
             trnNumber: firebaseData.trnNumber || '',
@@ -346,12 +378,22 @@ const InvoiceGenerationPopup = ({
       // Create items array from serviceDetails with all fields
       const items: InvoiceItem[] = [];
       
+      const effectiveBranchName =
+        selectedBranchName && selectedBranchName !== 'all'
+          ? selectedBranchName
+          : (freshData.branch || freshData.serviceDetails?.[0]?.branch || 'Main Branch');
+
+      const matchedBranch = branchDirectory.find(
+        (branch) => normalizeText(branch.name) === normalizeText(effectiveBranchName)
+      ) || null;
+      setInvoiceBranchDetails(matchedBranch);
+
       if (freshData.serviceDetails && freshData.serviceDetails.length > 0) {
         freshData.serviceDetails.forEach((service: any, index: number) => {
           items.push({
             id: `service-${index}-${Date.now()}`,
             description: service.name,
-            branch: service.branch || freshData.branch || 'Main Branch',
+            branch: service.branch || effectiveBranchName,
             staff: service.staff || freshData.staffName || freshData.staff || freshData.barber || 'Not Assigned',
             duration: service.duration ? `${service.duration} min` : freshData.duration || '60 min',
             quantity: 1,
@@ -364,7 +406,7 @@ const InvoiceGenerationPopup = ({
         items.push({
           id: `service-1-${Date.now()}`,
           description: freshData.service || 'Service',
-          branch: freshData.branch || 'Main Branch',
+          branch: effectiveBranchName,
           staff: freshData.staffName || freshData.staff || freshData.barber || 'Not Assigned',
           duration: freshData.duration || '60 min',
           quantity: 1,
@@ -415,15 +457,23 @@ if (amounts.Check > 0 || amounts.check > 0) {
   });
 }
       
-      const subtotal = items.reduce((sum, item) => sum + item.total, 0);
+      const subtotal = Number(freshData.subtotal ?? items.reduce((sum, item) => sum + item.total, 0));
       const totalTips = items.reduce((sum, item) => sum + (item.tip || 0), 0);
-      
-      const discountPercentage = freshData.discount || 0;
-      const discountAmount = (subtotal * discountPercentage) / 100;
-      
-      const taxableAmount = subtotal - discountAmount;
-      const taxAmount = (taxableAmount * (freshData.tax || 5)) / 100;
-      const totalAmount = subtotal - discountAmount + taxAmount + (freshData.serviceCharges || 0) + totalTips;
+
+      const effectiveDiscountType: 'fixed' | 'percentage' =
+        freshData.discountType === 'percentage' ? 'percentage' : 'fixed';
+      const effectiveDiscount = Number(freshData.discount || 0);
+      const effectiveTax = Number(freshData.tax || 5);
+      const effectiveServiceCharges = Number(freshData.serviceCharges || 0);
+
+      const { taxAmount, totalAmount } = computeInvoiceTotals(
+        subtotal,
+        effectiveDiscount,
+        effectiveDiscountType,
+        effectiveTax,
+        effectiveServiceCharges,
+        totalTips
+      );
       const totalPaid = paymentMethods.reduce((sum, pm) => sum + pm.amount, 0);
       
       setInvoiceData({
@@ -432,7 +482,9 @@ if (amounts.Check > 0 || amounts.check > 0) {
         customerName: freshData.customerName || freshData.customer,
         customerEmail: freshData.customerEmail || freshData.email || '',
         customerPhone: freshData.customerPhone || freshData.phone || '',
-        customerAddress: `${freshData.branch || ''}, Dubai, UAE`,
+        customerAddress: matchedBranch
+          ? `${matchedBranch.address || matchedBranch.name}${matchedBranch.city ? `, ${matchedBranch.city}` : ''}${matchedBranch.country ? `, ${matchedBranch.country}` : ''}`
+          : `${effectiveBranchName}, Abu Dhabi, UAE`,
         trnNumber: freshData.trnNumber || '',
         service: freshData.service || '',
         services: freshData.services || [freshData.service],
@@ -442,12 +494,12 @@ if (amounts.Check > 0 || amounts.check > 0) {
         duration: freshData.duration || '60 min',
         servicePrice: freshData.servicePrice || freshData.price || 0,
         subtotal,
-        discount: discountPercentage,
-        discountType: 'percentage',
-        tax: freshData.tax || 5,
+        discount: effectiveDiscount,
+        discountType: effectiveDiscountType,
+        tax: effectiveTax,
         taxAmount,
         serviceTip: totalTips,
-        serviceCharges: freshData.serviceCharges || 0,
+        serviceCharges: effectiveServiceCharges,
         totalAmount,
         cardLast4Digits: freshData.cardLast4Digits || '',
         paymentMethods,
@@ -455,7 +507,7 @@ if (amounts.Check > 0 || amounts.check > 0) {
         balanceDue: totalAmount - totalPaid,
         items,
         notes: freshData.notes || '',
-        branch: freshData.branch || 'Main Branch'
+        branch: effectiveBranchName
       });
 
       const customerEmail = freshData.customerEmail || freshData.email;
@@ -547,13 +599,15 @@ if (amounts.Check > 0 || amounts.check > 0) {
     
     const subtotal = items.reduce((sum, item) => sum + item.total, 0);
     const totalTips = items.reduce((sum, item) => sum + (item.tip || 0), 0);
-    
-    const discountPercentage = invoiceData.discount;
-    const discountAmount = (subtotal * discountPercentage) / 100;
-    
-    const taxableAmount = subtotal - discountAmount;
-    const taxAmount = (taxableAmount * invoiceData.tax) / 100;
-    const totalAmount = subtotal - discountAmount + taxAmount + invoiceData.serviceCharges + totalTips;
+
+    const { taxAmount, totalAmount } = computeInvoiceTotals(
+      subtotal,
+      invoiceData.discount,
+      invoiceData.discountType,
+      invoiceData.tax,
+      invoiceData.serviceCharges,
+      totalTips
+    );
     const totalPaid = invoiceData.paymentMethods.reduce((sum, pm) => sum + pm.amount, 0);
     
     setInvoiceData({
@@ -710,16 +764,19 @@ if (amounts.Check > 0 || amounts.check > 0) {
   
   const updateDiscount = (value: number) => {
     if (!invoiceData) return;
-    
-    const discountPercentage = value;
-    const discountAmount = (invoiceData.subtotal * discountPercentage) / 100;
-    const taxableAmount = invoiceData.subtotal - discountAmount;
-    const taxAmount = (taxableAmount * invoiceData.tax) / 100;
-    const totalAmount = invoiceData.subtotal - discountAmount + taxAmount + invoiceData.serviceCharges + invoiceData.serviceTip;
+
+    const { taxAmount, totalAmount } = computeInvoiceTotals(
+      invoiceData.subtotal,
+      value,
+      invoiceData.discountType,
+      invoiceData.tax,
+      invoiceData.serviceCharges,
+      invoiceData.serviceTip
+    );
     
     setInvoiceData({
       ...invoiceData,
-      discount: discountPercentage,
+      discount: value,
       taxAmount,
       totalAmount,
       balanceDue: totalAmount - invoiceData.totalPaid
@@ -728,11 +785,15 @@ if (amounts.Check > 0 || amounts.check > 0) {
   
   const updateTax = (value: number) => {
     if (!invoiceData) return;
-    
-    const discountAmount = (invoiceData.subtotal * invoiceData.discount) / 100;
-    const taxableAmount = invoiceData.subtotal - discountAmount;
-    const taxAmount = (taxableAmount * value) / 100;
-    const totalAmount = invoiceData.subtotal - discountAmount + taxAmount + invoiceData.serviceCharges + invoiceData.serviceTip;
+
+    const { taxAmount, totalAmount } = computeInvoiceTotals(
+      invoiceData.subtotal,
+      invoiceData.discount,
+      invoiceData.discountType,
+      value,
+      invoiceData.serviceCharges,
+      invoiceData.serviceTip
+    );
     
     setInvoiceData({
       ...invoiceData,
@@ -745,11 +806,15 @@ if (amounts.Check > 0 || amounts.check > 0) {
   
   const updateServiceCharges = (value: number) => {
     if (!invoiceData) return;
-    
-    const discountAmount = (invoiceData.subtotal * invoiceData.discount) / 100;
-    const taxableAmount = invoiceData.subtotal - discountAmount;
-    const taxAmount = (taxableAmount * invoiceData.tax) / 100;
-    const totalAmount = invoiceData.subtotal - discountAmount + taxAmount + value + invoiceData.serviceTip;
+
+    const { totalAmount } = computeInvoiceTotals(
+      invoiceData.subtotal,
+      invoiceData.discount,
+      invoiceData.discountType,
+      invoiceData.tax,
+      value,
+      invoiceData.serviceTip
+    );
     
     setInvoiceData({
       ...invoiceData,
@@ -759,185 +824,54 @@ if (amounts.Check > 0 || amounts.check > 0) {
     });
   };
   
- const generatePDF = () => {
+ const generatePDF = async () => {
   if (!invoiceData) return;
-  
-  const doc = new jsPDF(); // Portrait mode for better layout
-  const pageWidth = doc.internal.pageSize.width;
-  const margin = 20;
-  
-  // ===== COMPANY HEADER =====
-  doc.setFontSize(22);
-  doc.setTextColor(0, 51, 102);
-  doc.setFont("helvetica", "bold");
-  doc.text("Jam Beauty Lounge", margin, 20);
-  
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "normal");
-  doc.text("BASEMENT, NEAR TO CARRYFOUR, MARINA MALL", margin, 28);
-  doc.text(`Contact: 028766460 | Email: jambeauty@gmail.com`, margin, 34);
-  
-  doc.setFontSize(16);
-  doc.setFont("helvetica", "bold");
-  doc.text('TAX INVOICE', pageWidth - margin - 40, 20);
-  
-  doc.setDrawColor(0, 51, 102);
-  doc.line(margin, 40, pageWidth - margin, 40);
-  
-  // ===== CUSTOMER INFORMATION =====
-  let yPos = 50;
-  
-  doc.setFontSize(11);
-  doc.setFont("helvetica", "bold");
-  doc.text('Customer Information:', margin, yPos);
-  
-  yPos += 7;
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "normal");
-  doc.text(`Name: ${invoiceData.customerName}`, margin, yPos);
-  yPos += 6;
-  doc.text(`Phone: ${invoiceData.customerPhone}`, margin, yPos);
-  yPos += 6;
-  doc.text(`Email: ${invoiceData.customerEmail}`, margin, yPos);
-  yPos += 6;
-  doc.text(`Date: ${invoiceData.serviceDate}  Time: ${invoiceData.serviceTime}`, margin, yPos);
-  
-  // TRN Number (if available)
-  if (invoiceData.trnNumber) {
-    yPos += 6;
-    doc.text(`TRN: ${invoiceData.trnNumber}`, margin, yPos);
-  }
-  
-  // Invoice Details on Right
-  doc.setFont("helvetica", "bold");
-  doc.text(`Invoice: ${invoiceData.invoiceNumber}`, pageWidth - margin - 60, 50);
-  doc.setFont("helvetica", "normal");
-  doc.text(`Date: ${invoiceData.invoiceDate}`, pageWidth - margin - 60, 57);
-  
-  // ===== SERVICES TABLE =====
-  yPos = 90;
-  if (invoiceData.trnNumber) {
-    yPos = 100; // Adjust if TRN was added
-  }
-  
-  const tableHeaders = [['Service', 'Branch', 'Staff', 'Duration', 'Qty', 'Price', 'Tip', 'Total']];
-  const tableData = invoiceData.items.map(item => [
-    item.description,
-    item.branch || 'Main Branch',
-    item.staff || 'Not Assigned',
-    item.duration || '60 min',
-    item.quantity.toString(),
-    formatCurrency(item.price),
-    formatCurrency(item.tip || 0),
-    formatCurrency(item.total + (item.tip || 0))
-  ]);
-  
-  autoTable(doc, {
-    startY: yPos,
-    head: tableHeaders,
-    body: tableData,
-    theme: 'grid',
-    headStyles: { fillColor: [0, 51, 102], textColor: 255, fontSize: 9 },
-    styles: { fontSize: 9, cellPadding: 3 },
-    columnStyles: {
-      0: { cellWidth: 40 },
-      1: { cellWidth: 25 },
-      2: { cellWidth: 25 },
-      3: { cellWidth: 20, halign: 'center' },
-      4: { cellWidth: 15, halign: 'center' },
-      5: { cellWidth: 22, halign: 'right' },
-      6: { cellWidth: 22, halign: 'right' },
-      7: { cellWidth: 25, halign: 'right' }
-    }
+
+  const discountAmount =
+    invoiceData.discountType === 'percentage'
+      ? Math.min(invoiceData.subtotal, (invoiceData.subtotal * invoiceData.discount) / 100)
+      : Math.min(invoiceData.subtotal, invoiceData.discount);
+
+  const tipsFromLines = invoiceData.items.reduce((sum, item) => sum + Number(item.tip || 0), 0);
+  const tipAmount = Number(invoiceData.serviceTip || 0) + tipsFromLines;
+
+  await generateUnifiedInvoicePdf({
+    invoiceNumber: invoiceData.invoiceNumber,
+    invoiceDate: invoiceData.invoiceDate,
+    companyName: invoiceBranchDetails?.name || invoiceData.branch || 'MAN OF CAVE BARBERSHOP',
+    companyAddress: invoiceBranchDetails?.address || '',
+    companyCityCountry: [invoiceBranchDetails?.city, invoiceBranchDetails?.country].filter(Boolean).join(', '),
+    companyPhone: invoiceBranchDetails?.phone || '',
+    companyEmail: invoiceBranchDetails?.email || '',
+    trnNumber: invoiceData.trnNumber || '',
+    customerName: invoiceData.customerName,
+    customerPhone: invoiceData.customerPhone,
+    customerEmail: invoiceData.customerEmail,
+    serviceDate: invoiceData.serviceDate,
+    serviceTime: invoiceData.serviceTime,
+    branchName: invoiceData.branch || invoiceBranchDetails?.name || 'Main Branch',
+    items: invoiceData.items.map((item) => ({
+      description: item.description,
+      quantity: Number(item.quantity || 1),
+      unitPrice: Number(item.price || 0),
+      lineTotal: Number(item.total || 0) + Number(item.tip || 0),
+      details: `${item.branch || 'Main Branch'} | ${item.staff || 'Not Assigned'} | ${item.duration || '60 min'}`,
+    })),
+    subtotal: Number(invoiceData.subtotal || 0),
+    discountAmount,
+    taxAmount: Number(invoiceData.taxAmount || 0),
+    taxPercent: Number(invoiceData.tax || 0),
+    serviceCharges: Number(invoiceData.serviceCharges || 0),
+    tipAmount,
+    totalAmount: Number(invoiceData.totalAmount || 0),
+    paymentMethods: invoiceData.paymentMethods.map((method) => ({
+      label: method.label,
+      amount: Number(method.amount || 0),
+    })),
+    notes: invoiceData.notes,
+    logoPath: '/manofcave.png',
+    fileName: `Invoice-${invoiceData.invoiceNumber}.pdf`,
   });
-  
-  const tableEndY = (doc as any).lastAutoTable.finalY + 15;
-  
-  // ===== PAYMENT METHODS =====
-  yPos = tableEndY;
-  doc.setFontSize(11);
-  doc.setFont("helvetica", "bold");
-  doc.text('Payment Methods:', margin, yPos);
-  
-  yPos += 7;
-  invoiceData.paymentMethods.forEach((payment, index) => {
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.text(`${payment.label}: ${formatCurrency(payment.amount)}`, margin + 5, yPos);
-    if (payment.details) {
-      doc.text(`  ${payment.details}`, margin + 15, yPos + 5);
-      yPos += 10;
-    } else {
-      yPos += 6;
-    }
-  });
-  
-  if (invoiceData.cardLast4Digits) {
-    doc.text(`Card: ****${invoiceData.cardLast4Digits}`, margin + 5, yPos);
-    yPos += 6;
-  }
-  
-  // ===== SUMMARY SECTION (RIGHT SIDE) =====
-  const summaryX = pageWidth - margin - 85;
-  let summaryY = tableEndY;
-  
-  doc.setFontSize(11);
-  doc.setFont("helvetica", "bold");
-  doc.text('Summary:', summaryX, summaryY);
-  
-  summaryY += 8;
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "normal");
-  
-  // Subtotal
-  doc.text(`Subtotal:`, summaryX, summaryY);
-  doc.text(formatCurrency(invoiceData.subtotal), summaryX + 55, summaryY, { align: 'right' });
-  summaryY += 6;
-  
-  // Tips
-  if (invoiceData.serviceTip > 0) {
-    doc.text(`Tips:`, summaryX, summaryY);
-    doc.text(formatCurrency(invoiceData.serviceTip), summaryX + 55, summaryY, { align: 'right' });
-    summaryY += 6;
-  }
-  
-  // Discount
-  if (invoiceData.discount > 0) {
-    const discountAmount = (invoiceData.subtotal * invoiceData.discount) / 100;
-    doc.text(`Discount (${invoiceData.discount}%):`, summaryX, summaryY);
-    doc.text(`-${formatCurrency(discountAmount)}`, summaryX + 55, summaryY, { align: 'right' });
-    summaryY += 6;
-  }
-  
-  // Tax
-  doc.text(`Tax (${invoiceData.tax}%):`, summaryX, summaryY);
-  doc.text(formatCurrency(invoiceData.taxAmount), summaryX + 55, summaryY, { align: 'right' });
-  summaryY += 6;
-  
-  // Service Charges
-  if (invoiceData.serviceCharges > 0) {
-    doc.text(`Service Charges:`, summaryX, summaryY);
-    doc.text(formatCurrency(invoiceData.serviceCharges), summaryX + 55, summaryY, { align: 'right' });
-    summaryY += 6;
-  }
-  
-  // Total (Bold) - with separator line
-  summaryY += 4;
-  doc.setDrawColor(200, 200, 200);
-  doc.line(summaryX, summaryY - 2, summaryX + 65, summaryY - 2);
-  
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.text(`Total:`, summaryX, summaryY + 4);
-  doc.text(formatCurrency(invoiceData.totalAmount), summaryX + 55, summaryY + 4, { align: 'right' });
-  
-  // ===== FOOTER =====
-  const footerY = doc.internal.pageSize.height - 15;
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "bold");
-  doc.text('THANK YOU FOR YOUR BUSINESS', pageWidth / 2, footerY, { align: 'center' });
-  
-  doc.save(`Invoice-${invoiceData.invoiceNumber}.pdf`);
 };
   
   const filteredServices = servicesList.filter(service =>
@@ -1038,6 +972,35 @@ if (amounts.Check > 0 || amounts.check > 0) {
                       onChange={(e) => setInvoiceData({...invoiceData, serviceTime: e.target.value})}
                       className="h-10 text-base"
                     />
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white border rounded-xl p-6">
+                <h3 className="text-base font-semibold text-gray-700 mb-4 flex items-center gap-2">
+                  <Building className="w-5 h-5 text-blue-600" />
+                  Branch Details
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-gray-500">Branch</p>
+                    <p className="font-medium text-gray-900">{invoiceBranchDetails?.name || invoiceData.branch || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Phone</p>
+                    <p className="font-medium text-gray-900">{invoiceBranchDetails?.phone || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Email</p>
+                    <p className="font-medium text-gray-900 break-all">{invoiceBranchDetails?.email || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Address</p>
+                    <p className="font-medium text-gray-900">
+                      {invoiceBranchDetails
+                        ? `${invoiceBranchDetails.address || ''}${invoiceBranchDetails.city ? `, ${invoiceBranchDetails.city}` : ''}${invoiceBranchDetails.country ? `, ${invoiceBranchDetails.country}` : ''}`
+                        : (invoiceData.customerAddress || 'N/A')}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -2363,6 +2326,7 @@ export function AdvancedCalendar({
   const [hiddenHours, setHiddenHours] = useState<number[]>([]);
   const [showSettings, setShowSettings] = useState(false);
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>(propStaff || []);
+  const [currentSystemTime, setCurrentSystemTime] = useState(new Date());
   
   const [showAdvancePopup, setShowAdvancePopup] = useState(false);
   const [selectedAdvanceAppointment, setSelectedAdvanceAppointment] = useState<Appointment | null>(null);
@@ -2424,6 +2388,15 @@ export function AdvancedCalendar({
 
   const barbers = useMemo(() => branchFilteredStaff.map(staff => staff.name), [branchFilteredStaff]);
 
+  // Keep current time updated so slot availability changes in real-time.
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentSystemTime(new Date());
+    }, 60000);
+
+    return () => clearInterval(timer);
+  }, []);
+
   const generateTimeSlots = () => {
     const slots = [];
     const startTime = new Date(selectedDate);
@@ -2445,6 +2418,35 @@ export function AdvancedCalendar({
   };
 
   const timeSlots = useMemo(() => generateTimeSlots(), [selectedDate, businessHours, timeSlotGap, hiddenHours]);
+
+  const isTodaySelected = isSameDay(selectedDate, currentSystemTime);
+  const isPastSelectedDate = startOfDay(selectedDate).getTime() < startOfDay(currentSystemTime).getTime();
+
+  const slotToMinutes = (slot: string): number => {
+    const [hours, minutes] = slot.split(':').map(Number);
+    return (hours * 60) + minutes;
+  };
+
+  const isSlotBlockedForBooking = (slot: string): boolean => {
+    if (isPastSelectedDate) return true;
+    if (!isTodaySelected) return false;
+
+    const slotMinutes = slotToMinutes(slot);
+    const nowMinutes = (currentSystemTime.getHours() * 60) + currentSystemTime.getMinutes();
+    return slotMinutes < nowMinutes;
+  };
+
+  const redLineSlotIndex = useMemo(() => {
+    if (!isTodaySelected) return null;
+    const firstAllowedIndex = timeSlots.findIndex((slot) => !isSlotBlockedForBooking(slot));
+    if (firstAllowedIndex <= 0) return null;
+    return firstAllowedIndex;
+  }, [timeSlots, isTodaySelected, currentSystemTime, selectedDate]);
+
+  const firstBookableSlot = useMemo(
+    () => timeSlots.find((slot) => !isSlotBlockedForBooking(slot)),
+    [timeSlots, isPastSelectedDate, isTodaySelected, currentSystemTime]
+  );
 
   // ==================== MAIN FILTER LOGIC - EXACT BRANCH MATCH ====================
  // ==================== MAIN FILTER LOGIC - FIXED BRANCH MATCH ====================
@@ -2551,10 +2553,14 @@ const filteredAppointments = useMemo(() => {
     );
   };
 
-  const getAppointmentForSlot = (timeSlot: string, barber: string): Appointment | undefined => {
-    return filteredAppointments.find(apt =>
-      apt.barber === barber && doesAppointmentCoverSlot(apt, timeSlot)
+  const getAppointmentsForSlot = (timeSlot: string, barber: string): Appointment[] => {
+    return filteredAppointments.filter(
+      (apt) => apt.barber === barber && doesAppointmentCoverSlot(apt, timeSlot)
     );
+  };
+
+  const getAppointmentsStartingAtSlot = (timeSlot: string, barber: string): Appointment[] => {
+    return getAppointmentsForSlot(timeSlot, barber).filter((apt) => isAppointmentStart(apt, timeSlot));
   };
 
   const isAppointmentStart = (appointment: Appointment, timeSlot: string): boolean => {
@@ -3053,10 +3059,11 @@ const filteredAppointments = useMemo(() => {
                   size="sm"
                   onClick={() => {
                     const defaultBarber = barbers.length > 0 ? barbers[0] : 'all';
-                    const defaultTime = timeSlots.length > 0 ? timeSlots[0] : '09:00';
-                    onCreateBooking(defaultBarber, format(selectedDate, 'yyyy-MM-dd'), defaultTime);
+                    if (!firstBookableSlot) return;
+                    onCreateBooking(defaultBarber, format(selectedDate, 'yyyy-MM-dd'), firstBookableSlot);
                   }}
                   className="flex items-center gap-1 bg-green-600 hover:bg-green-700"
+                  disabled={!firstBookableSlot}
                 >
                   <PlusCircle className="w-4 h-4" />
                   Quick Book
@@ -3147,113 +3154,158 @@ const filteredAppointments = useMemo(() => {
         <CardContent>
           <div className="overflow-x-auto overflow-y-auto max-h-[900px] sm:max-h-[600px] w-full">
             <div className="min-w-full" style={{ width: 'max-content' }}>
+              {(isPastSelectedDate || isTodaySelected) && (
+                <div className="mb-3 px-3 py-2 rounded-md border border-red-200 bg-red-50 text-red-700 text-xs font-medium flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4" />
+                  {isPastSelectedDate
+                    ? 'Selected date is in the past. New bookings are disabled, but past bookings remain visible.'
+                    : 'Bookings are disabled before the red line. Current and future slots are bookable.'}
+                </div>
+              )}
+
               {layoutMode === 'time-top' ? (
                 <>
                   <div className="grid gap-1 mb-2 sticky top-0 bg-background z-10 border-b pb-2" style={{ gridTemplateColumns: `clamp(120px, 15vw, 200px) repeat(${timeSlots.length}, minmax(50px, 1fr))` }}>
                     <div className="p-2 font-medium text-sm text-muted-foreground sticky left-0 bg-background">
                       Staff / Time
                     </div>
-                    {timeSlots.map(slot => (
-                      <div key={slot} className="p-1 text-xs text-center font-medium text-muted-foreground border rounded bg-muted/50 min-w-[50px]">
-                        {slot}
-                      </div>
-                    ))}
+                    {timeSlots.map((slot, slotIndex) => {
+                      const isRedLinePoint = redLineSlotIndex === slotIndex;
+                      return (
+                        <div
+                          key={slot}
+                          className={`p-1 text-xs text-center font-medium text-muted-foreground border rounded bg-muted/50 min-w-[50px] ${isRedLinePoint ? 'relative border-l-2 border-l-red-500' : ''}`}
+                        >
+                          {slot}
+                          {isRedLinePoint && (
+                            <div className="absolute -top-5 left-0 text-[10px] text-red-600 font-semibold whitespace-nowrap">
+                              Red line: booking starts here
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
 
                   {(selectedBarber === 'all' ? barbers : [selectedBarber]).map(barber => {
-                    let slotIndex = 0;
-                    const rowElements: React.ReactElement[] = [];
-                    
-                    while (slotIndex < timeSlots.length) {
-                      const currentSlot = timeSlots[slotIndex];
-                      const appointment = getAppointmentForSlot(currentSlot, barber);
-                      
-                      if (appointment && isAppointmentStart(appointment, currentSlot)) {
-                        const span = Math.min(getAppointmentSpan(appointment, currentSlot), timeSlots.length - slotIndex);
-                        
-                        rowElements.push(
+                    const rowElements = timeSlots.map((currentSlot, slotIndex) => {
+                      const slotAppointments = getAppointmentsForSlot(currentSlot, barber);
+                      const startingAppointments = slotAppointments.filter((appointment) =>
+                        isAppointmentStart(appointment, currentSlot)
+                      );
+                      const hasRunningBooking = slotAppointments.length > 0;
+                      const isBlockedSlot = isSlotBlockedForBooking(currentSlot);
+                      const isRedLinePoint = redLineSlotIndex === slotIndex;
+
+                      if (startingAppointments.length > 0) {
+                        return (
                           <div
                             key={`${barber}-${currentSlot}`}
-                            className={`relative p-1 rounded cursor-pointer hover:shadow-md transition-all duration-200 min-h-[60px] flex items-center justify-center border-2 border-transparent ${getStatusColor(appointment.status)}`}
-                            style={{ gridColumn: `span ${span}` }}
-                            onClick={() => handleAdvanceAppointmentClick(appointment)}
+                            className={`p-1 border rounded transition-all duration-200 min-h-[60px] border-muted-foreground/20 bg-muted/10 ${isRedLinePoint ? 'border-l-2 border-l-red-500' : ''}`}
+                            style={{ minHeight: `${Math.max(60, startingAppointments.length * 64)}px` }}
                           >
-                            <div className="absolute top-1 right-1 z-10" onClick={(e) => e.stopPropagation()}>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-white hover:bg-white/20 hover:text-white">
-                                    <MoreVertical className="w-3 h-3" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem onClick={() => handleAppointmentAction('reschedule', appointment)}>
-                                    <RotateCcw className="w-4 h-4 mr-2" />
-                                    Reschedule
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => handleAppointmentAction('edit', appointment)}>
-                                    <Pencil className="w-4 h-4 mr-2" />
-                                    Edit Booking
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => handleAppointmentAction('checkin', appointment)}>
-                                    <CheckCircle className="w-4 h-4 mr-2" />
-                                    Check In
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => handleAppointmentAction('cancel', appointment)}>
-                                    <X className="w-4 h-4 mr-2" />
-                                    Cancel Booking
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => handleAppointmentAction('checkout', appointment)}>
-                                    <Receipt className="w-4 h-4 mr-2" />
-                                    Checkout
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => handleAppointmentAction('topup-wallet', appointment)}>
-                                    <Wallet className="w-4 h-4 mr-2" />
-                                    Topup Wallet
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem className="text-red-600" onClick={() => handleAppointmentAction('delete', appointment)}>
-                                    <Trash2 className="w-4 h-4 mr-2" />
-                                    Delete Booking
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </div>
-                            <div className="w-full h-full flex flex-col items-center justify-center text-xs p-1">
-                              <div className="w-2 h-2 rounded-full mb-1 bg-white/80" />
-                              <div className="font-medium truncate w-full text-center leading-tight">
-                                {appointment.customer.split(' ')[0]}
-                              </div>
-                              <div className="text-white/90 truncate w-full text-center text-[10px] leading-tight">
-                                {appointment.service}
-                              </div>
-                              <div className="text-white/80 text-[9px] mt-1">
-                                {appointment.duration}
-                              </div>
+                            <div className="flex flex-col gap-1.5">
+                              {startingAppointments.map((appointment, idx) => (
+                                <div
+                                  key={`${barber}-${currentSlot}-${appointment.firebaseId || appointment.id}-${idx}`}
+                                  className={`relative p-1 rounded cursor-pointer hover:shadow-md transition-all duration-200 border border-white/20 ${getStatusColor(appointment.status)}`}
+                                  onClick={() => handleAdvanceAppointmentClick(appointment)}
+                                >
+                                  <div className="absolute top-1 right-1 z-10" onClick={(e) => e.stopPropagation()}>
+                                    <DropdownMenu>
+                                      <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-white hover:bg-white/20 hover:text-white">
+                                          <MoreVertical className="w-3 h-3" />
+                                        </Button>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent align="end">
+                                        <DropdownMenuItem onClick={() => handleAppointmentAction('reschedule', appointment)}>
+                                          <RotateCcw className="w-4 h-4 mr-2" />
+                                          Reschedule
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleAppointmentAction('edit', appointment)}>
+                                          <Pencil className="w-4 h-4 mr-2" />
+                                          Edit Booking
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleAppointmentAction('checkin', appointment)}>
+                                          <CheckCircle className="w-4 h-4 mr-2" />
+                                          Check In
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleAppointmentAction('cancel', appointment)}>
+                                          <X className="w-4 h-4 mr-2" />
+                                          Cancel Booking
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleAppointmentAction('checkout', appointment)}>
+                                          <Receipt className="w-4 h-4 mr-2" />
+                                          Checkout
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleAppointmentAction('topup-wallet', appointment)}>
+                                          <Wallet className="w-4 h-4 mr-2" />
+                                          Topup Wallet
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem className="text-red-600" onClick={() => handleAppointmentAction('delete', appointment)}>
+                                          <Trash2 className="w-4 h-4 mr-2" />
+                                          Delete Booking
+                                        </DropdownMenuItem>
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
+                                  </div>
+                                  <div className="w-full h-full flex flex-col items-center justify-center text-xs p-1 pr-7">
+                                    <div className="w-2 h-2 rounded-full mb-1 bg-white/80" />
+                                    <div className="font-medium truncate w-full text-center leading-tight">
+                                      {(appointment.customer || appointment.customerName || 'Customer').split(' ')[0]}
+                                    </div>
+                                    <div className="text-white/90 truncate w-full text-center text-[10px] leading-tight">
+                                      {appointment.service || appointment.serviceName || 'Service'}
+                                    </div>
+                                    <div className="text-white/80 text-[9px] mt-1">
+                                      {appointment.time || appointment.bookingTime || currentSlot}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
                             </div>
                           </div>
                         );
-                        
-                        slotIndex += span;
-                      } else if (appointment) {
-                        slotIndex += 1;
-                      } else {
-                        rowElements.push(
+                      }
+
+                      if (hasRunningBooking) {
+                        return (
                           <div
                             key={`${barber}-${currentSlot}`}
-                            className="p-1 border rounded cursor-pointer hover:shadow-md transition-all duration-200 min-h-[60px] flex items-center justify-center border-dashed border-muted-foreground/30 hover:border-muted-foreground/50 hover:bg-green-50"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onCreateBooking && onCreateBooking(barber, format(selectedDate, 'yyyy-MM-dd'), currentSlot);
-                            }}
+                            className={`p-1 border rounded transition-all duration-200 min-h-[60px] flex items-center justify-center border-muted-foreground/20 bg-muted/20 ${isRedLinePoint ? 'border-l-2 border-l-red-500' : ''}`}
                           >
+                            <div className="text-[10px] text-muted-foreground text-center">
+                              In progress ({slotAppointments.length})
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div
+                          key={`${barber}-${currentSlot}`}
+                          className={`p-1 border rounded transition-all duration-200 min-h-[60px] flex items-center justify-center border-dashed ${isBlockedSlot ? 'cursor-not-allowed border-red-200 bg-red-50' : 'cursor-pointer border-muted-foreground/30 hover:border-muted-foreground/50 hover:bg-green-50'} ${isRedLinePoint ? 'border-l-2 border-l-red-500' : ''}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (isBlockedSlot) return;
+                            onCreateBooking && onCreateBooking(barber, format(selectedDate, 'yyyy-MM-dd'), currentSlot);
+                          }}
+                        >
+                          {isBlockedSlot ? (
+                            <div className="text-red-600/80 text-[10px] text-center flex flex-col items-center gap-1">
+                              <AlertCircle className="w-3 h-3" />
+                              Not Allowed
+                            </div>
+                          ) : (
                             <div className="text-muted-foreground/50 text-xs text-center cursor-pointer hover:text-green-600 transition-colors flex flex-col items-center gap-1">
                               <PlusCircle className="w-3 h-3" />
                               Book
                             </div>
-                          </div>
-                        );
-                        slotIndex += 1;
-                      }
-                    }
+                          )}
+                        </div>
+                      );
+                    });
                     
                     const staff = staffMembers.find(s => s.name === barber);
                     const staffAvatar = getStaffAvatar(barber);
@@ -3311,9 +3363,13 @@ const filteredAppointments = useMemo(() => {
                             }}
                           />
                         </div>
-                        <div className="text-center">
-                          <div className="font-medium truncate">{barber.split(' ')[0]}</div>
-                          <div className="text-[10px] text-muted-foreground truncate">{staffRole}</div>
+                        <div className="text-center w-full px-1">
+                          <div className="font-medium text-[11px] leading-tight whitespace-normal wrap-break-word">
+                            {barber}
+                          </div>
+                          <div className="text-[10px] text-muted-foreground whitespace-normal wrap-break-word leading-tight mt-0.5">
+                            {staffRole}
+                          </div>
                         </div>
                       </div>
                     );
@@ -3321,98 +3377,129 @@ const filteredAppointments = useMemo(() => {
 
                   {timeSlots.map((slot, slotIndex) => (
                     <React.Fragment key={slot}>
-                      <div className="p-2 sm:p-3 bg-muted rounded flex items-center gap-2 sticky left-0 z-20 border-r min-h-20">
+                      <div className={`p-2 sm:p-3 bg-muted rounded flex items-center gap-2 sticky left-0 z-20 border-r min-h-20 ${redLineSlotIndex === slotIndex ? 'border-t-2 border-t-red-500' : ''}`}>
                         <Clock className="w-3 h-3 sm:w-4 sm:h-4" />
                         <span className="font-medium text-xs sm:text-sm">{slot}</span>
                       </div>
                       
                       {(selectedBarber === 'all' ? barbers : [selectedBarber]).map(barber => {
-                        const appointment = getAppointmentForSlot(slot, barber);
-                        
-                        if (appointment && isAppointmentStart(appointment, slot)) {
-                          const span = Math.min(getAppointmentSpan(appointment, slot), timeSlots.length - slotIndex);
+                        const slotAppointments = getAppointmentsForSlot(slot, barber);
+                        const startingAppointments = getAppointmentsStartingAtSlot(slot, barber);
+                        const hasRunningBooking = slotAppointments.length > 0;
+                        const isBlockedSlot = isSlotBlockedForBooking(slot);
+                        const isRedLinePoint = redLineSlotIndex === slotIndex;
+
+                        if (startingAppointments.length > 0) {
                           return (
                             <div
                               key={`${slot}-${barber}`}
-                              className={`relative p-1 rounded cursor-pointer hover:shadow-md transition-all duration-200 flex items-center justify-center border-2 border-transparent ${getStatusColor(appointment.status)}`}
-                              style={{ gridRow: `span ${span}` }}
-                              onClick={() => handleAdvanceAppointmentClick(appointment)}
+                              className={`p-1 border rounded transition-all duration-200 min-h-20 border-muted-foreground/20 bg-muted/10 ${isRedLinePoint ? 'border-t-2 border-t-red-500' : ''}`}
+                              style={{ minHeight: `${Math.max(80, startingAppointments.length * 74)}px` }}
                             >
-                              <div className="absolute top-1 right-1 z-10" onClick={(e) => e.stopPropagation()}>
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-white hover:bg-white/20 hover:text-white">
-                                      <MoreVertical className="w-3 h-3" />
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end">
-                                    <DropdownMenuItem onClick={() => handleAppointmentAction('reschedule', appointment)}>
-                                      <RotateCcw className="w-4 h-4 mr-2" />
-                                      Reschedule
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleAppointmentAction('edit', appointment)}>
-                                      <Pencil className="w-4 h-4 mr-2" />
-                                      Edit Booking
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleAppointmentAction('checkin', appointment)}>
-                                      <CheckCircle className="w-4 h-4 mr-2" />
-                                      Check In
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleAppointmentAction('cancel', appointment)}>
-                                      <X className="w-4 h-4 mr-2" />
-                                      Cancel Booking
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleAppointmentAction('checkout', appointment)}>
-                                      <Receipt className="w-4 h-4 mr-2" />
-                                      Checkout
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleAppointmentAction('topup-wallet', appointment)}>
-                                      <Wallet className="w-4 h-4 mr-2" />
-                                      Topup Wallet
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem className="text-red-600" onClick={() => handleAppointmentAction('delete', appointment)}>
-                                      <Trash2 className="w-4 h-4 mr-2" />
-                                      Delete Booking
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              </div>
-                              <div className="w-full h-full flex flex-col items-center justify-center text-xs p-1">
-                                <div className="w-2 h-2 rounded-full mb-1 bg-white/80" />
-                                <div className="text-white/80 text-[9px] mb-0.5 font-medium">
-                                  {appointment.time}
-                                </div>
-                                <div className="font-medium truncate w-full text-center leading-tight">
-                                  {appointment.customer.split(' ')[0]}
-                                </div>
-                                <div className="text-white/90 truncate w-full text-center text-[10px] leading-tight">
-                                  {appointment.service}
-                                </div>
-                                <div className="text-white/80 text-[9px] mt-1">
-                                  {appointment.duration}
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        } else if (appointment) {
-                          return null;
-                        } else {
-                          return (
-                            <div
-                              key={`${slot}-${barber}`}
-                              className="p-1 border rounded cursor-pointer hover:shadow-md transition-all duration-200 flex items-center justify-center border-dashed border-muted-foreground/30 hover:border-muted-foreground/50 hover:bg-green-50 min-h-20"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onCreateBooking && onCreateBooking(barber, format(selectedDate, 'yyyy-MM-dd'), slot);
-                              }}
-                            >
-                              <div className="text-muted-foreground/50 text-xs text-center cursor-pointer hover:text-green-600 transition-colors flex flex-col items-center gap-1">
-                                <PlusCircle className="w-3 h-3" />
-                                Book
+                              <div className="flex flex-col gap-1.5">
+                                {startingAppointments.map((appointment, idx) => (
+                                  <div
+                                    key={`${slot}-${barber}-${appointment.firebaseId || appointment.id}-${idx}`}
+                                    className={`relative p-1 rounded cursor-pointer hover:shadow-md transition-all duration-200 border border-white/20 ${getStatusColor(appointment.status)}`}
+                                    onClick={() => handleAdvanceAppointmentClick(appointment)}
+                                  >
+                                    <div className="absolute top-1 right-1 z-10" onClick={(e) => e.stopPropagation()}>
+                                      <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-white hover:bg-white/20 hover:text-white">
+                                            <MoreVertical className="w-3 h-3" />
+                                          </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                          <DropdownMenuItem onClick={() => handleAppointmentAction('reschedule', appointment)}>
+                                            <RotateCcw className="w-4 h-4 mr-2" />
+                                            Reschedule
+                                          </DropdownMenuItem>
+                                          <DropdownMenuItem onClick={() => handleAppointmentAction('edit', appointment)}>
+                                            <Pencil className="w-4 h-4 mr-2" />
+                                            Edit Booking
+                                          </DropdownMenuItem>
+                                          <DropdownMenuItem onClick={() => handleAppointmentAction('checkin', appointment)}>
+                                            <CheckCircle className="w-4 h-4 mr-2" />
+                                            Check In
+                                          </DropdownMenuItem>
+                                          <DropdownMenuItem onClick={() => handleAppointmentAction('cancel', appointment)}>
+                                            <X className="w-4 h-4 mr-2" />
+                                            Cancel Booking
+                                          </DropdownMenuItem>
+                                          <DropdownMenuItem onClick={() => handleAppointmentAction('checkout', appointment)}>
+                                            <Receipt className="w-4 h-4 mr-2" />
+                                            Checkout
+                                          </DropdownMenuItem>
+                                          <DropdownMenuItem onClick={() => handleAppointmentAction('topup-wallet', appointment)}>
+                                            <Wallet className="w-4 h-4 mr-2" />
+                                            Topup Wallet
+                                          </DropdownMenuItem>
+                                          <DropdownMenuItem className="text-red-600" onClick={() => handleAppointmentAction('delete', appointment)}>
+                                            <Trash2 className="w-4 h-4 mr-2" />
+                                            Delete Booking
+                                          </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                      </DropdownMenu>
+                                    </div>
+                                    <div className="w-full h-full flex flex-col items-center justify-center text-xs p-1 pr-7">
+                                      <div className="w-2 h-2 rounded-full mb-1 bg-white/80" />
+                                      <div className="text-white/80 text-[9px] mb-0.5 font-medium">
+                                        {appointment.time || appointment.bookingTime || slot}
+                                      </div>
+                                      <div className="font-medium truncate w-full text-center leading-tight">
+                                        {(appointment.customer || appointment.customerName || 'Customer').split(' ')[0]}
+                                      </div>
+                                      <div className="text-white/90 truncate w-full text-center text-[10px] leading-tight">
+                                        {appointment.service || appointment.serviceName || 'Service'}
+                                      </div>
+                                      <div className="text-white/80 text-[9px] mt-1">
+                                        {appointment.duration}
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
                               </div>
                             </div>
                           );
                         }
+
+                        if (hasRunningBooking) {
+                          return (
+                            <div
+                              key={`${slot}-${barber}`}
+                              className={`p-1 border rounded transition-all duration-200 flex items-center justify-center min-h-20 border-muted-foreground/20 bg-muted/20 ${isRedLinePoint ? 'border-t-2 border-t-red-500' : ''}`}
+                            >
+                              <div className="text-[10px] text-muted-foreground text-center">
+                                In progress ({slotAppointments.length})
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div
+                            key={`${slot}-${barber}`}
+                            className={`p-1 border rounded transition-all duration-200 flex items-center justify-center border-dashed min-h-20 ${isBlockedSlot ? 'cursor-not-allowed border-red-200 bg-red-50' : 'cursor-pointer border-muted-foreground/30 hover:border-muted-foreground/50 hover:bg-green-50'} ${isRedLinePoint ? 'border-t-2 border-t-red-500' : ''}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (isBlockedSlot) return;
+                              onCreateBooking && onCreateBooking(barber, format(selectedDate, 'yyyy-MM-dd'), slot);
+                            }}
+                          >
+                            {isBlockedSlot ? (
+                              <div className="text-red-600/80 text-[10px] text-center flex flex-col items-center gap-1">
+                                <AlertCircle className="w-3 h-3" />
+                                Not Allowed
+                              </div>
+                            ) : (
+                              <div className="text-muted-foreground/50 text-xs text-center cursor-pointer hover:text-green-600 transition-colors flex flex-col items-center gap-1">
+                                <PlusCircle className="w-3 h-3" />
+                                Book
+                              </div>
+                            )}
+                          </div>
+                        );
                       })}
                     </React.Fragment>
                   ))}
@@ -3515,6 +3602,8 @@ const filteredAppointments = useMemo(() => {
             setShowInvoicePopup(false);
             setSelectedInvoiceAppointment(null);
           }}
+          selectedBranchName={lockedBranch || (selectedBranch !== 'all' ? selectedBranch : undefined)}
+          branchDirectory={branches}
           formatCurrency={formatCurrency}
         />
       )}

@@ -1530,7 +1530,7 @@ export default function AdminAppointments() {
   };
 
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const [viewMode, setViewMode] = useState<'calendar' | 'advanced-calendar' | 'list' | 'approvals' | 'product-orders'>('calendar');
+  const [viewMode, setViewMode] = useState<'calendar' | 'advanced-calendar' | 'list' | 'approvals' | 'product-orders'>('advanced-calendar');
   const [statusFilter, setStatusFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
@@ -3500,9 +3500,6 @@ export default function AdminAppointments() {
                   </SheetContent>
                 </Sheet>
 
-                <Button variant="outline" onClick={() => router.push('/admin/booking-approvals')} className="hidden sm:flex mr-2">
-                  Booking Approvals
-                </Button>
                 <span className="text-sm text-gray-600 hidden sm:block">Welcome, {user?.email}</span>
                 <Button variant="outline" onClick={handleLogout} className="hidden sm:flex">
                   Logout
@@ -3516,9 +3513,7 @@ export default function AdminAppointments() {
               <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as 'calendar' | 'advanced-calendar' | 'list' | 'approvals' | 'product-orders')}>
                 <div className="flex items-center justify-between mb-6">
                   <TabsList>
-                    <TabsTrigger value="calendar">Calendar View</TabsTrigger>
                     <TabsTrigger value="advanced-calendar">Advanced Calendar</TabsTrigger>
-                    <TabsTrigger value="approvals">Booking Approvals</TabsTrigger>
                   </TabsList>
                 </div>
 
@@ -4398,141 +4393,139 @@ export default function AdminAppointments() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                      <CreditCard className="w-4 h-4 text-gray-500" />
-                      Card Last 4 Digits
-                    </label>
-                    <Input
-                      placeholder="1234"
-                      value={bookingData.cardLast4Digits}
-                      onChange={(e) => setBookingData({...bookingData, cardLast4Digits: e.target.value})}
-                      className="h-11"
-                      maxLength={4}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                      <Hash className="w-4 h-4 text-gray-500" />
-                      TRN Number
-                    </label>
-                    <Input
-                      placeholder="Enter TRN number"
-                      value={bookingData.trnNumber}
-                      onChange={(e) => setBookingData({...bookingData, trnNumber: e.target.value})}
-                      className="h-11"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <Tag className="w-5 h-5 text-primary" />
-                Category & Branch
-              </h3>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                    <Tag className="w-4 h-4" />
-                    Category <span className="text-xs font-normal text-gray-400">(optional - filters services)</span>
-                  </label>
-                  <Select 
-                    value={bookingData.category} 
-                    onValueChange={handleCategoryChange}
-                    disabled={!bookingData.branch}
-                  >
-                    <SelectTrigger className="h-11 w-full [&>span]:block [&>span]:truncate">
-                      <SelectValue placeholder={bookingData.branch ? "Select a category" : "First select a branch"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {loading.categories ? (
-                        <div className="text-center py-4">
-                          <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full mx-auto mb-2"></div>
-                          <p className="text-sm text-gray-600">Loading categories...</p>
-                        </div>
-                      ) : filteredCategories.length === 0 && bookingData.branch ? (
-                        <div className="text-center py-4">
-                          <AlertCircle className="w-6 h-6 text-yellow-500 mx-auto mb-2" />
-                          <div className="space-y-1">
-                            <p className="text-sm text-gray-600">No categories found for <strong>{bookingData.branch}</strong></p>
-                            <p className="text-xs text-gray-500">
-                              Total categories in system: {categories.filter(c => c.isActive && c.type === 'service').length}
-                            </p>
-                          </div>
-                        </div>
-                      ) : (
-                        <>
-                          <SelectItem value="__all__">
-                            <span className="font-medium">All Categories</span>
-                          </SelectItem>
-                          {filteredCategories.map((category) => (
-                            <SelectItem key={category.firebaseId} value={category.name}>
-                              <div className="flex flex-col min-w-0">
-                                <span className="font-medium truncate">{category.name}</span>
-                                <span className="text-xs text-gray-500">
-                                  {category.branchNames && category.branchNames.length > 0 
-                                    ? category.branchNames.join(', ') 
-                                    : category.branchName || 'Global'}
-                                </span>
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </>
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                    <Building className="w-4 h-4" />
-                    Branch
-                  </label>
-                  {user?.role === 'admin' && user?.branchName ? (
-                    <div className="h-11 px-3 flex items-center border rounded-md bg-gray-50 text-sm font-medium text-gray-700">
-                      🏢 {user.branchName}
+                {user?.role !== 'admin' && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                        <CreditCard className="w-4 h-4 text-gray-500" />
+                        Card Last 4 Digits
+                      </label>
+                      <Input
+                        placeholder="1234"
+                        value={bookingData.cardLast4Digits}
+                        onChange={(e) => setBookingData({...bookingData, cardLast4Digits: e.target.value})}
+                        className="h-11"
+                        maxLength={4}
+                      />
                     </div>
-                  ) : (
-                  <Select 
-                    value={bookingData.branch} 
-                    onValueChange={handleBranchChange}
-                  >
-                    <SelectTrigger className="h-11 w-full [&>span]:block [&>span]:truncate">
-                      <SelectValue placeholder="Select a branch" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {loading.branches ? (
-                        <div className="text-center py-4">
-                          <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full mx-auto mb-2"></div>
-                          <p className="text-sm text-gray-600">Loading branches...</p>
-                        </div>
-                      ) : branches.length === 0 ? (
-                        <div className="text-center py-4">
-                          <AlertCircle className="w-6 h-6 text-yellow-500 mx-auto mb-2" />
-                          <p className="text-sm text-gray-600">No branches available</p>
-                        </div>
-                      ) : (
-                        branches
-                          .filter(branch => branch.status === 'active')
-                          .map((branch) => (
-                            <SelectItem key={branch.firebaseId} value={branch.name}>
-                              <div className="flex flex-col min-w-0">
-                                <span className="font-medium truncate">{branch.name}</span>
-                                <span className="text-xs text-gray-500 truncate">{branch.city} • {branch.phone}</span>
-                              </div>
-                            </SelectItem>
-                          ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                  )}
-                </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                        <Hash className="w-4 h-4 text-gray-500" />
+                        TRN Number
+                      </label>
+                      <Input
+                        placeholder="Enter TRN number"
+                        value={bookingData.trnNumber}
+                        onChange={(e) => setBookingData({...bookingData, trnNumber: e.target.value})}
+                        className="h-11"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
+
+            {user?.role !== 'admin' ? (
+              <div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <Tag className="w-5 h-5 text-primary" />
+                  Category & Branch
+                </h3>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                      <Tag className="w-4 h-4" />
+                      Category <span className="text-xs font-normal text-gray-400">(optional - filters services)</span>
+                    </label>
+                    <Select 
+                      value={bookingData.category} 
+                      onValueChange={handleCategoryChange}
+                      disabled={!bookingData.branch}
+                    >
+                      <SelectTrigger className="h-11 w-full [&>span]:block [&>span]:truncate">
+                        <SelectValue placeholder={bookingData.branch ? "Select a category" : "First select a branch"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {loading.categories ? (
+                          <div className="text-center py-4">
+                            <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full mx-auto mb-2"></div>
+                            <p className="text-sm text-gray-600">Loading categories...</p>
+                          </div>
+                        ) : filteredCategories.length === 0 && bookingData.branch ? (
+                          <div className="text-center py-4">
+                            <AlertCircle className="w-6 h-6 text-yellow-500 mx-auto mb-2" />
+                            <div className="space-y-1">
+                              <p className="text-sm text-gray-600">No categories found for <strong>{bookingData.branch}</strong></p>
+                              <p className="text-xs text-gray-500">
+                                Total categories in system: {categories.filter(c => c.isActive && c.type === 'service').length}
+                              </p>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <SelectItem value="__all__">
+                              <span className="font-medium">All Categories</span>
+                            </SelectItem>
+                            {filteredCategories.map((category) => (
+                              <SelectItem key={category.firebaseId} value={category.name}>
+                                <div className="flex flex-col min-w-0">
+                                  <span className="font-medium truncate">{category.name}</span>
+                                  <span className="text-xs text-gray-500">
+                                    {category.branchNames && category.branchNames.length > 0 
+                                      ? category.branchNames.join(', ') 
+                                      : category.branchName || 'Global'}
+                                  </span>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                      <Building className="w-4 h-4" />
+                      Branch
+                    </label>
+                    <Select 
+                      value={bookingData.branch} 
+                      onValueChange={handleBranchChange}
+                    >
+                      <SelectTrigger className="h-11 w-full [&>span]:block [&>span]:truncate">
+                        <SelectValue placeholder="Select a branch" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {loading.branches ? (
+                          <div className="text-center py-4">
+                            <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full mx-auto mb-2"></div>
+                            <p className="text-sm text-gray-600">Loading branches...</p>
+                          </div>
+                        ) : branches.length === 0 ? (
+                          <div className="text-center py-4">
+                            <AlertCircle className="w-6 h-6 text-yellow-500 mx-auto mb-2" />
+                            <p className="text-sm text-gray-600">No branches available</p>
+                          </div>
+                        ) : (
+                          branches
+                            .filter(branch => branch.status === 'active')
+                            .map((branch) => (
+                              <SelectItem key={branch.firebaseId} value={branch.name}>
+                                <div className="flex flex-col min-w-0">
+                                  <span className="font-medium truncate">{branch.name}</span>
+                                  <span className="text-xs text-gray-500 truncate">{branch.city} • {branch.phone}</span>
+                                </div>
+                              </SelectItem>
+                            ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            ) : null}
 
             <div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
               <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
@@ -4912,147 +4905,7 @@ export default function AdminAppointments() {
               </div>
             </div>
 
-            <div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <DollarSign className="w-5 h-5 text-primary" />
-                Pricing & Charges
-              </h3>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Discount Amount</label>
-                  <div className="flex gap-2">
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.1"
-                      value={bookingData.discount}
-                      onChange={(e) => setBookingData({...bookingData, discount: parseFloat(e.target.value) || 0})}
-                      placeholder="0.00"
-                      className="h-11 flex-1"
-                    />
-                    <Select value={bookingData.discountType} onValueChange={(value) => setBookingData({...bookingData, discountType: value as 'fixed' | 'percentage'})}>
-                      <SelectTrigger className="h-11 w-24">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="fixed">$ Fixed</SelectItem>
-                        <SelectItem value="percentage">% Percent</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Service Tips ($)</label>
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.1"
-                    value={bookingData.serviceTip}
-                    onChange={(e) => setBookingData({...bookingData, serviceTip: parseFloat(e.target.value) || 0})}
-                    placeholder="0.00"
-                    className="h-11"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Tax (%)</label>
-                  <Input
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="0.1"
-                    value={bookingData.tax}
-                    onChange={(e) => setBookingData({...bookingData, tax: parseFloat(e.target.value) || 0})}
-                    className="h-11"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Service Charges ($)</label>
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.1"
-                    value={bookingData.serviceCharges}
-                    onChange={(e) => setBookingData({...bookingData, serviceCharges: parseFloat(e.target.value) || 0})}
-                    className="h-11"
-                  />
-                  <p className="text-xs text-gray-500">
-                    Service price: {formatCurrency(selectedServices.reduce((sum, s) => sum + s.price, 0))} (from {selectedServices.length} service(s))
-                  </p>
-                </div>
-              </div>
-
-              <div className="space-y-4 mt-6">
-                <label className="text-sm font-medium text-gray-700">Payment Methods</label>
-                <div className="grid grid-cols-2 gap-4">
-                  {['cash', 'card', 'check', 'digital'].map((method) => {
-                    const isSelected = bookingData.paymentMethods.includes(method as any);
-                    return (
-                      <div key={method} className="space-y-2">
-                        <div 
-                          className={`flex items-center space-x-2 p-3 rounded-lg border cursor-pointer transition-all ${isSelected ? 'bg-blue-50 border-blue-300' : 'border-gray-200 hover:bg-gray-50'}`}
-                          onClick={() => handlePaymentMethodToggle(method as any)}
-                        >
-                          <input
-                            type="checkbox"
-                            id={`method-${method}`}
-                            checked={isSelected}
-                            onChange={() => {}}
-                            className="w-4 h-4 text-blue-600"
-                          />
-                          <label htmlFor={`method-${method}`} className="text-sm font-medium cursor-pointer capitalize flex-1">
-                            {method}
-                          </label>
-                        </div>
-                        {isSelected && (
-                          <div className="pl-2">
-                            <Input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              placeholder={`Amount in ${method}`}
-                              value={bookingData.paymentAmounts[method as 'cash' | 'card' | 'check' | 'digital'] || ''}
-                              onChange={(e) => handlePaymentAmountChange(method as any, e.target.value)}
-                              className="h-9 text-sm"
-                            />
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-                {bookingData.paymentMethods.length > 0 && (
-                  <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <div className="text-sm font-medium text-blue-800 mb-2">Payment Summary:</div>
-                    <div className="space-y-1">
-                      {bookingData.paymentMethods.map(method => {
-                        const amount = bookingData.paymentAmounts[method];
-                        return amount > 0 ? (
-                          <div key={method} className="flex justify-between text-sm">
-                            <span className="capitalize">{method}:</span>
-                            <span className="font-medium">{formatCurrency(amount)}</span>
-                        </div>
-                        ) : null;
-                      })}
-                      <div className="border-t pt-1 mt-1 font-medium">
-                        <div className="flex justify-between">
-                          <span>Total Paid:</span>
-                          <span className="text-green-600">
-                            {formatCurrency(
-                              bookingData.paymentMethods.reduce(
-                                (sum, method) => sum + bookingData.paymentAmounts[method], 0
-                              )
-                            )}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
 
               <div className="mt-6 p-5 bg-white rounded-xl border-2 border-blue-200 shadow-sm">
                 <h4 className="font-bold text-gray-900 mb-4 text-lg flex items-center gap-2">
@@ -5143,7 +4996,6 @@ export default function AdminAppointments() {
                   </div>
                 </div>
               </div>
-            </div>
 
             <div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
               <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
@@ -5685,11 +5537,12 @@ export default function AdminAppointments() {
                 </div>
               </div>
 
-              <div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
-                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                  <DollarSign className="w-5 h-5 text-primary" />
-                  Pricing & Charges
-                </h3>
+              {user?.role !== 'admin' && (
+                <div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <DollarSign className="w-5 h-5 text-primary" />
+                    Pricing & Charges
+                  </h3>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div className="space-y-2">
@@ -5755,7 +5608,7 @@ export default function AdminAppointments() {
                   </div>
                 </div>
 
-                <div className="space-y-4 mt-6">
+                  <div className="space-y-4 mt-6">
                   <label className="text-sm font-medium text-gray-700">Payment Methods</label>
                   <div className="grid grid-cols-2 gap-4">
                     {['cash', 'card', 'check', 'digital'].map((method) => {
@@ -5804,6 +5657,7 @@ export default function AdminAppointments() {
                   </div>
                 </div>
               </div>
+              )}
 
               <div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
                 <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
