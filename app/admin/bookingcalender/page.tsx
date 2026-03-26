@@ -930,15 +930,17 @@ const generatePDFInvoice = async (invoiceData: ExtendedInvoiceData) => {
         }))
       : [];
 
-    const productItems = (invoiceData.items || []).map((item) => ({
+    const manualItems = (invoiceData.items || []).map((item) => ({
       description: item.name,
       quantity: Number(item.quantity || 1),
       unitPrice: Number(item.price || 0),
       lineTotal: Number(item.total || item.price || 0),
-      details: 'Product',
+      details: '',
     }));
 
-    const invoiceItems = [...serviceItems, ...productItems];
+    // Prefer manually prepared invoice items when available to avoid duplicating
+    // services from both `items` and `serviceDetails/services`.
+    const invoiceItems = manualItems.length > 0 ? manualItems : serviceItems;
     if (invoiceItems.length === 0) {
       invoiceItems.push({
         description: invoiceData.service || 'Service',
@@ -949,11 +951,7 @@ const generatePDFInvoice = async (invoiceData: ExtendedInvoiceData) => {
       });
     }
 
-    const servicesSubtotal = Number(invoiceData.serviceDetails?.reduce((sum, s) => sum + Number(s.price || 0), 0)
-      || invoiceData.price
-      || 0);
-    const productsSubtotal = Number((invoiceData.items || []).reduce((sum, item) => sum + Number(item.total || 0), 0));
-    const subtotalWithoutCharges = servicesSubtotal + productsSubtotal;
+    const subtotalWithoutCharges = invoiceItems.reduce((sum, item) => sum + Number(item.lineTotal || 0), 0);
     const serviceCharges = Number(invoiceData.serviceCharges || 0);
 
     const discountValue = Number(invoiceData.discount || 0);
