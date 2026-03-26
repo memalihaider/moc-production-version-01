@@ -106,7 +106,19 @@ export default function MenuPage() {
     : branches.find(b => b.name === selectedBranch)?.name || selectedBranch;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white relative overflow-hidden">
+    <div className="min-h-screen bg-black relative overflow-hidden">
+      <div className="fixed inset-0 z-0">
+        {menuHero?.backgroundType === 'video' ? (
+          <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover">
+            <source src={menuHero?.backgroundUrl || 'https://www.pexels.com/download/video/7291771/'} type="video/mp4" />
+          </video>
+        ) : menuHero?.backgroundUrl ? (
+          <img src={menuHero.backgroundUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary/90 to-primary/80" />
+        )}
+        <div className="absolute inset-0 bg-black/70" />
+      </div>
       {/* Luxury Background Elements */}
       <div className="fixed inset-0 pointer-events-none z-0">
         {/* Subtle gradient orbs */}
@@ -125,7 +137,7 @@ export default function MenuPage() {
 
       <Header />
       
-      <main className="pt-16 pb-12 relative z-10">
+      <main className="pt-16 pb-12 relative z-10 text-white">
         {/* Hero Section */}
         <section className="relative h-[350px] md:h-[400px] overflow-hidden">
           <div className="absolute inset-0 w-full h-full">
@@ -140,16 +152,16 @@ export default function MenuPage() {
             )}
             <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/30 to-primary/70"></div>
           </div>
-          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center">
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-white">
             <div className="max-w-6xl mx-auto text-center px-4">
               <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-6 py-2 rounded-full mb-6 border border-white/20">
                 <Sparkles className="w-4 h-4 text-secondary" />
                 <span className="text-secondary font-black tracking-[0.3em] uppercase text-[10px]">{menuHero?.badgeText || 'Premium Grooming'}</span>
               </div>
               <h1 className="text-4xl md:text-6xl font-sans font-bold text-white mb-4 leading-tight">
-                {menuHero?.heading || 'Our Service'} <span className="text-secondary italic">{menuHero?.headingHighlight || 'Menu'}</span>
+                {menuHero?.heading || 'Our Service'} <span className="text-white italic">{menuHero?.headingHighlight || 'Menu'}</span>
               </h1>
-              <p className="text-gray-300 max-w-2xl mx-auto text-lg font-light leading-relaxed">
+              <p className="text-gray-100 max-w-2xl mx-auto text-lg font-light leading-relaxed">
                 {menuHero?.subHeading || 'Explore our curated list of premium grooming services, tailored for the modern gentleman.'}
               </p>
             </div>
@@ -184,33 +196,63 @@ export default function MenuPage() {
 
           {/* Services Table */}
           {filteredServices.length > 0 ? (
-            <Card className="overflow-hidden rounded-2xl shadow-lg border-secondary/10 bg-white/80 backdrop-blur-sm">
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader className="bg-gray-50/50">
-                    <TableRow>
-                      <TableHead className="p-4 font-bold text-primary">Service</TableHead>
-                      <TableHead className="p-4 font-bold text-primary text-right">Price</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredServices.map((service) => (
-                      <TableRow key={service.id} className="border-t border-secondary/5 hover:bg-secondary/5 transition-colors duration-300">
-                        <TableCell className="p-4">
-                          <p className="font-sans font-bold text-primary text-base">{service.name}</p>
-                          <p className="text-sm text-muted-foreground font-light mt-1 line-clamp-2">{service.description}</p>
-                        </TableCell>
-                        <TableCell className="p-4 text-right">
-                          <span className="text-lg font-bold text-secondary">
-                            AED {service.price}
-                          </span>
-                        </TableCell>
+            <>
+              {/* Mobile cards */}
+              <div className="space-y-3 sm:hidden">
+                {filteredServices.map((service) => (
+                  <Card key={service.id} className="rounded-2xl border-secondary/10 bg-white/85 backdrop-blur-sm">
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-sans font-bold text-primary text-base leading-snug">
+                            {service.name}
+                          </p>
+                          <p className="text-xs text-muted-foreground font-light mt-1 line-clamp-2 leading-snug">
+                            {service.description}
+                          </p>
+                        </div>
+                        <span className="text-base font-bold text-secondary whitespace-nowrap">
+                          AED {service.price}
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              {/* Desktop/tablet table */}
+              <Card className="hidden sm:block overflow-hidden rounded-2xl shadow-lg border-secondary/10 bg-white/80 backdrop-blur-sm">
+                <CardContent className="p-0">
+                  <Table className="w-full table-fixed">
+                    <TableHeader className="bg-gray-50/50">
+                      <TableRow>
+                        <TableHead className="p-3 sm:p-4 font-bold text-primary">Service</TableHead>
+                        <TableHead className="p-3 sm:p-4 font-bold text-primary text-right w-28">Price</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredServices.map((service) => (
+                        <TableRow key={service.id} className="border-t border-secondary/5 hover:bg-secondary/5 transition-colors duration-300">
+                          <TableCell className="p-3 sm:p-4 pr-2">
+                            <p className="font-sans font-bold text-primary text-sm sm:text-base leading-snug">
+                              {service.name}
+                            </p>
+                            <p className="text-xs sm:text-sm text-muted-foreground font-light mt-0.5 sm:mt-1 line-clamp-2 leading-snug">
+                              {service.description}
+                            </p>
+                          </TableCell>
+                          <TableCell className="p-3 sm:p-4 text-right align-top w-28">
+                            <span className="text-base sm:text-lg font-bold text-secondary whitespace-nowrap">
+                              AED {service.price}
+                            </span>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </>
           ) : (
             <div className="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-gray-200">
               <Sparkles className="w-16 h-16 text-gray-300 mx-auto mb-4" />

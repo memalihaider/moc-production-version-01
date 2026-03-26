@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { collection, query, getDocs, orderBy, where, Timestamp } from 'firebase/firestore';
+import { collection, query, getDocs, orderBy, where, Timestamp, documentId } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -97,6 +97,7 @@ export default function BookingReportPage() {
     totalWalletPayments: 0,
     totalOnlinePayments: 0,
   });
+  const [walletBalances, setWalletBalances] = useState<Record<string, number>>({});
   
   // Filters
   const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
@@ -114,6 +115,30 @@ export default function BookingReportPage() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   // Fetch data from Firebase
+  const fetchCustomerWalletBalances = async (customerIds: string[]) => {
+    if (customerIds.length === 0) return {};
+
+    const result: Record<string, number> = {};
+    const chunks: string[][] = [];
+    for (let i = 0; i < customerIds.length; i += 10) {
+      chunks.push(customerIds.slice(i, i + 10));
+    }
+
+    for (const chunk of chunks) {
+      const customersQuery = query(
+        collection(db, 'customers'),
+        where(documentId(), 'in', chunk)
+      );
+      const snapshot = await getDocs(customersQuery);
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        result[docSnap.id] = Number(data.walletBalance || 0);
+      });
+    }
+
+    return result;
+  };
+
   const fetchData = async () => {
     try {
       // Prepare date queries
@@ -175,6 +200,12 @@ export default function BookingReportPage() {
       });
       
       setBookings(bookingsData);
+
+      const customerIds = Array.from(
+        new Set(bookingsData.map((booking) => booking.customerId).filter(Boolean))
+      ) as string[];
+      const walletMap = await fetchCustomerWalletBalances(customerIds);
+      setWalletBalances(walletMap);
       
       // Calculate summary
       const totalBookingRevenue = bookingsData.reduce((sum, b) => sum + (b.totalAmount || 0), 0);
@@ -306,13 +337,15 @@ export default function BookingReportPage() {
 
   // Export to CSV
   const exportToCSV = () => {
-    const headers = ['Booking #', 'Date', 'Time', 'Customer', 'Service', 'Staff', 'Branch', 'Total Amount', 'Cash/COD', 'Wallet', 'Payment Method', 'Status', 'Payment Status'];
+    const headers = ['Booking #', 'Date', 'Time', 'Customer', 'Service', 'Staff', 'Branch', 'Total Amount', 'Cash/COD', 'Wallet', 'Wallet Balance', 'Wallet Left', 'Payment Method', 'Status', 'Payment Status'];
     const csvContent = [
       headers.join(','),
       ...filteredBookings.map(booking => {
         const paymentAmounts = booking.paymentAmounts || {};
         const cashAmount = paymentAmounts.cash || 0;
         const walletAmount = paymentAmounts.wallet || 0;
+        const walletBalance = walletBalances[booking.customerId] || 0;
+        const walletLeft = Math.max(0, walletBalance - walletAmount);
         
         // For COD, entire amount is cash
         const totalCashCOD = booking.paymentMethod === 'cod' ? booking.totalAmount : cashAmount;
@@ -328,6 +361,8 @@ export default function BookingReportPage() {
           booking.totalAmount,
           totalCashCOD,
           walletAmount,
+          walletBalance,
+          walletLeft,
           booking.paymentMethod,
           booking.status,
           booking.paymentStatus,
@@ -653,6 +688,9 @@ export default function BookingReportPage() {
                           <TableHead>Staff</TableHead>
                           <TableHead>Branch</TableHead>
                           <TableHead>Payment Breakdown</TableHead>
+                          <TableHead>Wallet Used</TableHead>
+                          <TableHead>Wallet Balance</TableHead>
+                          <TableHead>Wallet Left</TableHead>
                           <TableHead>Total Amount</TableHead>
                           <TableHead>Status</TableHead>
                         </TableRow>
@@ -662,6 +700,8 @@ export default function BookingReportPage() {
                           const paymentAmounts = booking.paymentAmounts || {};
                           const cashAmount = paymentAmounts.cash || 0;
                           const walletAmount = paymentAmounts.wallet || 0;
+                          const walletBalance = walletBalances[booking.customerId] || 0;
+                          const walletLeft = Math.max(0, walletBalance - walletAmount);
                           
                           // For COD, entire amount is cash
                           const totalCashCOD = booking.paymentMethod === 'cod' ? booking.totalAmount : cashAmount;
@@ -752,6 +792,15 @@ export default function BookingReportPage() {
                                   </div>
                                 </div>
                               </TableCell>
+                              <TableCell className="font-medium text-blue-700">
+                                AED{walletAmount.toFixed(2)}
+                              </TableCell>
+                              <TableCell className="font-medium">
+                                AED{walletBalance.toFixed(2)}
+                              </TableCell>
+                              <TableCell className="font-medium text-emerald-700">
+                                AED{walletLeft.toFixed(2)}
+                              </TableCell>
                               <TableCell className="font-bold text-lg">
                                 AED{booking.totalAmount.toFixed(2)}
                               </TableCell>
@@ -799,6 +848,8 @@ export default function BookingReportPage() {
                           <TableHead>Payment Method</TableHead>
                           <TableHead>Payment Status</TableHead>
                           <TableHead>Booking Status</TableHead>
+                          <TableHead>Wallet Balance</TableHead>
+                          <TableHead>Wallet Left</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -806,6 +857,8 @@ export default function BookingReportPage() {
                           const paymentAmounts = booking.paymentAmounts || {};
                           const cashAmount = paymentAmounts.cash || 0;
                           const walletAmount = paymentAmounts.wallet || 0;
+                          const walletBalance = walletBalances[booking.customerId] || 0;
+                          const walletLeft = Math.max(0, walletBalance - walletAmount);
                           
                           // For COD, entire amount is cash
                           const totalCashCOD = booking.paymentMethod === 'cod' ? booking.totalAmount : cashAmount;
@@ -896,6 +949,12 @@ export default function BookingReportPage() {
                                 }>
                                   {booking.status}
                                 </Badge>
+                              </TableCell>
+                              <TableCell className="font-medium">
+                                AED{walletBalance.toFixed(2)}
+                              </TableCell>
+                              <TableCell className="font-medium text-emerald-700">
+                                AED{walletLeft.toFixed(2)}
                               </TableCell>
                             </TableRow>
                           );

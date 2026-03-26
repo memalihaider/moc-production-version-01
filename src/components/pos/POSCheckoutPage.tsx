@@ -11,14 +11,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { db } from '@/lib/firebase';
 import {
   addDoc,
   collection,
   doc,
+  getDocs,
   increment,
-  onSnapshot,
+  limit,
+  orderBy,
+  query,
+  setDoc,
   serverTimestamp,
   writeBatch,
 } from 'firebase/firestore';
@@ -159,156 +163,107 @@ export default function POSCheckoutPage({ portalType }: POSCheckoutPageProps) {
   const [lastReceipt, setLastReceipt] = useState<ReceiptData | null>(null);
   const [selectedRecentReceipt, setSelectedRecentReceipt] = useState<ReceiptData | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [createCustomerOpen, setCreateCustomerOpen] = useState(false);
+  const [newCustomer, setNewCustomer] = useState({
+    name: '',
+    email: '',
+    phone: '',
+  });
 
   const [cart, setCart] = useState<CartLine[]>([]);
 
   useEffect(() => {
-    const unsubscribers: Array<() => void> = [];
+    let isMounted = true;
 
-    unsubscribers.push(
-      onSnapshot(
-        collection(db, 'branches'),
-        (snapshot) => {
-          const next = snapshot.docs.map((d) => {
-            const data = d.data() as any;
-            return {
-              id: d.id,
-              name: data.name || 'Unknown Branch',
-              status: data.status || 'active',
-            };
-          });
+    const loadData = async () => {
+      try {
+        const [branchesSnap, servicesSnap, productsSnap, staffSnap, customersSnap, checkoutsSnap] =
+          await Promise.all([
+            getDocs(query(collection(db, 'branches'))),
+            getDocs(query(collection(db, 'services'))),
+            getDocs(query(collection(db, 'products'))),
+            getDocs(query(collection(db, 'staff'))),
+            getDocs(query(collection(db, 'customers'), limit(200))),
+            getDocs(query(collection(db, 'pos_checkouts'), orderBy('createdAt', 'desc'), limit(8))),
+          ]);
 
-          setBranches(next.filter((b) => b.status === 'active'));
-        },
-        (error) => {
-          console.error('POS branches listener error:', error);
-          setUiError('Unable to load branches right now. Please refresh.');
-        }
-      )
-    );
+        if (!isMounted) return;
 
-    unsubscribers.push(
-      onSnapshot(
-        collection(db, 'services'),
-        (snapshot) => {
-          const next = snapshot.docs.map((d) => {
-            const data = d.data() as any;
-            return {
-              id: d.id,
-              name: data.name || 'Service',
-              price: Number(data.price || 0),
-              duration: Number(data.duration || 0),
-              status: data.status || 'active',
-              branchNames: Array.isArray(data.branchNames) ? data.branchNames : [],
-              branches: Array.isArray(data.branches) ? data.branches : [],
-            };
-          });
+        const nextBranches = branchesSnap.docs.map((d) => {
+          const data = d.data() as any;
+          return {
+            id: d.id,
+            name: data.name || 'Unknown Branch',
+            status: data.status || 'active',
+          };
+        });
+        setBranches(nextBranches.filter((b) => b.status === 'active'));
 
-          setServices(next.filter((s) => (s.status || '').toLowerCase() === 'active'));
-        },
-        (error) => {
-          console.error('POS services listener error:', error);
-          setUiError('Unable to load services right now. Please refresh.');
-        }
-      )
-    );
+        const nextServices = servicesSnap.docs.map((d) => {
+          const data = d.data() as any;
+          return {
+            id: d.id,
+            name: data.name || 'Service',
+            price: Number(data.price || 0),
+            duration: Number(data.duration || 0),
+            status: data.status || 'active',
+            branchNames: Array.isArray(data.branchNames) ? data.branchNames : [],
+            branches: Array.isArray(data.branches) ? data.branches : [],
+          };
+        });
+        setServices(nextServices.filter((s) => (s.status || '').toLowerCase() === 'active'));
 
-    unsubscribers.push(
-      onSnapshot(
-        collection(db, 'products'),
-        (snapshot) => {
-          const next = snapshot.docs.map((d) => {
-            const data = d.data() as any;
-            return {
-              id: d.id,
-              name: data.name || 'Product',
-              price: Number(data.price || 0),
-              status: data.status || 'active',
-              totalStock: Number(data.totalStock || 0),
-              branchNames: Array.isArray(data.branchNames) ? data.branchNames : [],
-              branches: Array.isArray(data.branches) ? data.branches : [],
-            };
-          });
+        const nextProducts = productsSnap.docs.map((d) => {
+          const data = d.data() as any;
+          return {
+            id: d.id,
+            name: data.name || 'Product',
+            price: Number(data.price || 0),
+            status: data.status || 'active',
+            totalStock: Number(data.totalStock || 0),
+            branchNames: Array.isArray(data.branchNames) ? data.branchNames : [],
+            branches: Array.isArray(data.branches) ? data.branches : [],
+          };
+        });
+        setProducts(nextProducts.filter((p) => ['active', 'low-stock'].includes((p.status || '').toLowerCase())));
 
-          setProducts(next.filter((p) => ['active', 'low-stock'].includes((p.status || '').toLowerCase())));
-        },
-        (error) => {
-          console.error('POS products listener error:', error);
-          setUiError('Unable to load products right now. Please refresh.');
-        }
-      )
-    );
+        const nextStaff = staffSnap.docs.map((d) => {
+          const data = d.data() as any;
+          return {
+            id: d.id,
+            name: data.name || 'Staff',
+            role: data.role || '',
+            status: data.status || 'active',
+            branch: data.branch || '',
+            branchNames: Array.isArray(data.branchNames) ? data.branchNames : [],
+            branches: Array.isArray(data.branches) ? data.branches : [],
+          };
+        });
+        setStaffMembers(nextStaff.filter((s) => (s.status || '').toLowerCase() === 'active'));
 
-    unsubscribers.push(
-      onSnapshot(
-        collection(db, 'staff'),
-        (snapshot) => {
-          const next = snapshot.docs.map((d) => {
-            const data = d.data() as any;
-            return {
-              id: d.id,
-              name: data.name || 'Staff',
-              role: data.role || '',
-              status: data.status || 'active',
-              branch: data.branch || '',
-              branchNames: Array.isArray(data.branchNames) ? data.branchNames : [],
-              branches: Array.isArray(data.branches) ? data.branches : [],
-            };
-          });
+        const nextCustomers = customersSnap.docs.map((d) => {
+          const data = d.data() as any;
+          return {
+            id: d.id,
+            name: data.name || data.customerName || 'Customer',
+            email: data.email || '',
+            phone: data.phone || '',
+          };
+        });
+        setCustomers(nextCustomers);
 
-          setStaffMembers(next.filter((s) => (s.status || '').toLowerCase() === 'active'));
-        },
-        (error) => {
-          console.error('POS staff listener error:', error);
-        }
-      )
-    );
+        const nextCheckouts = checkoutsSnap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+        setRecentCheckouts(nextCheckouts);
+      } catch (error) {
+        console.error('POS data load error:', error);
+        setUiError('Unable to load POS data right now. Please refresh.');
+      }
+    };
 
-    unsubscribers.push(
-      onSnapshot(
-        collection(db, 'customers'),
-        (snapshot) => {
-          const next = snapshot.docs.map((d) => {
-            const data = d.data() as any;
-            return {
-              id: d.id,
-              name: data.name || data.customerName || 'Customer',
-              email: data.email || '',
-              phone: data.phone || '',
-            };
-          });
-          setCustomers(next);
-        },
-        (error) => {
-          console.error('POS customers listener error:', error);
-        }
-      )
-    );
-
-    unsubscribers.push(
-      onSnapshot(
-        collection(db, 'pos_checkouts'),
-        (snapshot) => {
-          const next = snapshot.docs
-            .map((d) => ({ id: d.id, ...(d.data() as any) }))
-            .sort((a, b) => {
-              const aMs = a.createdAt?.seconds ? a.createdAt.seconds * 1000 : 0;
-              const bMs = b.createdAt?.seconds ? b.createdAt.seconds * 1000 : 0;
-              return bMs - aMs;
-            })
-            .slice(0, 8);
-
-          setRecentCheckouts(next);
-        },
-        (error) => {
-          console.error('POS recent checkouts listener error:', error);
-          setRecentCheckouts([]);
-        }
-      )
-    );
+    loadData();
 
     return () => {
-      unsubscribers.forEach((unsub) => unsub());
+      isMounted = false;
     };
   }, []);
 
@@ -496,6 +451,86 @@ export default function POSCheckoutPage({ portalType }: POSCheckoutPageProps) {
         },
       ];
     });
+  };
+
+  const handleCustomerChange = (value: string) => {
+    if (value === '__create__') {
+      setCreateCustomerOpen(true);
+      setCustomerId('walk-in');
+      return;
+    }
+    setCustomerId(value);
+  };
+
+  const handleCreateCustomer = async () => {
+    const email = newCustomer.email.trim().toLowerCase();
+    const name = newCustomer.name.trim();
+    const phone = newCustomer.phone.trim();
+
+    if (!name || !email) {
+      alert('Customer name and email are required.');
+      return;
+    }
+
+    const emailExists = customers.some((customer) => customer.email.toLowerCase() === email);
+    if (emailExists) {
+      alert('Email already exists.');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/users/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password: email }),
+      });
+
+      if (!response.ok) {
+        const payload = await response.json();
+        throw new Error(payload?.error || 'Failed to create auth user');
+      }
+
+      const { uid } = await response.json();
+      if (!uid) {
+        throw new Error('Failed to create auth user');
+      }
+
+      await setDoc(doc(db, 'users', uid), {
+        uid,
+        name,
+        email,
+        phone,
+        role: 'customer',
+        status: 'active',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+
+      const customerRef = await addDoc(collection(db, 'customers'), {
+        uid,
+        name,
+        email,
+        phone,
+        role: 'customer',
+        status: 'active',
+        loyaltyPoints: 0,
+        walletBalance: 0,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      setCustomers((prev) => [
+        ...prev,
+        { id: customerRef.id, name, email, phone },
+      ]);
+      setCustomerId(customerRef.id);
+      setCreateCustomerOpen(false);
+      setNewCustomer({ name: '', email: '', phone: '' });
+      alert('Customer created. Default password is the email address.');
+    } catch (error: any) {
+      console.error('Create customer failed:', error);
+      alert(error?.message || 'Failed to create customer.');
+    }
   };
 
   const setQuantity = (lineId: string, nextQty: number) => {
@@ -991,11 +1026,12 @@ export default function POSCheckoutPage({ portalType }: POSCheckoutPageProps) {
 
                 <div>
                   <Label>Customer</Label>
-                  <Select value={customerId} onValueChange={setCustomerId}>
+                  <Select value={customerId} onValueChange={handleCustomerChange}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select customer" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="__create__">+ Create Customer</SelectItem>
                       <SelectItem value="walk-in">Walk-in Customer</SelectItem>
                       {customers.map((customer) => (
                         <SelectItem key={customer.id} value={customer.id}>
@@ -1005,6 +1041,50 @@ export default function POSCheckoutPage({ portalType }: POSCheckoutPageProps) {
                     </SelectContent>
                   </Select>
                 </div>
+
+                <Sheet open={createCustomerOpen} onOpenChange={setCreateCustomerOpen}>
+                  <SheetContent className="sm:max-w-md">
+                    <SheetHeader>
+                      <SheetTitle>Create Customer</SheetTitle>
+                      <SheetDescription>
+                        Default password is the email address. Customer can reset it in the portal.
+                      </SheetDescription>
+                    </SheetHeader>
+                    <div className="mt-4 space-y-4">
+                      <div>
+                        <Label>Customer Name</Label>
+                        <Input
+                          value={newCustomer.name}
+                          onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })}
+                          placeholder="Customer name"
+                        />
+                      </div>
+                      <div>
+                        <Label>Email</Label>
+                        <Input
+                          type="email"
+                          value={newCustomer.email}
+                          onChange={(e) => setNewCustomer({ ...newCustomer, email: e.target.value })}
+                          placeholder="customer@email.com"
+                        />
+                      </div>
+                      <div>
+                        <Label>Phone</Label>
+                        <Input
+                          value={newCustomer.phone}
+                          onChange={(e) => setNewCustomer({ ...newCustomer, phone: e.target.value })}
+                          placeholder="0500000000"
+                        />
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <Button variant="outline" onClick={() => setCreateCustomerOpen(false)}>
+                          Cancel
+                        </Button>
+                        <Button onClick={handleCreateCustomer}>Create Customer</Button>
+                      </div>
+                    </div>
+                  </SheetContent>
+                </Sheet>
 
                 <div>
                   <Label className="flex items-center gap-1">

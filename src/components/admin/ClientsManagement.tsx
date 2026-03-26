@@ -18,11 +18,13 @@ import {
   collection,
   doc,
   addDoc,
+  setDoc,
   updateDoc,
   deleteDoc,
   onSnapshot,
   query,
   where,
+  serverTimestamp,
   getDocs,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -70,8 +72,15 @@ export interface Booking {
   servicePrice: number;
   staffName: string;
   status: string;
+  paymentMethod?: string;
+  paymentStatus?: string;
+  paymentAmounts?: Record<string, number>;
+  subtotal?: number;
+  discountAmount?: number;
+  taxAmount?: number;
   totalAmount: number;
   createdAt: Date;
+  notes?: string;
 }
 
 // Interface for Order
@@ -87,6 +96,8 @@ export interface Order {
   }>;
   totalAmount: number;
   status: string;
+  paymentMethod?: string;
+  paymentStatus?: string;
   transactionId: string;
   createdAt: Date;
 }
@@ -151,7 +162,7 @@ export default function ClientsManagement({
   const [filterMembership, setFilterMembership] = useState<string>("all");
   const [filterBranch, setFilterBranch] = useState<string>("all");
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-  const [activeTab, setActiveTab] = useState<"details" | "bookings" | "orders" | "wallet">("details");
+  const [activeTab, setActiveTab] = useState<"details" | "bookings" | "orders" | "wallet" | "payments">("details");
 
   // Branches state
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -196,23 +207,30 @@ export default function ClientsManagement({
     return () => unsubscribe();
   }, []);
 
-  // 🔥 Fetch customer's bookings from Firebase
-  const fetchCustomerBookings = async (customerId: string, customerEmail: string): Promise<Booking[]> => {
-    try {
-      const bookingsRef = collection(db, "bookings");
-      // Bookings mein customerId ya customerEmail se search karo
-      const q = query(
-        bookingsRef,
-        where("customerId", "==", customerId)
-      );
-      
-      const querySnapshot = await getDocs(q);
-      const bookings: Booking[] = [];
-      
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        bookings.push({
-          id: doc.id,
+  const chunkArray = <T,>(items: T[], size = 10): T[][] => {
+    const chunks: T[][] = [];
+    for (let i = 0; i < items.length; i += size) {
+      chunks.push(items.slice(i, i + size));
+    }
+    return chunks;
+  };
+
+  const fetchBookingsByCustomerIds = async (customerIds: string[]) => {
+    const bookingsByCustomer: Record<string, Booking[]> = {};
+    if (customerIds.length === 0) return bookingsByCustomer;
+
+    const chunks = chunkArray(customerIds, 10);
+    for (const chunk of chunks) {
+      const q = query(collection(db, "bookings"), where("customerId", "in", chunk));
+      const snapshot = await getDocs(q);
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        const customerId = data.customerId || "";
+        if (!customerId) return;
+        if (!bookingsByCustomer[customerId]) bookingsByCustomer[customerId] = [];
+
+        bookingsByCustomer[customerId].push({
+          id: docSnap.id,
           bookingNumber: data.bookingNumber || "",
           bookingDate: data.bookingDate || "",
           bookingTime: data.bookingTime || "",
@@ -222,79 +240,77 @@ export default function ClientsManagement({
           servicePrice: data.servicePrice || data.totalAmount || 0,
           staffName: data.staffName || data.teamMembers?.[0]?.name || "Unknown Staff",
           status: data.status || "pending",
+          paymentMethod: data.paymentMethod || "",
+          paymentStatus: data.paymentStatus || "",
+          paymentAmounts: data.paymentAmounts || {},
+          subtotal: data.subtotal || 0,
+          discountAmount: data.discountAmount || 0,
+          taxAmount: data.taxAmount || 0,
           totalAmount: data.totalAmount || 0,
           createdAt: data.createdAt?.toDate() || new Date(),
+          notes: data.notes || "",
         });
       });
-      
-      return bookings;
-    } catch (error) {
-      console.error("Error fetching customer bookings:", error);
-      return [];
     }
+
+    return bookingsByCustomer;
   };
 
-  // 🔥 Fetch customer's orders from Firebase
-  const fetchCustomerOrders = async (customerId: string, customerEmail: string): Promise<Order[]> => {
-    try {
-      const ordersRef = collection(db, "orders");
-      // Orders mein customerId ya customerEmail se search karo
-      const q = query(
-        ordersRef,
-        where("customerId", "==", customerId)
-      );
-      
-      const querySnapshot = await getDocs(q);
-      const orders: Order[] = [];
-      
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        orders.push({
-          id: doc.id,
+  const fetchOrdersByCustomerIds = async (customerIds: string[]) => {
+    const ordersByCustomer: Record<string, Order[]> = {};
+    if (customerIds.length === 0) return ordersByCustomer;
+
+    const chunks = chunkArray(customerIds, 10);
+    for (const chunk of chunks) {
+      const q = query(collection(db, "orders"), where("customerId", "in", chunk));
+      const snapshot = await getDocs(q);
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        const customerId = data.customerId || "";
+        if (!customerId) return;
+        if (!ordersByCustomer[customerId]) ordersByCustomer[customerId] = [];
+
+        ordersByCustomer[customerId].push({
+          id: docSnap.id,
           orderDate: data.orderDate || "",
           expectedDeliveryDate: data.expectedDeliveryDate || "",
           pickupBranch: data.pickupBranch || "",
           products: data.products || [],
           totalAmount: data.totalAmount || 0,
           status: data.status || "pending",
+          paymentMethod: data.paymentMethod || "",
+          paymentStatus: data.paymentStatus || "",
           transactionId: data.transactionId || "",
           createdAt: data.createdAt?.toDate() || new Date(),
         });
       });
-      
-      return orders;
-    } catch (error) {
-      console.error("Error fetching customer orders:", error);
-      return [];
     }
+
+    return ordersByCustomer;
   };
 
-  // 🔥 Fetch customer's wallet from Firebase
-  const fetchCustomerWallet = async (customerId: string): Promise<Wallet | null> => {
-    try {
-      const walletsRef = collection(db, "wallets");
-      const q = query(
-        walletsRef,
-        where("customerId", "==", customerId)
-      );
-      
-      const querySnapshot = await getDocs(q);
-      
-      if (!querySnapshot.empty) {
-        const data = querySnapshot.docs[0].data();
-        return {
+  const fetchWalletsByCustomerIds = async (customerIds: string[]) => {
+    const walletByCustomer: Record<string, Wallet> = {};
+    if (customerIds.length === 0) return walletByCustomer;
+
+    const chunks = chunkArray(customerIds, 10);
+    for (const chunk of chunks) {
+      const q = query(collection(db, "wallets"), where("customerId", "in", chunk));
+      const snapshot = await getDocs(q);
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        const customerId = data.customerId || "";
+        if (!customerId) return;
+        walletByCustomer[customerId] = {
           balance: data.balance || 0,
           loyaltyPoints: data.loyaltyPoints || 0,
           totalPointsEarned: data.totalPointsEarned || 0,
           totalPointsRedeemed: data.totalPointsRedeemed || 0,
         };
-      }
-      
-      return null;
-    } catch (error) {
-      console.error("Error fetching customer wallet:", error);
-      return null;
+      });
     }
+
+    return walletByCustomer;
   };
 
   // 🔥 Fetch ONLY customers from users collection
@@ -306,39 +322,36 @@ export default function ClientsManagement({
     );
 
     const unsubscribe = onSnapshot(q, async (snapshot) => {
-      const clientsData: Client[] = [];
-      
-      for (const doc of snapshot.docs) {
-        const data = doc.data();
+      const customerIds = snapshot.docs.map((docSnap) => docSnap.id);
+      const [bookingsByCustomer, ordersByCustomer, walletsByCustomer] = await Promise.all([
+        fetchBookingsByCustomerIds(customerIds),
+        fetchOrdersByCustomerIds(customerIds),
+        fetchWalletsByCustomerIds(customerIds),
+      ]);
+
+      const clientsData: Client[] = snapshot.docs.map((docSnap) => {
+        const data = docSnap.data();
         const branchId = data.branch || "";
         const branch = branches.find(b => b.id === branchId);
-        const customerId = doc.id;
-        const customerEmail = data.email || "";
-        
-        // Fetch additional data for this customer
-        const [bookings, orders, wallet] = await Promise.all([
-          fetchCustomerBookings(customerId, customerEmail),
-          fetchCustomerOrders(customerId, customerEmail),
-          fetchCustomerWallet(customerId)
-        ]);
-        
-        // Calculate totals from bookings and orders
+        const customerId = docSnap.id;
+        const bookings = bookingsByCustomer[customerId] || [];
+        const orders = ordersByCustomer[customerId] || [];
+        const wallet = walletsByCustomer[customerId] || undefined;
+
         const totalBookings = bookings.length;
         const totalOrders = orders.length;
-        const totalSpending = 
+        const totalSpending =
           bookings.reduce((sum, b) => sum + (b.totalAmount || 0), 0) +
           orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
-        
-        // Get last booking date
-        const lastBooking = bookings.length > 0 
-          ? bookings.sort((a, b) => new Date(b.bookingDate).getTime() - new Date(a.bookingDate).getTime())[0]
+
+        const lastBooking = bookings.length > 0
+          ? bookings.slice().sort((a, b) => new Date(b.bookingDate).getTime() - new Date(a.bookingDate).getTime())[0]
           : null;
-        
-        // Get loyalty points from wallet or use existing
+
         const loyaltyPoints = wallet?.loyaltyPoints || data.loyaltyPoints || 0;
-        
-        clientsData.push({
-          id: doc.id,
+
+        return {
+          id: docSnap.id,
           firstName: data.firstName || data.name?.split(' ')[0] || "",
           lastName: data.lastName || data.name?.split(' ')[1] || "",
           email: data.email || "",
@@ -350,8 +363,8 @@ export default function ClientsManagement({
           totalOrders: totalOrders,
           totalBookings: totalBookings,
           membershipTier: calculateMembershipTier(totalSpending, loyaltyPoints),
-          registrationDate: data.registrationDate || 
-            data.createdAt?.toDate?.().toISOString().split("T")[0] || 
+          registrationDate: data.registrationDate ||
+            data.createdAt?.toDate?.().toISOString().split("T")[0] ||
             new Date().toISOString().split("T")[0],
           lastBookingDate: lastBooking?.bookingDate || undefined,
           address: data.address || undefined,
@@ -359,13 +372,11 @@ export default function ClientsManagement({
           branch: branchId,
           branchName: branch ? branch.name : undefined,
           createdAt: data.createdAt?.toDate() || new Date(),
-          
-          // Store additional data
-          bookings: bookings,
-          orders: orders,
-          wallet: wallet?? undefined,
-        });
-      }
+          bookings,
+          orders,
+          wallet,
+        };
+      });
 
       // Client-side sorting
       const sortedClients = clientsData.sort((a, b) => {
@@ -421,6 +432,12 @@ export default function ClientsManagement({
   const getBranchName = (branchId: string) => {
     const branch = branches.find(b => b.id === branchId);
     return branch ? branch.name : "No Branch";
+  };
+
+  const formatMoney = (value: number) => `AED ${Number(value || 0).toFixed(2)}`;
+  const getBookingPaidTotal = (booking: Booking) => {
+    if (!booking.paymentAmounts) return booking.totalAmount || 0;
+    return Object.values(booking.paymentAmounts).reduce((sum, amount) => sum + Number(amount || 0), 0);
   };
 
   // Get status badge
@@ -483,6 +500,31 @@ export default function ClientsManagement({
     try {
       const usersRef = collection(db, "users");
       const selectedBranch = branches.find(b => b.id === newClient.branch);
+      const email = newClient.email.trim().toLowerCase();
+
+      const emailExists = clients.some(
+        (client) => client.email.toLowerCase() === email
+      );
+      if (emailExists) {
+        alert("Email already exists");
+        return;
+      }
+
+      const response = await fetch("/api/users/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password: email }),
+      });
+
+      if (!response.ok) {
+        const payload = await response.json();
+        throw new Error(payload?.error || "Failed to create auth user");
+      }
+
+      const { uid } = await response.json();
+      if (!uid) {
+        throw new Error("Failed to create auth user");
+      }
       
       const newClientData = {
         firstName: newClient.firstName.trim(),
@@ -505,7 +547,7 @@ export default function ClientsManagement({
         createdAt: new Date(),
       };
 
-      await addDoc(usersRef, newClientData);
+      await setDoc(doc(usersRef, uid), newClientData);
 
       // Reset form
       setNewClient({
@@ -521,7 +563,7 @@ export default function ClientsManagement({
 
       // Close sheet
       setIsAddSheetOpen(false);
-      alert("Client added successfully!");
+      alert("Client added successfully! Default password is the email address.");
     } catch (error) {
       console.error("Error adding client: ", error);
       alert("Error adding client. Please try again.");
@@ -732,7 +774,7 @@ export default function ClientsManagement({
                   Total Spending
                 </p>
                 <p className="text-3xl font-sans font-bold text-primary">
-                  AED{totalSpending.toLocaleString()}
+                  {formatMoney(totalSpending)}
                 </p>
               </div>
               
@@ -1067,7 +1109,7 @@ export default function ClientsManagement({
                         </Badge>
                       </td>
                       <td className="px-6 py-4 text-right text-sm font-bold text-green-600">
-                        ${client.spendingAmount.toLocaleString()}
+                        {formatMoney(client.spendingAmount)}
                       </td>
                       <td className="px-6 py-4 text-right text-sm font-bold text-primary">
                         {client.loyaltyPoints.toLocaleString()}
@@ -1185,6 +1227,17 @@ export default function ClientsManagement({
                                       >
                                         Wallet
                                       </button>
+                                      <button
+                                        onClick={() => setActiveTab("payments")}
+                                        className={cn(
+                                          "px-4 py-2 text-sm font-medium transition-colors relative",
+                                          activeTab === "payments"
+                                            ? "text-secondary border-b-2 border-secondary"
+                                            : "text-gray-500 hover:text-gray-700"
+                                        )}
+                                      >
+                                        Payments
+                                      </button>
                                     </div>
                                   </div>
 
@@ -1245,6 +1298,43 @@ export default function ClientsManagement({
                                             {selectedClient.notes || "No notes"}
                                           </p>
                                         </div>
+                                        <div className="col-span-2 grid grid-cols-3 gap-4 pt-2">
+                                          <Card className="border border-gray-100">
+                                            <CardContent className="p-4">
+                                              <p className="text-xs font-bold uppercase text-muted-foreground mb-1">
+                                                Wallet Balance
+                                              </p>
+                                              <p className="text-lg font-bold text-blue-700">
+                                                {formatMoney(selectedClient.wallet?.balance || 0)}
+                                              </p>
+                                            </CardContent>
+                                          </Card>
+                                          <Card className="border border-gray-100">
+                                            <CardContent className="p-4">
+                                              <p className="text-xs font-bold uppercase text-muted-foreground mb-1">
+                                                Total Paid (Bookings)
+                                              </p>
+                                              <p className="text-lg font-bold text-emerald-700">
+                                                {formatMoney(
+                                                  (selectedClient.bookings || []).reduce(
+                                                    (sum, booking) => sum + getBookingPaidTotal(booking),
+                                                    0
+                                                  )
+                                                )}
+                                              </p>
+                                            </CardContent>
+                                          </Card>
+                                          <Card className="border border-gray-100">
+                                            <CardContent className="p-4">
+                                              <p className="text-xs font-bold uppercase text-muted-foreground mb-1">
+                                                Current Balance
+                                              </p>
+                                              <p className="text-lg font-bold text-purple-700">
+                                                {formatMoney(selectedClient.wallet?.balance || 0)}
+                                              </p>
+                                            </CardContent>
+                                          </Card>
+                                        </div>
                                       </div>
                                     )}
 
@@ -1252,40 +1342,66 @@ export default function ClientsManagement({
                                     {activeTab === "bookings" && (
                                       <div className="space-y-4">
                                         {selectedClient.bookings && selectedClient.bookings.length > 0 ? (
-                                          selectedClient.bookings.map((booking) => (
-                                            <Card key={booking.id} className="border border-gray-100">
-                                              <CardContent className="p-4">
-                                                <div className="flex justify-between items-start">
-                                                  <div>
-                                                    <p className="font-semibold text-primary">
-                                                      {booking.serviceName}
-                                                    </p>
-                                                    <p className="text-sm text-gray-500">
-                                                      Booking #{booking.bookingNumber}
-                                                    </p>
-                                                    <div className="flex items-center gap-2 mt-2 text-sm">
-                                                      <Calendar className="w-4 h-4 text-gray-400" />
-                                                      <span>{booking.bookingDate}</span>
-                                                      <Clock className="w-4 h-4 text-gray-400 ml-2" />
-                                                      <span>{booking.bookingTime}</span>
+                                          selectedClient.bookings.map((booking) => {
+                                            const walletUsed = booking.paymentAmounts?.wallet || 0;
+                                            const walletBalance = selectedClient.wallet?.balance || 0;
+                                            const walletLeft = Math.max(0, walletBalance - walletUsed);
+                                            const paidTotal = getBookingPaidTotal(booking);
+
+                                            return (
+                                              <Card key={booking.id} className="border border-gray-100">
+                                                <CardContent className="p-4">
+                                                  <div className="flex justify-between items-start">
+                                                    <div>
+                                                      <p className="font-semibold text-primary">
+                                                        {booking.serviceName}
+                                                      </p>
+                                                      <p className="text-sm text-gray-500">
+                                                        Booking #{booking.bookingNumber}
+                                                      </p>
+                                                      <div className="flex items-center gap-2 mt-2 text-sm">
+                                                        <Calendar className="w-4 h-4 text-gray-400" />
+                                                        <span>{booking.bookingDate}</span>
+                                                        <Clock className="w-4 h-4 text-gray-400 ml-2" />
+                                                        <span>{booking.bookingTime}</span>
+                                                      </div>
+                                                      <div className="flex items-center gap-2 mt-1 text-sm">
+                                                        <Building className="w-4 h-4 text-gray-400" />
+                                                        <span>{booking.branch}</span>
+                                                        <span className="text-gray-300">|</span>
+                                                        <span>Staff: {booking.staffName}</span>
+                                                      </div>
+                                                      <div className="mt-2 grid grid-cols-3 gap-2 text-xs text-gray-600">
+                                                        <div>
+                                                          <span className="font-semibold">Paid:</span> {formatMoney(paidTotal)}
+                                                        </div>
+                                                        <div>
+                                                          <span className="font-semibold">Wallet Used:</span> {formatMoney(walletUsed)}
+                                                        </div>
+                                                        <div>
+                                                          <span className="font-semibold">Wallet Left:</span> {formatMoney(walletLeft)}
+                                                        </div>
+                                                      </div>
+                                                      <div className="mt-1 text-xs text-gray-500">
+                                                        Method: {booking.paymentMethod || 'N/A'} • Status: {booking.paymentStatus || booking.status}
+                                                      </div>
                                                     </div>
-                                                    <div className="flex items-center gap-2 mt-1 text-sm">
-                                                      <Building className="w-4 h-4 text-gray-400" />
-                                                      <span>{booking.branch}</span>
-                                                      <span className="text-gray-300">|</span>
-                                                      <span>Staff: {booking.staffName}</span>
+                                                    <div className="text-right">
+                                                      <p className="font-bold text-lg text-primary">
+                                                        {formatMoney(booking.totalAmount)}
+                                                      </p>
+                                                      {getBookingStatusBadge(booking.status)}
                                                     </div>
                                                   </div>
-                                                  <div className="text-right">
-                                                    <p className="font-bold text-lg text-primary">
-                                                      ${booking.totalAmount}
-                                                    </p>
-                                                    {getBookingStatusBadge(booking.status)}
-                                                  </div>
-                                                </div>
-                                              </CardContent>
-                                            </Card>
-                                          ))
+                                                  {booking.notes && (
+                                                    <div className="mt-3 text-xs text-gray-600">
+                                                      Notes: {booking.notes}
+                                                    </div>
+                                                  )}
+                                                </CardContent>
+                                              </Card>
+                                            );
+                                          })
                                         ) : (
                                           <p className="text-center text-gray-500 py-8">
                                             No bookings found for this customer
@@ -1332,7 +1448,7 @@ export default function ClientsManagement({
                                                   </div>
                                                   <div className="text-right">
                                                     <p className="font-bold text-lg text-primary">
-                                                      AED {order.totalAmount}
+                                                      {formatMoney(order.totalAmount)}
                                                     </p>
                                                     {getOrderStatusBadge(order.status)}
                                                   </div>
@@ -1359,7 +1475,7 @@ export default function ClientsManagement({
                                                   Wallet Balance
                                                 </p>
                                                 <p className="text-3xl font-bold text-blue-600">
-                                                  ${selectedClient.wallet.balance}
+                                                  {formatMoney(selectedClient.wallet.balance)}
                                                 </p>
                                               </CardContent>
                                             </Card>
@@ -1400,6 +1516,60 @@ export default function ClientsManagement({
                                         ) : (
                                           <p className="text-center text-gray-500 py-8">
                                             No wallet found for this customer
+                                          </p>
+                                        )}
+                                      </div>
+                                    )}
+
+                                    {activeTab === "payments" && (
+                                      <div className="space-y-4">
+                                        {selectedClient.bookings && selectedClient.bookings.length > 0 ? (
+                                          selectedClient.bookings.map((booking) => {
+                                            const walletUsed = booking.paymentAmounts?.wallet || 0;
+                                            const walletBalance = selectedClient.wallet?.balance || 0;
+                                            const walletLeft = Math.max(0, walletBalance - walletUsed);
+                                            const paidTotal = getBookingPaidTotal(booking);
+
+                                            return (
+                                              <Card key={`payment-${booking.id}`} className="border border-gray-100">
+                                                <CardContent className="p-4">
+                                                  <div className="flex justify-between items-start">
+                                                    <div>
+                                                      <p className="font-semibold text-primary">
+                                                        Booking #{booking.bookingNumber}
+                                                      </p>
+                                                      <p className="text-sm text-gray-500">
+                                                        {booking.serviceName} • {booking.bookingDate} {booking.bookingTime}
+                                                      </p>
+                                                      <div className="mt-2 text-xs text-gray-600">
+                                                        Method: {booking.paymentMethod || 'N/A'} • Status: {booking.paymentStatus || booking.status}
+                                                      </div>
+                                                      <div className="mt-2 grid grid-cols-3 gap-2 text-xs text-gray-600">
+                                                        <div>
+                                                          <span className="font-semibold">Wallet Used:</span> {formatMoney(walletUsed)}
+                                                        </div>
+                                                        <div>
+                                                          <span className="font-semibold">Wallet Balance:</span> {formatMoney(walletBalance)}
+                                                        </div>
+                                                        <div>
+                                                          <span className="font-semibold">Wallet Left:</span> {formatMoney(walletLeft)}
+                                                        </div>
+                                                      </div>
+                                                    </div>
+                                                    <div className="text-right">
+                                                      <p className="font-bold text-lg text-emerald-700">
+                                                        {formatMoney(paidTotal)}
+                                                      </p>
+                                                      <p className="text-xs text-gray-500">Paid Total</p>
+                                                    </div>
+                                                  </div>
+                                                </CardContent>
+                                              </Card>
+                                            );
+                                          })
+                                        ) : (
+                                          <p className="text-center text-gray-500 py-8">
+                                            No payment history found for this customer
                                           </p>
                                         )}
                                       </div>
