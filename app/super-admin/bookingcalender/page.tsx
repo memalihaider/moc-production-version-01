@@ -26,11 +26,10 @@ import { cn } from "@/lib/utils";
 import { CurrencySwitcher } from "@/components/ui/currency-switcher";
 import { getTemplate, InvoiceData } from "@/components/invoice-templates";
 import { generateInvoiceNumber } from "@/lib/invoice-utils";
+import { generateUnifiedInvoicePdf } from "@/lib/unified-invoice-pdf";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { collection, getDocs, query, orderBy, where, doc, updateDoc, addDoc, serverTimestamp, onSnapshot, getDoc, deleteDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 
 // ===================== TYPE DEFINITIONS =====================
 
@@ -46,11 +45,20 @@ interface ServiceInvoiceDetail {
 interface ExtendedInvoiceData extends InvoiceData {
   customerAddress?: string;
   paymentMethod?: string;
+  paymentMethods?: string[];
+  paymentAmounts?: {
+    cash?: number;
+    card?: number;
+    check?: number;
+    digital?: number;
+    [key: string]: number | undefined;
+  };
   subtotal?: number;
   total?: number;
   items?: InvoiceItem[];
   taxAmount?: number;
   discountAmount?: number;
+  discountType?: 'fixed' | 'percentage';
   cardLast4Digits?: string;
   trnNumber?: string;
   serviceDetails?: ServiceInvoiceDetail[];
@@ -1009,124 +1017,89 @@ const deleteBookingInFirebase = async (bookingId: string): Promise<boolean> => {
   }
 };
 
-const generatePDFInvoice = (invoiceData: ExtendedInvoiceData) => {
+const generatePDFInvoice = async (invoiceData: ExtendedInvoiceData) => {
   try {
-    const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.width;
-    
-    // Header
-    doc.setFontSize(16);
-    doc.setTextColor(0, 0, 0);
-    doc.setFont("helvetica", "bold");
-    doc.text('MAN OF CAVE', 20, 20);
-    
-    doc.setFontSize(18);
-    doc.setFont("helvetica", "bold");
-    doc.text('TAX INVOICE', pageWidth - 70, 20);
-    
-    // Customer Info
-    const customerY = 45;
-    doc.setFontSize(11);
-    doc.setFont("helvetica", "bold");
-    doc.text('Customer Information:', 20, customerY);
-    
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    
-    const customerDetails = [
-      ['Name', invoiceData.customer],
-      ['Mobile', invoiceData.phone || 'N/A'],
-      ['Email', invoiceData.email || 'N/A'],
-    ];
-    
-    let yPos = customerY + 8;
-    customerDetails.forEach(([label, value]) => {
-      if (value !== 'N/A') {
-        doc.text(`${label} : ${value}`, 20, yPos);
-        yPos += 6;
-      }
-    });
-    
-    // Invoice Info
-    const invoiceY = customerY;
-    const invoiceDetails = [
-      ['Invoice No', invoiceData.invoiceNumber || '#INV6584'],
-      ['Date', new Date().toLocaleDateString('en-GB')],
-      ['Payment', invoiceData.paymentMethod || 'Cash']
-    ];
-    
-    yPos = invoiceY;
-    invoiceDetails.forEach(([label, value]) => {
-      doc.text(`${label} : ${value}`, pageWidth - 80, yPos);
-      yPos += 6;
-    });
-    
-    // Services Table
-    const tableY = Math.max(customerY + 35, invoiceY + 30);
-    
-    const tableBody: any[][] = [];
-    
-    if (invoiceData.serviceDetails && invoiceData.serviceDetails.length > 0) {
-      invoiceData.serviceDetails.forEach((service) => {
-        tableBody.push([
-          service.serviceName,
-          service.branch,
-          service.staff,
-          `AED ${service.price.toFixed(2)}`,
-          service.tip ? `AED ${service.tip.toFixed(2)}` : '-'
-        ]);
-      });
-    } else if (invoiceData.services && invoiceData.services.length > 0) {
-      const pricePerService = invoiceData.price / invoiceData.services.length;
-      invoiceData.services.forEach((service, index) => {
-        tableBody.push([
-          service,
-          invoiceData.branch || '-',
-          invoiceData.barber || '-',
-          `AED ${pricePerService.toFixed(2)}`,
-          '-'
-        ]);
-      });
-    } else {
-      tableBody.push([
-        invoiceData.service || 'Service',
-        invoiceData.branch || '-',
-        invoiceData.barber || '-',
-        `AED ${invoiceData.price.toFixed(2)}`,
-        '-'
-      ]);
+    const servicesSubtotal = invoiceData.serviceDetails?.reduce((sum, s) => sum + Number(s.price || 0), 0)
+      || Number(invoiceData.subtotal || invoiceData.price || 0);
+    const serviceCharges = Number(invoiceData.serviceCharges || 0);
+    const tipAmount = Number(invoiceData.serviceDetails?.reduce((sum, s) => sum + Number(s.tip || 0), 0) || 0)
+      + Number(invoiceData.serviceTip || 0);
+
+    const subtotal = servicesSubtotal + serviceCharges;
+
+    const discountValue = Number(invoiceData.discount || 0);
+    const discountAmount = invoiceData.discountType === 'percentage'
+      ? Math.min(subtotal, Math.max(0, (subtotal * discountValue) / 100))
+      : Math.min(subtotal, Math.max(0, discountValue));
+
+    const taxableAmount = Math.max(0, subtotal - discountAmount);
+    const taxPercent = Number(invoiceData.tax || 0);
+    const taxAmount = Math.max(0, (taxableAmount * taxPercent) / 100);
+    const totalAmount = taxableAmount + taxAmount + tipAmount;
+
+    const paymentMethods = invoiceData.paymentAmounts
+      ? Object.entries(invoiceData.paymentAmounts)
+          .filter(([, amount]) => Number(amount || 0) > 0)
+          .map(([method, amount]) => ({
+            label: method.replace(/_/g, ' ').toUpperCase(),
+            amount: Number(amount || 0),
+          }))
+      : [];
+
+    if (paymentMethods.length === 0) {
+      const label = (invoiceData.paymentMethod || 'Cash').replace(/,/g, ' / ').toUpperCase();
+      paymentMethods.push({ label, amount: totalAmount });
     }
-    
-    autoTable(doc, {
-      startY: tableY,
-      head: [['Service', 'Branch', 'Staff', 'Price', 'Tip']],
-      body: tableBody,
-      theme: 'striped',
-      headStyles: { fillColor: [41, 128, 185], textColor: 255 },
-      styles: { fontSize: 9 }
+
+    const invoiceItems = (invoiceData.serviceDetails && invoiceData.serviceDetails.length > 0)
+      ? invoiceData.serviceDetails.map((service) => ({
+          description: service.serviceName || 'Service',
+          quantity: 1,
+          unitPrice: Number(service.price || 0),
+          lineTotal: Number(service.price || 0),
+          details: [service.branch, service.staff].filter(Boolean).join(' - '),
+        }))
+      : (invoiceData.items && invoiceData.items.length > 0)
+      ? invoiceData.items.map((item) => ({
+          description: item.name,
+          quantity: Number(item.quantity || 1),
+          unitPrice: Number(item.price || 0),
+          lineTotal: Number(item.total || item.price || 0),
+        }))
+      : [{
+          description: invoiceData.service || 'Service',
+          quantity: 1,
+          unitPrice: Number(invoiceData.price || 0),
+          lineTotal: Number(invoiceData.price || 0),
+          details: [invoiceData.branch, invoiceData.barber].filter(Boolean).join(' - '),
+        }];
+
+    await generateUnifiedInvoicePdf({
+      invoiceNumber: invoiceData.invoiceNumber || `INV-${Date.now()}`,
+      invoiceDate: invoiceData.date || new Date().toLocaleDateString(),
+      companyName: 'MAN OF CAVE BARBERSHOP',
+      customerName: invoiceData.customer || 'Customer',
+      customerPhone: invoiceData.phone,
+      customerEmail: invoiceData.email,
+      serviceDate: invoiceData.date,
+      serviceTime: invoiceData.time,
+      branchName: invoiceData.branch || 'Main Branch',
+      items: invoiceItems,
+      subtotal,
+      discountAmount,
+      taxAmount,
+      taxPercent,
+      serviceCharges,
+      tipAmount,
+      totalAmount,
+      paymentMethods,
+      notes: invoiceData.notes,
+      trnNumber: invoiceData.trnNumber,
+      logoPath: '/manofcave.png',
+      fileName: `Invoice-${invoiceData.invoiceNumber || 'MANOFCAVE'}.pdf`,
     });
-    
-    // Totals
-    const finalY = (doc as any).lastAutoTable.finalY + 10;
-    
-    const subtotal = invoiceData.subtotal || invoiceData.price || 0;
-    const totalTips = invoiceData.serviceDetails?.reduce((sum, s) => sum + (s.tip || 0), 0) || 0;
-    const grandTotal = subtotal + totalTips;
-    
-    doc.setFont("helvetica", "bold");
-    doc.text(`Subtotal: AED ${subtotal.toFixed(2)}`, pageWidth - 70, finalY);
-    doc.text(`Tips: AED ${totalTips.toFixed(2)}`, pageWidth - 70, finalY + 6);
-    doc.text(`Grand Total: AED ${grandTotal.toFixed(2)}`, pageWidth - 70, finalY + 14);
-    
-    // Footer
-    const footerY = doc.internal.pageSize.height - 15;
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "bold");
-    doc.text('THANK YOU FOR YOUR BUSINESS', pageWidth / 2, footerY, { align: 'center' });
-    
-    doc.save(`Invoice-${invoiceData.invoiceNumber || 'MANOFCAVE'}.pdf`);
+
     return true;
-    
   } catch (error) {
     console.error('Error generating PDF:', error);
     return false;
@@ -2587,9 +2560,14 @@ export default function AdminAppointments() {
       status: appointment.status,
       barber: appointment.barber,
       notes: appointment.notes || '',
-      tax: 0,
-      discount: 0,
+      tax: appointment.tax || 5,
+      discount: appointment.discount || 0,
+      discountType: appointment.discountType || 'fixed',
       paymentMethod: appointment.paymentMethods?.join(', ') || 'Cash',
+      paymentMethods: appointment.paymentMethods,
+      paymentAmounts: appointment.paymentAmounts,
+      serviceCharges: appointment.serviceCharges || 0,
+      serviceTip: appointment.serviceTip || 0,
       subtotal: subtotal,
       total: subtotal,
       items: items
@@ -2645,7 +2623,7 @@ export default function AdminAppointments() {
     }
   };
 
-  const handleDownloadInvoicePDF = () => {
+  const handleDownloadInvoicePDF = async () => {
     if (!invoiceData) {
       addNotification({
         type: 'error',
@@ -2656,7 +2634,7 @@ export default function AdminAppointments() {
     }
     
     try {
-      const success = generatePDFInvoice(invoiceData);
+      const success = await generatePDFInvoice(invoiceData);
       
       if (success) {
         addNotification({
@@ -2679,6 +2657,47 @@ export default function AdminAppointments() {
       console.error('Error generating invoice:', error);
     }
   };
+
+  const invoiceSummary = useMemo(() => {
+    if (!invoiceData) {
+      return {
+        servicesSubtotal: 0,
+        serviceCharges: 0,
+        subtotalWithCharges: 0,
+        discountAmount: 0,
+        taxAmount: 0,
+        tipAmount: 0,
+        totalAmount: 0,
+      };
+    }
+
+    const servicesSubtotal = invoiceData.serviceDetails?.reduce((sum, s) => sum + Number(s.price || 0), 0)
+      || Number(invoiceData.subtotal || invoiceData.price || 0);
+    const serviceCharges = Number(invoiceData.serviceCharges || 0);
+    const subtotalWithCharges = servicesSubtotal + serviceCharges;
+
+    const discountValue = Number(invoiceData.discount || 0);
+    const discountAmount = invoiceData.discountType === 'percentage'
+      ? Math.min(subtotalWithCharges, Math.max(0, (subtotalWithCharges * discountValue) / 100))
+      : Math.min(subtotalWithCharges, Math.max(0, discountValue));
+
+    const taxableAmount = Math.max(0, subtotalWithCharges - discountAmount);
+    const taxRate = Number(invoiceData.tax || 0);
+    const taxAmount = Math.max(0, (taxableAmount * taxRate) / 100);
+    const tipAmount = Number(invoiceData.serviceDetails?.reduce((sum, s) => sum + Number(s.tip || 0), 0) || 0)
+      + Number(invoiceData.serviceTip || 0);
+    const totalAmount = taxableAmount + taxAmount + tipAmount;
+
+    return {
+      servicesSubtotal,
+      serviceCharges,
+      subtotalWithCharges,
+      discountAmount,
+      taxAmount,
+      tipAmount,
+      totalAmount,
+    };
+  }, [invoiceData]);
 
   return (
     <ProtectedRoute requiredRole="super_admin">
@@ -3943,22 +3962,41 @@ export default function AdminAppointments() {
                   <div className="border-t pt-3 mt-3">
                     <div className="flex justify-between font-medium">
                       <span>Subtotal:</span>
-                      <span>AED {invoiceData.subtotal?.toFixed(2) || '0.00'}</span>
+                      <span>AED {invoiceSummary.servicesSubtotal.toFixed(2)}</span>
                     </div>
+
+                    {invoiceSummary.serviceCharges > 0 && (
+                      <div className="flex justify-between">
+                        <span>Service Charges:</span>
+                        <span>AED {invoiceSummary.serviceCharges.toFixed(2)}</span>
+                      </div>
+                    )}
+
+                    {invoiceSummary.discountAmount > 0 && (
+                      <div className="flex justify-between text-red-600">
+                        <span>Discount:</span>
+                        <span>- AED {invoiceSummary.discountAmount.toFixed(2)}</span>
+                      </div>
+                    )}
+
+                    {invoiceSummary.taxAmount > 0 && (
+                      <div className="flex justify-between">
+                        <span>Tax ({Number(invoiceData.tax || 0).toFixed(2)}%):</span>
+                        <span>AED {invoiceSummary.taxAmount.toFixed(2)}</span>
+                      </div>
+                    )}
                     
-                    {invoiceData.serviceDetails?.some(s => s.tip) && (
+                    {invoiceSummary.tipAmount > 0 && (
                       <div className="flex justify-between text-green-600">
                         <span>Total Tips:</span>
-                        <span>
-                          AED {invoiceData.serviceDetails.reduce((sum, s) => sum + (s.tip || 0), 0).toFixed(2)}
-                        </span>
+                        <span>AED {invoiceSummary.tipAmount.toFixed(2)}</span>
                       </div>
                     )}
                     
                     <div className="flex justify-between text-lg font-bold pt-3 border-t mt-3">
                       <span>Grand Total:</span>
                       <span className="text-green-600">
-                        AED {((invoiceData.subtotal || 0) + (invoiceData.serviceDetails?.reduce((sum, s) => sum + (s.tip || 0), 0) || 0)).toFixed(2)}
+                        AED {invoiceSummary.totalAmount.toFixed(2)}
                       </span>
                     </div>
                   </div>
