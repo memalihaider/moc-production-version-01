@@ -177,8 +177,8 @@ const DEFAULT_SETTINGS: CMSSettings = {
   heroTagline: 'For The Modern Caveman',
   footerDescription: 'The city\'s premier destination for luxury grooming and traditional barbering since 2020.',
   copyrightText: '© 2026 MAN OF CAVE. ALL RIGHTS RESERVED.',
-  whatsappNumber: '+971 0545354361',
-  phoneNumber: '+971 0545354361',
+  whatsappNumber: '+9710545354361',
+  phoneNumber: '+9710545354361',
   email: 'manofcave2024@gmail.com',
   instagramUrl: 'https://www.instagram.com/manofcave.in?igsh=MTZ5NjY1NjQycHZoYQ%3D%3D&utm_source=qr',
   facebookUrl: 'https://www.facebook.com/share/18Mfjfno28/?mibextid=wwXIfr',
@@ -191,20 +191,23 @@ const normalizeSettings = (data?: Partial<CMSSettings>): CMSSettings => {
   const phone = String(data?.phoneNumber || '').trim();
   const instagram = String(data?.instagramUrl || '').trim();
   const facebook = String(data?.facebookUrl || '').trim();
+  const normalizeDigits = (value: string) => value.replace(/[^0-9]/g, '');
+  const defaultPhoneDigits = normalizeDigits(DEFAULT_SETTINGS.phoneNumber);
+  const defaultWhatsappDigits = normalizeDigits(DEFAULT_SETTINGS.whatsappNumber);
 
-  if (!whatsapp || whatsapp.startsWith('+966') || whatsapp.startsWith('966')) {
+  if (!whatsapp || whatsapp.startsWith('+966') || whatsapp.startsWith('966') || normalizeDigits(whatsapp) !== defaultWhatsappDigits) {
     merged.whatsappNumber = DEFAULT_SETTINGS.whatsappNumber;
   }
 
-  if (!phone || phone.startsWith('+966') || phone.startsWith('966')) {
+  if (!phone || phone.startsWith('+966') || phone.startsWith('966') || normalizeDigits(phone) !== defaultPhoneDigits) {
     merged.phoneNumber = DEFAULT_SETTINGS.phoneNumber;
   }
 
-  if (!instagram) {
+  if (!instagram || instagram !== DEFAULT_SETTINGS.instagramUrl) {
     merged.instagramUrl = DEFAULT_SETTINGS.instagramUrl;
   }
 
-  if (!facebook) {
+  if (!facebook || facebook !== DEFAULT_SETTINGS.facebookUrl) {
     merged.facebookUrl = DEFAULT_SETTINGS.facebookUrl;
   }
 
