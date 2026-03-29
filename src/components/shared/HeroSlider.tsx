@@ -78,6 +78,14 @@ export function HeroSlider({ slides, children }: HeroSliderProps) {
     return 'opacity-0 z-0';
   };
 
+  const activeIndexes = new Set<number>();
+  activeIndexes.add(currentIndex);
+  if (nextIndex !== null) activeIndexes.add(nextIndex);
+
+  const visibleSlides = slides
+    .map((slide, index) => ({ slide, index }))
+    .filter(({ index }) => activeIndexes.has(index));
+
   // Fallback for no slides
   if (totalSlides === 0) {
     return (
@@ -99,7 +107,7 @@ export function HeroSlider({ slides, children }: HeroSliderProps) {
   return (
     <section className="relative h-[85vh] flex items-center justify-center overflow-hidden mt-[3.5rem]">
       {/* Slides */}
-      {slides.map((slide, index) => (
+      {visibleSlides.map(({ slide, index }) => (
         <div
           key={slide.id}
           className={cn(
@@ -110,7 +118,11 @@ export function HeroSlider({ slides, children }: HeroSliderProps) {
           {slide.type === 'video' ? (
             <video
               ref={(el) => {
-                if (el) videoRefs.current.set(slide.id, el);
+                if (el) {
+                  videoRefs.current.set(slide.id, el);
+                } else {
+                  videoRefs.current.delete(slide.id);
+                }
               }}
               src={slide.url}
               className="absolute inset-0 w-full h-full object-cover scale-105"

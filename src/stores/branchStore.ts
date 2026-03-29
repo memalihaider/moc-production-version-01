@@ -19,6 +19,9 @@ export interface Branch {
   image?: string;
 }
 
+const BRANCH_CACHE_KEY = 'branchCache';
+const BRANCH_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
 interface BranchStore {
   selectedBranch: string;
   branches: Branch[];
@@ -50,6 +53,24 @@ export const useBranchStore = create<BranchStore>((set, get) => ({
       set({ loading: false });
       return;
     }
+
+    if (typeof window !== 'undefined') {
+      try {
+        const cachedRaw = localStorage.getItem(BRANCH_CACHE_KEY);
+        if (cachedRaw) {
+          const cached = JSON.parse(cachedRaw);
+          const cachedAt = Number(cached?.timestamp || 0);
+          const cachedBranches = Array.isArray(cached?.branches) ? cached.branches : [];
+          if (cachedBranches.length > 0 && Date.now() - cachedAt < BRANCH_CACHE_TTL) {
+            set({ branches: cachedBranches, loading: false });
+            return;
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to read branch cache:', error);
+      }
+    }
+
     set({ loading: true });
     try {
       const branchesRef = collection(db, 'branches');
@@ -84,6 +105,17 @@ export const useBranchStore = create<BranchStore>((set, get) => ({
         return a.name.localeCompare(b.name);
       });
       set({ branches: branchesData });
+
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(
+            BRANCH_CACHE_KEY,
+            JSON.stringify({ timestamp: Date.now(), branches: branchesData })
+          );
+        } catch (error) {
+          console.warn('Failed to write branch cache:', error);
+        }
+      }
       
       // Local storage se selected branch lo agar pehle se save hai
       if (typeof window !== 'undefined') {

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { User, Building, Menu, X, LayoutDashboard, LogOut } from "lucide-react";
+import { User, Building, Menu, X, LayoutDashboard, LogOut, Settings, UserCircle } from "lucide-react";
 import Image from "next/image";
 import { useState, useEffect } from "react";
 import {
@@ -92,11 +92,18 @@ export function Header() {
     return "/customer/portal";
   };
 
-  const getDashboardLabel = () => {
-    if (!resolvedUser) return "Login";
-    if (resolvedUser.role === "super_admin") return "View Dashboard";
-    if (resolvedUser.role === "admin") return "View Dashboard";
-    return "View Dashboard";
+  const getProfileLink = () => {
+    if (!resolvedUser) return "/customer/login";
+    if (resolvedUser.role === "super_admin") return "/super-admin/settings";
+    if (resolvedUser.role === "admin") return "/admin/settings";
+    return "/customer/portal/profile";
+  };
+
+  const getSettingsLink = () => {
+    if (!resolvedUser) return "/customer/login";
+    if (resolvedUser.role === "super_admin") return "/super-admin/settings";
+    if (resolvedUser.role === "admin") return "/admin/settings";
+    return "/customer/portal/profile";
   };
 
   const handleAccountLogout = async () => {
@@ -204,30 +211,50 @@ export function Header() {
 
         {/* Desktop CTA */}
         <div className="hidden md:flex items-center gap-3 shrink-0">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                className="flex items-center justify-center w-9 h-9 rounded-full bg-secondary hover:bg-secondary/90 transition-all duration-300 shadow-md"
-                aria-label="Account Menu"
-              >
-                <User className="w-4 h-4 text-white" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-52">
-              <DropdownMenuItem asChild>
-                <Link href={getDashboardLink()} className="flex items-center gap-2">
-                  <LayoutDashboard className="w-4 h-4" />
-                  {getDashboardLabel()}
-                </Link>
-              </DropdownMenuItem>
-              {resolvedUser && (
+          {resolvedUser ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="flex items-center justify-center w-9 h-9 rounded-full bg-secondary hover:bg-secondary/90 transition-all duration-300 shadow-md"
+                  aria-label="Account Menu"
+                >
+                  <User className="w-4 h-4 text-white" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuItem asChild>
+                  <Link href={getDashboardLink()} className="flex items-center gap-2">
+                    <LayoutDashboard className="w-4 h-4" />
+                    Dashboard
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href={getProfileLink()} className="flex items-center gap-2">
+                    <UserCircle className="w-4 h-4" />
+                    Profile
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href={getSettingsLink()} className="flex items-center gap-2">
+                    <Settings className="w-4 h-4" />
+                    Settings
+                  </Link>
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleAccountLogout} className="text-red-600 focus:text-red-600">
                   <LogOut className="w-4 h-4 mr-2" />
                   Logout
                 </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Button
+              asChild
+              variant="outline"
+              className="border-secondary/30 text-primary rounded-lg px-4 py-2 text-xs tracking-widest font-bold"
+            >
+              <Link href="/customer/login">SIGN IN</Link>
+            </Button>
+          )}
           <Button asChild className="bg-secondary hover:bg-secondary/90 text-primary rounded-lg px-5 py-2 text-xs tracking-widest font-bold shadow-md shadow-secondary/20 transition-all duration-300 hover:scale-105 active:scale-95">
             <Link href="/services">BOOK NOW</Link>
           </Button>
@@ -235,23 +262,35 @@ export function Header() {
 
         {/* Mobile right side: user icon + hamburger */}
         <div className="flex md:hidden items-center gap-2 shrink-0">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                className="flex items-center justify-center w-9 h-9 rounded-full bg-secondary hover:bg-secondary/90 transition-all duration-300 shadow-md"
-                aria-label="Account Menu"
-              >
-                <User className="w-4 h-4 text-white" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-52">
-              <DropdownMenuItem asChild>
-                <Link href={getDashboardLink()} className="flex items-center gap-2" onClick={() => setMobileOpen(false)}>
-                  <LayoutDashboard className="w-4 h-4" />
-                  {getDashboardLabel()}
-                </Link>
-              </DropdownMenuItem>
-              {resolvedUser && (
+          {resolvedUser ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="flex items-center justify-center w-9 h-9 rounded-full bg-secondary hover:bg-secondary/90 transition-all duration-300 shadow-md"
+                  aria-label="Account Menu"
+                >
+                  <User className="w-4 h-4 text-white" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuItem asChild>
+                  <Link href={getDashboardLink()} className="flex items-center gap-2" onClick={() => setMobileOpen(false)}>
+                    <LayoutDashboard className="w-4 h-4" />
+                    Dashboard
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href={getProfileLink()} className="flex items-center gap-2" onClick={() => setMobileOpen(false)}>
+                    <UserCircle className="w-4 h-4" />
+                    Profile
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href={getSettingsLink()} className="flex items-center gap-2" onClick={() => setMobileOpen(false)}>
+                    <Settings className="w-4 h-4" />
+                    Settings
+                  </Link>
+                </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={async () => {
                     setMobileOpen(false);
@@ -262,9 +301,17 @@ export function Header() {
                   <LogOut className="w-4 h-4 mr-2" />
                   Logout
                 </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Button
+              asChild
+              variant="outline"
+              className="border-secondary/30 text-primary rounded-lg px-3 py-2 text-[10px] tracking-widest font-bold"
+            >
+              <Link href="/customer/login">SIGN IN</Link>
+            </Button>
+          )}
           <button
             onClick={() => setMobileOpen((prev) => !prev)}
             className="flex items-center justify-center w-9 h-9 rounded-lg border border-secondary/20 text-primary hover:bg-secondary/10 transition-colors"

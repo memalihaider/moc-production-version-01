@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -630,16 +630,6 @@ export default function Home() {
     }
   }, [selectedBranch]);
 
-  // Log for debugging
-  useEffect(() => {
-    console.log('🏠 Home - Selected Branch:', selectedBranch);
-    console.log('🏠 Home - Filtered Services:', filteredServices.length);
-    console.log('🏠 Home - Filtered Products:', filteredProducts.length);
-    console.log('🏠 Home - Filtered Offers:', filteredOffers.length);
-    console.log('🏠 Home - Filtered Memberships:', filteredMemberships.length);
-    console.log('🏠 Home - Filtered Categories:', filteredCategories.length);
-  }, [selectedBranch, services, products, offers, memberships, categories]);
-
   const handleApplyBranchSelection = () => {
     setSelectedBranch(branchPopupValue || 'all');
     localStorage.setItem('branchSelectionPopupShown', 'true');
@@ -691,75 +681,94 @@ export default function Home() {
   // ==================== FILTER FUNCTIONS ====================
   
   // Filter services by branch
-  const filteredServices = services.filter(service => {
-    if (selectedBranch === 'all') return true;
-    
-    if (service.branchNames && service.branchNames.length > 0) {
-      return service.branchNames.includes(selectedBranch);
-    } else if (service.branches && service.branches.length > 0) {
-      return service.branches.includes(selectedBranch);
-    }
-    return false;
-  });
+  const filteredServices = useMemo(() => (
+    services.filter(service => {
+      if (selectedBranch === 'all') return true;
+      
+      if (service.branchNames && service.branchNames.length > 0) {
+        return service.branchNames.includes(selectedBranch);
+      } else if (service.branches && service.branches.length > 0) {
+        return service.branches.includes(selectedBranch);
+      }
+      return false;
+    })
+  ), [services, selectedBranch]);
 
   // Filter products by branch
-  const filteredProducts = products.filter(product => {
-    if (selectedBranch === 'all') return true;
-    
-    if (product.branchNames && product.branchNames.length > 0) {
-      return product.branchNames.includes(selectedBranch);
-    } else if (product.branches && product.branches.length > 0) {
-      return product.branches.includes(selectedBranch);
-    }
-    return false;
-  });
+  const filteredProducts = useMemo(() => (
+    products.filter(product => {
+      if (selectedBranch === 'all') return true;
+      
+      if (product.branchNames && product.branchNames.length > 0) {
+        return product.branchNames.includes(selectedBranch);
+      } else if (product.branches && product.branches.length > 0) {
+        return product.branches.includes(selectedBranch);
+      }
+      return false;
+    })
+  ), [products, selectedBranch]);
 
   // Filter offers by branch
-  const filteredOffers = offers.filter(offer => {
-    if (selectedBranch === 'all') return true;
-    
-    if (offer.branchNames && offer.branchNames.length > 0) {
-      return offer.branchNames.includes(selectedBranch);
-    } else if (offer.branches && offer.branches.length > 0) {
-      return offer.branches.includes(selectedBranch);
-    }
-    return false;
-  });
+  const filteredOffers = useMemo(() => (
+    offers.filter(offer => {
+      if (selectedBranch === 'all') return true;
+      
+      if (offer.branchNames && offer.branchNames.length > 0) {
+        return offer.branchNames.includes(selectedBranch);
+      } else if (offer.branches && offer.branches.length > 0) {
+        return offer.branches.includes(selectedBranch);
+      }
+      return false;
+    })
+  ), [offers, selectedBranch]);
 
   // Filter memberships by branch
-  const filteredMemberships = memberships.filter(membership => {
-    if (selectedBranch === 'all') return true;
-    
-    if (membership.branchNames && membership.branchNames.length > 0) {
-      return membership.branchNames.includes(selectedBranch);
-    } else if (membership.branches && membership.branches.length > 0) {
-      return membership.branches.includes(selectedBranch);
-    }
-    return false;
-  });
+  const filteredMemberships = useMemo(() => (
+    memberships.filter(membership => {
+      if (selectedBranch === 'all') return true;
+      
+      if (membership.branchNames && membership.branchNames.length > 0) {
+        return membership.branchNames.includes(selectedBranch);
+      } else if (membership.branches && membership.branches.length > 0) {
+        return membership.branches.includes(selectedBranch);
+      }
+      return false;
+    })
+  ), [memberships, selectedBranch]);
 
   // Filter categories by branch
-  const filteredCategories = categories.filter(category => {
-    if (selectedBranch === 'all') return true;
-    if (category.branchNames && category.branchNames.length > 0) {
-      return category.branchNames.includes(selectedBranch);
-    }
-    if (category.branches && category.branches.length > 0) {
-      return category.branches.includes(selectedBranch);
-    }
-    // Backward compat for old single-field docs
-    return category.branchName === selectedBranch || category.branchId === selectedBranch;
-  });
+  const filteredCategories = useMemo(() => (
+    categories.filter(category => {
+      if (selectedBranch === 'all') return true;
+      if (category.branchNames && category.branchNames.length > 0) {
+        return category.branchNames.includes(selectedBranch);
+      }
+      if (category.branches && category.branches.length > 0) {
+        return category.branches.includes(selectedBranch);
+      }
+      // Backward compat for old single-field docs
+      return category.branchName === selectedBranch || category.branchId === selectedBranch;
+    })
+  ), [categories, selectedBranch]);
 
   // Filter staff by branch
-  const filteredStaff = selectedBranch === 'all'
-    ? staff
-    : staff.filter(member => {
-        if (member.branchNames && member.branchNames.length > 0) {
-          return member.branchNames.includes(selectedBranch);
-        }
-        return false;
-      });
+  const filteredStaff = useMemo(() => (
+    selectedBranch === 'all'
+      ? staff
+      : staff.filter(member => {
+          if (member.branchNames && member.branchNames.length > 0) {
+            return member.branchNames.includes(selectedBranch);
+          }
+          return false;
+        })
+  ), [staff, selectedBranch]);
+
+  const visibleServices = filteredServices.slice(0, 12);
+  const visibleProducts = filteredProducts.slice(0, 12);
+  const visibleOffers = filteredOffers.slice(0, 8);
+  const visibleMemberships = filteredMemberships.slice(0, 8);
+  const visibleStaff = filteredStaff.slice(0, 12);
+  const visibleBranches = branches.slice(0, 8);
 
   // Calculate stats based on filtered data
   const totalActiveServices = filteredServices.filter(s => s.status === 'active').length;
@@ -982,33 +991,33 @@ export default function Home() {
       {/* Hero Section */}
       <HeroSlider slides={heroSlides}>
         <div className="text-center text-white px-4 max-w-5xl mx-auto">
-          <div className="inline-flex items-center gap-2 mb-6 bg-white/10 backdrop-blur-md border border-white/20 rounded-full px-4 py-1.5 animate-fade-in">
+          <div className="inline-flex items-center gap-2 mb-5 bg-white/10 backdrop-blur-md border border-white/20 rounded-full px-3 py-1.5 animate-fade-in">
             <div className="w-2 h-2 rounded-full bg-secondary animate-pulse"></div>
-            <span className="text-[10px] tracking-[0.3em] uppercase font-bold text-secondary">{cmsSettings.heroTagline}</span>
+            <span className="text-[9px] sm:text-[10px] tracking-[0.25em] uppercase font-bold text-secondary">{cmsSettings.heroTagline}</span>
           </div>
           
-          <h1 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-cinzel font-bold mb-6 leading-[1.1] tracking-tight drop-shadow-2xl">
+          <h1 className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-cinzel font-bold mb-5 leading-tight tracking-tight drop-shadow-2xl">
             {heroSlides[0]?.heading || 'Unleash Your'} <br />
             <span className="text-secondary italic">{heroSlides[0]?.subHeading || 'Raw Potential'}</span>
           </h1>
           
           {/* ✅ Branch Info in Hero */}
-          <div className="flex items-center justify-center gap-4 mb-6">
-            <Badge className="bg-secondary/20 text-secondary border-secondary/30 px-4 py-2 rounded-full">
+          <div className="flex items-center justify-center gap-4 mb-5">
+            <Badge className="bg-secondary/20 text-secondary border-secondary/30 px-3 py-1.5 rounded-full text-[10px] sm:text-xs">
               <Building className="w-3 h-3 mr-2" />
               {currentBranchName}
             </Badge>
           </div>
           
-          <p className="text-lg md:text-xl mb-10 max-w-2xl mx-auto font-light text-gray-300 leading-relaxed drop-shadow-lg">
+          <p className="text-sm sm:text-base md:text-lg mb-8 max-w-2xl mx-auto font-light text-gray-300 leading-relaxed drop-shadow-lg">
             Primal grooming for the modern man. Embrace your inner strength with bold, authentic style.
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center w-full">
-            <Button size="lg" asChild className="w-full sm:w-auto bg-secondary hover:bg-secondary/90 text-primary font-bold px-8 py-5 sm:px-10 sm:py-7 text-sm sm:text-base rounded-xl transition-all duration-500 shadow-[0_0_30px_rgba(197,160,89,0.3)] hover:shadow-[0_0_50px_rgba(197,160,89,0.5)] hover:scale-105 active:scale-95">
+            <Button size="lg" asChild className="w-full sm:w-auto bg-secondary hover:bg-secondary/90 text-primary font-bold px-6 py-4 sm:px-9 sm:py-6 text-xs sm:text-base rounded-xl transition-all duration-500 shadow-[0_0_30px_rgba(197,160,89,0.3)] hover:shadow-[0_0_50px_rgba(197,160,89,0.5)] hover:scale-105 active:scale-95">
               <Link href={heroSlides[0]?.ctaLink || '/services'}>{heroSlides[0]?.ctaText || 'RESERVE YOUR SERVICE'}</Link>
             </Button>
-            <Button size="lg" variant="outline" asChild className="w-full sm:w-auto border-white/30 text-primary hover:bg-white hover:text-primary px-8 py-5 sm:px-10 sm:py-7 text-sm sm:text-base rounded-xl transition-all duration-500 backdrop-blur-sm hover:scale-105 active:scale-95">
+            <Button size="lg" variant="outline" asChild className="w-full sm:w-auto border-white/30 text-primary hover:bg-white hover:text-primary px-6 py-4 sm:px-9 sm:py-6 text-xs sm:text-base rounded-xl transition-all duration-500 backdrop-blur-sm hover:scale-105 active:scale-95">
               <Link href={heroSlides[0]?.ctaSecondaryLink || '/services'}>{heroSlides[0]?.ctaSecondaryText || 'VIEW OUR MENU'}</Link>
             </Button>
           </div>
@@ -1016,9 +1025,9 @@ export default function Home() {
       </HeroSlider>
 
       {/* Stats Section */}
-      <section className="py-8 md:py-10 border-b border-gray-100 bg-white relative z-20 -mt-6 md:-mt-10 mx-3 md:mx-10 rounded-2xl shadow-2xl">
+      <section className="py-4 sm:py-6 md:py-8 border-b border-gray-100 bg-white relative z-20 -mt-6 md:-mt-10 mx-3 md:mx-10 rounded-2xl shadow-2xl">
         <div className="max-w-7xl mx-auto px-4">
-          <div className="grid grid-cols-3 gap-4 md:gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-3 md:gap-5">
             {[
               { 
                 icon: Award, 
@@ -1044,13 +1053,13 @@ export default function Home() {
              
             ].map((stat, i) => (
               <div key={i} className="flex flex-col items-center text-center group">
-                <div className="w-12 h-12 rounded-2xl bg-secondary/10 flex items-center justify-center mb-3 group-hover:bg-secondary group-hover:text-primary transition-all duration-500">
-                  <stat.icon className="w-6 h-6 text-secondary group-hover:text-primary transition-colors" />
+                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-secondary/10 flex items-center justify-center mb-2 group-hover:bg-secondary group-hover:text-primary transition-all duration-500">
+                  <stat.icon className="w-4 h-4 sm:w-5 sm:h-5 text-secondary group-hover:text-primary transition-colors" />
                 </div>
-                <span className="text-2xl font-sans font-bold text-primary mb-0.5">{stat.value}</span>
-                <span className="text-[10px] uppercase tracking-[0.2em] text-primary font-bold mb-1">{stat.label}</span>
-                <span className="text-[9px] text-muted-foreground font-medium">{stat.desc}</span>
-                <div className="w-16 h-1 bg-secondary/20 rounded-full mt-2">
+                <span className="text-xl sm:text-2xl font-sans font-bold text-primary mb-0.5">{stat.value}</span>
+                <span className="text-[9px] uppercase tracking-[0.18em] text-primary font-bold mb-0.5">{stat.label}</span>
+                <span className="text-[8px] text-muted-foreground font-medium">{stat.desc}</span>
+                <div className="w-14 h-1 bg-secondary/20 rounded-full mt-1.5">
                   <div 
                     className="h-full bg-secondary rounded-full transition-all duration-1000"
                     style={{ width: `${Math.min(100, (stat.data || 0) * 10)}%` }}
@@ -1079,14 +1088,14 @@ export default function Home() {
 
      {/* Services Section */}
 {(svcSection?.isVisible !== false) && (
-<section className="py-16 px-4 bg-gray-50">
+<section className="py-12 sm:py-16 px-4 bg-gray-50">
   <div className="max-w-7xl mx-auto">
     <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-4">
       <div className="space-y-2">
         <div className="inline-block bg-secondary/10 px-3 py-1 rounded-full">
           <span className="text-secondary font-bold tracking-[0.2em] uppercase text-[10px]">{svcSection?.badgeText || 'Signature Collection'}</span>
         </div>
-        <h2 className="text-3xl md:text-4xl font-cinzel font-bold text-primary">{svcSection?.heading || 'Bespoke Services'}</h2>
+        <h2 className="text-2xl sm:text-3xl md:text-4xl font-cinzel font-bold text-primary">{svcSection?.heading || 'Bespoke Services'}</h2>
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="text-xs border-secondary/30 text-secondary">
             {filteredServices.length} Services Available
@@ -1123,14 +1132,16 @@ export default function Home() {
         className="w-full"
       >
         <CarouselContent className="-ml-4">
-          {filteredServices.map((service) => (
-            <CarouselItem key={service.id} className="pl-4 md:basis-1/2 lg:basis-1/4">
+          {visibleServices.map((service) => (
+            <CarouselItem key={service.id} className="pl-4 basis-[85%] sm:basis-1/2 lg:basis-1/4">
               <div className="group relative bg-white rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300">
                 {/* Image Container */}
-                <div className="relative aspect-[4/3] w-full overflow-hidden bg-gray-100">
+                <div className="relative aspect-[16/10] sm:aspect-[4/3] w-full overflow-hidden bg-gray-100">
                   <img 
                     src={service.imageUrl} 
                     alt={service.name}
+                    loading="lazy"
+                    decoding="async"
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                     onError={(e) => {
                       (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1599351431247-f5094021186d?q=80&w=2070&auto=format&fit=crop';
@@ -1142,14 +1153,14 @@ export default function Home() {
                   
                   {/* Price Badge - Always visible */}
                   <div className="absolute top-3 right-3">
-                    <div className="bg-white/90 backdrop-blur-sm text-primary px-3 py-1 rounded-full text-sm font-bold shadow-md">
+                    <div className="bg-white/90 backdrop-blur-sm text-primary px-2.5 py-1 rounded-full text-xs sm:text-sm font-bold shadow-md">
                       AED {service.price}
                     </div>
                   </div>
                   
                   {/* Duration Badge - Always visible */}
                   <div className="absolute top-3 left-3">
-                    <div className="bg-white/90 backdrop-blur-sm text-primary px-3 py-1 rounded-full text-xs font-bold shadow-md flex items-center gap-1">
+                    <div className="bg-white/90 backdrop-blur-sm text-primary px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-bold shadow-md flex items-center gap-1">
                       <Clock className="w-3 h-3" />
                       {service.duration} min
                     </div>
@@ -1169,9 +1180,9 @@ export default function Home() {
                 </div>
                 
                 {/* Service Info */}
-                <div className="p-4">
+                <div className="p-3 sm:p-4">
                   <div className="flex items-start justify-between mb-2">
-                    <h3 className="text-lg font-sans font-bold text-primary line-clamp-1">
+                    <h3 className="text-base sm:text-lg font-sans font-bold text-primary line-clamp-1">
                       {service.name}
                     </h3>
                     <Badge variant="outline" className="text-[9px] uppercase tracking-wider text-secondary border-secondary/30">
@@ -1181,7 +1192,7 @@ export default function Home() {
                   
                   {/* Branch Indicator */}
                   {service.branchNames && service.branchNames.length > 0 && (
-                    <div className="flex items-center gap-1 text-[10px] text-gray-500">
+                    <div className="flex items-center gap-1 text-[9px] sm:text-[10px] text-gray-500">
                       <MapPin className="w-3 h-3 text-secondary" />
                       <span className="truncate">{service.branchNames[0]}</span>
                       {service.branchNames.length > 1 && (
@@ -1252,13 +1263,15 @@ export default function Home() {
         className="w-full"
       >
         <CarouselContent className="-ml-5">
-          {filteredProducts.map((product) => (
+          {visibleProducts.map((product) => (
             <CarouselItem key={product.id} className="pl-5 md:basis-1/2 lg:basis-1/4">
               <div className="group cursor-pointer bg-white/[0.03] p-5 border border-white/10 rounded-2xl hover:bg-white/[0.07] hover:border-secondary/50 transition-all duration-500 h-full">
                 <div className="relative aspect-square overflow-hidden mb-4 rounded-xl bg-white/5">
                   <img 
                     src={product.imageUrl || "https://images.unsplash.com/photo-1512690196222-7c7d3f993c1b?q=80&w=2070&auto=format&fit=crop"} 
                     alt={product.name} 
+                    loading="lazy"
+                    decoding="async"
                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                     onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
                       e.currentTarget.src = 'https://images.unsplash.com/photo-1512690196222-7c7d3f993c1b?q=80&w=2070&auto=format&fit=crop';
@@ -1326,7 +1339,7 @@ export default function Home() {
 
     
     {/* Offers Section */}
-{(offersSection?.isVisible !== false) && (
+{(offersSection?.isVisible !== false && filteredOffers.length > 0) && (
 <section className="py-16 px-4 bg-gray-50/50 relative overflow-hidden">
   <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-[0.03] pointer-events-none"></div>
   <div className="max-w-7xl mx-auto relative z-10">
@@ -1370,7 +1383,7 @@ export default function Home() {
         className="w-full"
       >
         <CarouselContent className="-ml-5">
-          {filteredOffers.map((offer) => {
+          {visibleOffers.map((offer) => {
             const discountText = formatDiscount(offer);
             const offerBgColor = getOfferBgColor(offer.offerType);
             
@@ -1395,6 +1408,8 @@ export default function Home() {
                       <img 
                         src={offer.imageUrl} 
                         alt={offer.title}
+                        loading="lazy"
+                        decoding="async"
                         className="w-full h-full object-cover"
                         onError={(e) => {
                           e.currentTarget.style.display = 'none';
@@ -1471,7 +1486,7 @@ export default function Home() {
 )}
 
      {/* Memberships Section */}
-{(memberSection?.isVisible !== false) && (
+{(memberSection?.isVisible !== false && filteredMemberships.length > 0) && (
 <section className="py-16 px-4 bg-white relative overflow-hidden">
   <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/diamond.png')] opacity-[0.02] pointer-events-none"></div>
   <div className="max-w-7xl mx-auto relative z-10">
@@ -1515,7 +1530,7 @@ export default function Home() {
         className="w-full"
       >
         <CarouselContent className="-ml-5">
-          {filteredMemberships.map((membership) => {
+          {visibleMemberships.map((membership) => {
             const TierIcon = getMembershipTierIcon(membership.tier);
             const membershipBgColor = getMembershipTierColor(membership.tier);
             const durationText = formatDuration(membership.duration);
@@ -1662,13 +1677,15 @@ export default function Home() {
         className="w-full"
       >
         <CarouselContent className="-ml-4">
-          {filteredStaff.map((member) => (
+          {visibleStaff.map((member) => (
             <CarouselItem key={member.id} className="pl-4 basis-1/2 sm:basis-1/3 md:basis-1/4 lg:basis-1/5">
               <div className="group cursor-pointer">
                 <div className="relative aspect-3/4 overflow-hidden rounded-2xl shadow-md">
                   <img
                     src={member.image}
                     alt={member.name}
+                    loading="lazy"
+                    decoding="async"
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                     onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
                       e.currentTarget.src = '/default-avatar.png';
@@ -1739,7 +1756,7 @@ export default function Home() {
           className="w-full"
         >
           <CarouselContent className="-ml-6">
-            {branches.map((branch) => {
+            {visibleBranches.map((branch) => {
               const isSelected = selectedBranch !== 'all' && (branch.name === selectedBranch || branch.id === selectedBranch);
               
               return (
@@ -1972,6 +1989,8 @@ export default function Home() {
                   <img
                     src={activeBranch.image}
                     alt={`${activeBranch.name} logo`}
+                    loading="lazy"
+                    decoding="async"
                     className="w-20 h-20 rounded-xl object-cover border border-white/10"
                     onError={(e) => {
                       (e.currentTarget as HTMLImageElement).style.display = 'none';
