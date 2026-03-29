@@ -10,7 +10,7 @@ import {
   Quote, Instagram, CheckCircle2, ShieldCheck, Zap, Building,
   TrendingUp, Package, DollarSign, RefreshCw,
   Crown, Gem, Shield, Sparkles, Check, UserCheck,
-  Grid3X3,
+  Grid3X3, Globe,
   Facebook
 } from "lucide-react";
 import { Header } from "@/components/shared/Header";
@@ -97,6 +97,8 @@ interface Branch {
   address: string;
   city: string;
   country: string;
+  website?: string;
+  image?: string;
   openingTime: string;
   closingTime: string;
   weeklyTimings?: {
@@ -367,6 +369,8 @@ const useHomeStore = create<HomeStore>()(
               address: data.address || 'Address not available',
               city: data.city || 'City not available',
               country: data.country || 'Country not available',
+              website: data.website || '',
+              image: data.image || data.businessLogo || '',
               openingTime: data.openingTime || '09:00',
               closingTime: data.closingTime || '18:00',
               weeklyTimings: data.weeklyTimings || {},
@@ -572,24 +576,9 @@ export default function Home() {
     fetchHomeData 
   } = useHomeStore();
 
-  // ===== CHAT LOGIC =====
-  const [showChatPopup, setShowChatPopup] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showBranchFilter, setShowBranchFilter] = useState(false);
   const [showBranchSelectorPopup, setShowBranchSelectorPopup] = useState(false);
   const [branchPopupValue, setBranchPopupValue] = useState('all');
-
-  // Check login status
-  useEffect(() => {
-    const checkLogin = () => {
-      const user = localStorage.getItem('user');
-      setIsLoggedIn(!!user);
-    };
-    
-    checkLogin();
-    window.addEventListener('storage', checkLogin);
-    return () => window.removeEventListener('storage', checkLogin);
-  }, []);
 
   // Fetch data on mount - THIS WILL SHOW INSTANTLY FROM CACHE
   useEffect(() => {
@@ -650,14 +639,6 @@ export default function Home() {
     console.log('🏠 Home - Filtered Memberships:', filteredMemberships.length);
     console.log('🏠 Home - Filtered Categories:', filteredCategories.length);
   }, [selectedBranch, services, products, offers, memberships, categories]);
-
-  const handleChatClick = () => {
-    if (isLoggedIn) {
-      window.location.href = '/customer/chat';
-    } else {
-      setShowChatPopup(true);
-    }
-  };
 
   const handleApplyBranchSelection = () => {
     setSelectedBranch(branchPopupValue || 'all');
@@ -975,54 +956,28 @@ export default function Home() {
           </svg>
         </a>
 
-        {/* Chatbot */}
-        <button
-          onClick={handleChatClick}
+        {/* Instagram */}
+        <a
+          href={cmsSettings.instagramUrl || '#'}
+          target="_blank"
+          rel="noopener noreferrer"
           className="flex items-center justify-center w-12 h-12 bg-white rounded-full shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-110"
-          title="Chat with Bot"
+          title="Instagram"
         >
-          <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <defs>
-              <linearGradient id="chatbot-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#667eea" />
-                <stop offset="50%" stopColor="#764ba2" />
-                <stop offset="100%" stopColor="#6b8cff" />
-              </linearGradient>
-            </defs>
-            <circle cx="12" cy="12" r="10" stroke="url(#chatbot-gradient)" strokeWidth="1.5" fill="transparent"/>
-            <path d="M20 12C20 16.4183 16.4183 20 12 20C10.5 20 9.1 19.6 7.9 18.9L4 20L5.1 16.1C4.4 14.9 4 13.5 4 12C4 7.58172 7.58172 4 12 4C16.4183 4 20 7.58172 20 12Z" stroke="url(#chatbot-gradient)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="white"/>
-            <circle cx="9" cy="12" r="1" fill="url(#chatbot-gradient)" />
-            <circle cx="12" cy="12" r="1" fill="url(#chatbot-gradient)" />
-            <circle cx="15" cy="12" r="1" fill="url(#chatbot-gradient)" />
-          </svg>
-        </button>
-      </div>
+          <Instagram className="w-6 h-6 text-[#E1306C]" />
+        </a>
 
-      {/* Chat Login Popup */}
-      {showChatPopup && (
-        <div className="fixed inset-0 flex items-center justify-center z-[60]">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowChatPopup(false)} />
-          <div className="relative bg-white rounded-2xl shadow-2xl p-8 max-w-md mx-4 w-full animate-in fade-in zoom-in duration-300">
-            <button onClick={() => setShowChatPopup(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-            <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-blue-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
-              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-              </svg>
-            </div>
-            <h3 className="text-2xl font-sans font-bold text-center text-gray-900 mb-2">Create Account First! ✋</h3>
-            <Link href="/customer/login" className="block w-full text-center bg-gradient-to-r from-purple-500 to-blue-500 text-white font-semibold py-3 px-6 rounded-xl hover:shadow-lg hover:scale-[1.02] transition-all duration-300" onClick={() => setShowChatPopup(false)}>
-              Login / Sign Up
-            </Link>
-            <button onClick={() => setShowChatPopup(false)} className="block w-full text-center text-gray-500 text-sm mt-4 hover:text-gray-700">
-              Maybe Later
-            </button>
-          </div>
-        </div>
-      )}
+        {/* Facebook */}
+        <a
+          href={cmsSettings.facebookUrl || '#'}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-center w-12 h-12 bg-white rounded-full shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-110"
+          title="Facebook"
+        >
+          <Facebook className="w-6 h-6 text-[#1877F2]" />
+        </a>
+      </div>
 
       {/* Hero Section */}
       <HeroSlider slides={heroSlides}>
@@ -2012,6 +1967,18 @@ export default function Home() {
                   {selectedBranch === 'all' ? 'All Branches' : activeBranch.name}
                 </p>
               )}
+              {activeBranch?.image && (
+                <div className="mb-6">
+                  <img
+                    src={activeBranch.image}
+                    alt={`${activeBranch.name} logo`}
+                    className="w-20 h-20 rounded-xl object-cover border border-white/10"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).style.display = 'none';
+                    }}
+                  />
+                </div>
+              )}
               <ul className="space-y-8 text-gray-400 text-sm font-medium">
                 <li className="flex items-start gap-4 group">
                   <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-secondary group-hover:bg-secondary group-hover:text-primary transition-all duration-500">
@@ -2026,18 +1993,33 @@ export default function Home() {
                   <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-secondary group-hover:bg-secondary group-hover:text-primary transition-all duration-500">
                     <Phone className="w-5 h-5" />
                   </div>
-                  <a href={`tel:${activeBranch?.phone || '+971 02 550 3984'}`} className="font-light transition-colors hover:text-secondary">
-                    {activeBranch?.phone || "+971 02 550 3984"}
+                  <a href={`tel:${activeBranch?.phone || cmsSettings.phoneNumber}`} className="font-light transition-colors hover:text-secondary">
+                    {activeBranch?.phone || cmsSettings.phoneNumber}
                   </a>
                 </li>
                 <li className="flex items-center gap-4 group">
                   <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-secondary group-hover:bg-secondary group-hover:text-primary transition-all duration-500">
                     <Mail className="w-5 h-5" />
                   </div>
-                  <a href={`mailto:${activeBranch?.email || 'manofcave2024@gmail.com'}`} className="font-light transition-colors hover:text-secondary">
-                    {activeBranch?.email || "manofcave2024@gmail.com"}
+                  <a href={`mailto:${activeBranch?.email || cmsSettings.email}`} className="font-light transition-colors hover:text-secondary">
+                    {activeBranch?.email || cmsSettings.email}
                   </a>
                 </li>
+                {activeBranch?.website && (
+                  <li className="flex items-center gap-4 group">
+                    <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-secondary group-hover:bg-secondary group-hover:text-primary transition-all duration-500">
+                      <Globe className="w-5 h-5" />
+                    </div>
+                    <a
+                      href={activeBranch.website}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-light transition-colors hover:text-secondary"
+                    >
+                      {activeBranch.website}
+                    </a>
+                  </li>
+                )}
               </ul>
             </div>
           </div>

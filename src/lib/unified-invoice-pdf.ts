@@ -39,6 +39,7 @@ export interface UnifiedInvoicePdfData {
   totalAmount: number;
   paymentMethods: UnifiedInvoicePaymentMethod[];
   notes?: string;
+  disclaimerText?: string;
   logoPath?: string;
   fileName?: string;
 }
@@ -267,6 +268,21 @@ export async function generateUnifiedInvoicePdf(data: UnifiedInvoicePdfData): Pr
     doc.setFont('helvetica', 'normal');
     const wrappedNotes = doc.splitTextToSize(data.notes, pageWidth - margin * 2);
     doc.text(wrappedNotes, margin, paymentY + 12);
+    paymentY += wrappedNotes.length * 12 + 6;
+  }
+
+  // Keep clear breathing room between totals/summary and disclaimer text.
+  let disclaimerY = Math.max(summaryY + 20, paymentY + 16);
+
+  if (data.disclaimerText) {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(156, 163, 175);
+
+    const wrappedDisclaimer = doc.splitTextToSize(data.disclaimerText, pageWidth - margin * 2);
+    doc.text(wrappedDisclaimer, margin, disclaimerY);
+
+    disclaimerY += wrappedDisclaimer.length * 10;
   }
 
   doc.setFont('helvetica', 'normal');

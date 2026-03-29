@@ -3,6 +3,7 @@
 import { AuthProvider } from '@/contexts/AuthContext';
 import { BranchProvider } from '@/contexts/BranchContext';
 import { LanguageProvider } from '@/contexts/LanguageContext';
+import { ThemeSettingsProvider } from '@/components/ThemeSettingsProvider';
 
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -10,8 +11,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <LanguageProvider>
       <BranchProvider>
         <AuthProvider>
+          <ThemeSettingsProvider />
           {children}
-         
         </AuthProvider>
       </BranchProvider>
     </LanguageProvider>

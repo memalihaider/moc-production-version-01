@@ -11,6 +11,7 @@ export interface Branch {
   country?: string;
   phone?: string;
   email?: string;
+  website?: string;
   status?: string;
   openingTime?: string;
   closingTime?: string;
@@ -65,11 +66,12 @@ export const useBranchStore = create<BranchStore>((set, get) => ({
           country: data.country || "",
           phone: data.phone || "",
           email: data.email || "",
+          website: data.website || "",
           status: data.status || "active",
           openingTime: data.openingTime || "09:00",
           closingTime: data.closingTime || "18:00",
           weeklyTimings: data.weeklyTimings || {},
-          image: data.image || "",
+          image: data.image || data.businessLogo || "",
         });
       });
       

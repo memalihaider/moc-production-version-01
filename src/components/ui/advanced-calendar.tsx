@@ -145,12 +145,42 @@ interface AdvancedCalendarProps {
   onEditBooking?: (appointment: Appointment) => void;
   onDeleteBooking?: (appointment: Appointment) => void;
   onCheckoutBooking?: (appointment: Appointment) => void;
+  onDownloadInvoiceBooking?: (appointment: Appointment) => void;
+  onCloseBooking?: (appointment: Appointment) => void;
   staff?: StaffMember[];
   showFullDetails?: boolean;
   formatCurrency?: (amount: number) => string;
   /** When set, locks the calendar to this branch and hides the branch filter dropdown */
   lockedBranch?: string;
+  calendarDisplaySettings?: {
+    weeklyTimings?: {
+      monday?: { open?: string; close?: string; opening?: string; closing?: string; closed?: boolean };
+      tuesday?: { open?: string; close?: string; opening?: string; closing?: string; closed?: boolean };
+      wednesday?: { open?: string; close?: string; opening?: string; closing?: string; closed?: boolean };
+      thursday?: { open?: string; close?: string; opening?: string; closing?: string; closed?: boolean };
+      friday?: { open?: string; close?: string; opening?: string; closing?: string; closed?: boolean };
+      saturday?: { open?: string; close?: string; opening?: string; closing?: string; closed?: boolean };
+      sunday?: { open?: string; close?: string; opening?: string; closing?: string; closed?: boolean };
+    };
+    timeSlotGap?: number;
+    layoutMode?: 'time-top' | 'employee-top';
+    businessHours?: { start: number; end: number };
+    hiddenHours?: number[];
+    totalValueDisplayMode?: 'both' | 'with-tax' | 'without-tax';
+  };
 }
+
+type WeekdayKey = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
+
+const DEFAULT_WEEKLY_TIMINGS: Record<WeekdayKey, { open: string; close: string; closed: boolean }> = {
+  monday: { open: '09:00', close: '22:00', closed: false },
+  tuesday: { open: '09:00', close: '22:00', closed: false },
+  wednesday: { open: '09:00', close: '22:00', closed: false },
+  thursday: { open: '09:00', close: '22:00', closed: false },
+  friday: { open: '09:00', close: '22:00', closed: false },
+  saturday: { open: '09:00', close: '22:00', closed: false },
+  sunday: { open: '09:00', close: '22:00', closed: false },
+};
 
 // INVOICE INTERFACES
 interface InvoiceItem {
@@ -1810,6 +1840,7 @@ const AdvanceCalendarPopup = ({
   const getStatusColor = (status: string): string => {
     switch (status) {
       case "completed": return "bg-green-100 text-green-800";
+      case "closed": return "bg-green-100 text-green-800";
       case "in-progress": return "bg-blue-100 text-blue-800";
       case "scheduled": return "bg-yellow-100 text-yellow-800";
       case "approved": return "bg-purple-100 text-purple-800";
@@ -1824,6 +1855,7 @@ const AdvanceCalendarPopup = ({
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "completed": return <CheckCircle className="w-4 h-4" />;
+      case "closed": return <CheckCircle className="w-4 h-4" />;
       case "in-progress": return <Clock className="w-4 h-4" />;
       case "scheduled": return <Calendar className="w-4 h-4" />;
       case "approved": return <CheckCircle className="w-4 h-4" />;
@@ -1894,6 +1926,12 @@ const AdvanceCalendarPopup = ({
                         <div className="flex items-center gap-2">
                           <CheckCircle className="w-4 h-4 text-green-500" />
                           <span>Completed</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="closed">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle className="w-4 h-4 text-green-600" />
+                          <span>Closed</span>
                         </div>
                       </SelectItem>
                       <SelectItem value="rescheduled">
@@ -2310,10 +2348,13 @@ export function AdvancedCalendar({
   onEditBooking,
   onDeleteBooking,
   onCheckoutBooking,
+  onDownloadInvoiceBooking,
+  onCloseBooking,
   staff: propStaff,
   showFullDetails = true,
   formatCurrency = (amount) => `AED ${amount.toFixed(2)}`,
-  lockedBranch
+  lockedBranch,
+  calendarDisplaySettings
 }: AdvancedCalendarProps) {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedBarber, setSelectedBarber] = useState<string>('all');
@@ -2322,9 +2363,9 @@ export function AdvancedCalendar({
   const [branches, setBranches] = useState<Branch[]>([]);
   const [timeSlotGap, setTimeSlotGap] = useState(30);
   const [layoutMode, setLayoutMode] = useState<'time-top' | 'employee-top'>('time-top');
-  const [businessHours, setBusinessHours] = useState({ start: 9, end: 18 });
+  const [businessHours, setBusinessHours] = useState({ start: 9, end: 22 });
+  const [weeklyTimings, setWeeklyTimings] = useState(DEFAULT_WEEKLY_TIMINGS);
   const [hiddenHours, setHiddenHours] = useState<number[]>([]);
-  const [showSettings, setShowSettings] = useState(false);
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>(propStaff || []);
   const [currentSystemTime, setCurrentSystemTime] = useState(new Date());
   
@@ -2397,13 +2438,105 @@ export function AdvancedCalendar({
     return () => clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    if (!calendarDisplaySettings) return;
+
+    if (typeof calendarDisplaySettings.timeSlotGap === 'number') {
+      setTimeSlotGap(calendarDisplaySettings.timeSlotGap);
+    }
+
+    if (calendarDisplaySettings.layoutMode) {
+      setLayoutMode(calendarDisplaySettings.layoutMode);
+    }
+
+    if (calendarDisplaySettings.businessHours) {
+      setBusinessHours(calendarDisplaySettings.businessHours);
+    }
+
+    const incomingWeekly = calendarDisplaySettings.weeklyTimings || {};
+    const normalizeDay = (
+      dayValue: any,
+      fallback: { open: string; close: string; closed: boolean }
+    ) => ({
+      open: String(dayValue?.open ?? dayValue?.opening ?? fallback.open),
+      close: String(dayValue?.close ?? dayValue?.closing ?? fallback.close),
+      closed: Boolean(dayValue?.closed ?? fallback.closed),
+    });
+
+    setWeeklyTimings({
+      monday: normalizeDay(incomingWeekly.monday, DEFAULT_WEEKLY_TIMINGS.monday),
+      tuesday: normalizeDay(incomingWeekly.tuesday, DEFAULT_WEEKLY_TIMINGS.tuesday),
+      wednesday: normalizeDay(incomingWeekly.wednesday, DEFAULT_WEEKLY_TIMINGS.wednesday),
+      thursday: normalizeDay(incomingWeekly.thursday, DEFAULT_WEEKLY_TIMINGS.thursday),
+      friday: normalizeDay(incomingWeekly.friday, DEFAULT_WEEKLY_TIMINGS.friday),
+      saturday: normalizeDay(incomingWeekly.saturday, DEFAULT_WEEKLY_TIMINGS.saturday),
+      sunday: normalizeDay(incomingWeekly.sunday, DEFAULT_WEEKLY_TIMINGS.sunday),
+    });
+
+    if (Array.isArray(calendarDisplaySettings.hiddenHours)) {
+      setHiddenHours(calendarDisplaySettings.hiddenHours);
+    }
+  }, [calendarDisplaySettings]);
+
+  const parseTimeTo24Hour = (raw: string, fallbackHour: number) => {
+    const value = String(raw || '').trim();
+    if (!value) return { hour: fallbackHour, minute: 0 };
+
+    const directMatch = value.match(/^(\d{1,2}):(\d{2})$/);
+    if (directMatch) {
+      const hour = Math.max(0, Math.min(23, Number(directMatch[1])));
+      const minute = Math.max(0, Math.min(59, Number(directMatch[2])));
+      return { hour, minute };
+    }
+
+    const ampmMatch = value.match(/^(\d{1,2}):(\d{2})\s*([AP]M)$/i);
+    if (ampmMatch) {
+      let hour = Number(ampmMatch[1]) % 12;
+      const minute = Math.max(0, Math.min(59, Number(ampmMatch[2])));
+      const marker = ampmMatch[3].toUpperCase();
+      if (marker === 'PM') hour += 12;
+      return { hour, minute };
+    }
+
+    return { hour: fallbackHour, minute: 0 };
+  };
+
+  const weekdayKeys: WeekdayKey[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  const selectedWeekdayKey = weekdayKeys[selectedDate.getDay()];
+  const selectedDayTiming = weeklyTimings[selectedWeekdayKey] || DEFAULT_WEEKLY_TIMINGS[selectedWeekdayKey];
+  const isSelectedDayClosed = Boolean(selectedDayTiming?.closed);
+
+  const effectiveBusinessHours = useMemo(() => {
+    if (isSelectedDayClosed) {
+      return { startHour: businessHours.start, startMinute: 0, endHour: businessHours.end, endMinute: 0 };
+    }
+
+    const startParsed = parseTimeTo24Hour(selectedDayTiming?.open || '09:00', businessHours.start);
+    const endParsed = parseTimeTo24Hour(selectedDayTiming?.close || '22:00', businessHours.end);
+
+    const startTotal = (startParsed.hour * 60) + startParsed.minute;
+    const endTotal = (endParsed.hour * 60) + endParsed.minute;
+    if (endTotal <= startTotal) {
+      return { startHour: businessHours.start, startMinute: 0, endHour: businessHours.end, endMinute: 0 };
+    }
+
+    return {
+      startHour: startParsed.hour,
+      startMinute: startParsed.minute,
+      endHour: endParsed.hour,
+      endMinute: endParsed.minute,
+    };
+  }, [businessHours.end, businessHours.start, isSelectedDayClosed, selectedDayTiming?.close, selectedDayTiming?.open]);
+
   const generateTimeSlots = () => {
+    if (isSelectedDayClosed) return [];
+
     const slots = [];
     const startTime = new Date(selectedDate);
-    startTime.setHours(businessHours.start, 0, 0, 0);
+    startTime.setHours(effectiveBusinessHours.startHour, effectiveBusinessHours.startMinute, 0, 0);
 
     const endTime = new Date(selectedDate);
-    endTime.setHours(businessHours.end, 0, 0, 0);
+    endTime.setHours(effectiveBusinessHours.endHour, effectiveBusinessHours.endMinute, 0, 0);
 
     let currentTime = startTime;
     while (currentTime < endTime) {
@@ -2417,7 +2550,10 @@ export function AdvancedCalendar({
     return slots;
   };
 
-  const timeSlots = useMemo(() => generateTimeSlots(), [selectedDate, businessHours, timeSlotGap, hiddenHours]);
+  const timeSlots = useMemo(
+    () => generateTimeSlots(),
+    [selectedDate, effectiveBusinessHours, isSelectedDayClosed, timeSlotGap, hiddenHours]
+  );
 
   const isTodaySelected = isSameDay(selectedDate, currentSystemTime);
   const isPastSelectedDate = startOfDay(selectedDate).getTime() < startOfDay(currentSystemTime).getTime();
@@ -2448,6 +2584,31 @@ export function AdvancedCalendar({
     [timeSlots, isPastSelectedDate, isTodaySelected, currentSystemTime]
   );
 
+  const normalizeStaffName = (value?: string): string => String(value || '').trim().toLowerCase();
+
+  const getAssignedStaffNames = (appointment: Appointment): string[] => {
+    const names = [
+      appointment.barber,
+      appointment.staffName,
+      appointment.staff,
+      ...(Array.isArray(appointment.teamMembers)
+        ? appointment.teamMembers.map((member) => member?.name)
+        : []),
+    ]
+      .map((name) => String(name || '').trim())
+      .filter((name) => name.length > 0);
+
+    return Array.from(new Set(names));
+  };
+
+  const isAppointmentAssignedToBarber = (appointment: Appointment, barber: string): boolean => {
+    const target = normalizeStaffName(barber);
+    if (!target) return false;
+    return getAssignedStaffNames(appointment).some(
+      (name) => normalizeStaffName(name) === target
+    );
+  };
+
   // ==================== MAIN FILTER LOGIC - EXACT BRANCH MATCH ====================
  // ==================== MAIN FILTER LOGIC - FIXED BRANCH MATCH ====================
 const filteredAppointments = useMemo(() => {
@@ -2463,7 +2624,7 @@ const filteredAppointments = useMemo(() => {
   const dateAndBarberFiltered = appointments.filter(apt => {
     const aptDate = typeof apt.date === 'string' ? parseISO(apt.date) : new Date(apt.date);
     const isSameDate = isSameDay(aptDate, selectedDate);
-    const isSameBarber = selectedBarber === 'all' || apt.barber === selectedBarber;
+    const isSameBarber = selectedBarber === 'all' || isAppointmentAssignedToBarber(apt, selectedBarber);
     
     return isSameDate && isSameBarber;
   });
@@ -2500,6 +2661,65 @@ const filteredAppointments = useMemo(() => {
   
   return filtered;
 }, [appointments, selectedDate, selectedBarber, selectedBranch]);
+
+  const topBarBookingStats = useMemo(() => {
+    const DEFAULT_TAX_RATE = 5;
+
+    const totals = filteredAppointments.reduce(
+      (acc, appointment) => {
+        const totalFromRecord = Number(appointment.totalAmount ?? 0);
+        const subtotalFromRecord = Number(appointment.subtotal ?? 0);
+        const servicePriceFromRecord = Number(appointment.servicePrice ?? 0);
+        const taxAmountFromRecord = Number(appointment.taxAmount ?? 0);
+        const baseFromPrice = Number(appointment.price ?? 0);
+        const taxRate = Number.isFinite(Number(appointment.tax))
+          ? Number(appointment.tax)
+          : DEFAULT_TAX_RATE;
+
+        let withTax = 0;
+        let withoutTax = 0;
+
+        // Prefer explicit pre-tax values (subtotal/servicePrice). If tax amount is absent,
+        // apply default tax rate so "With Tax" always includes tax.
+        const hasExplicitPreTax = subtotalFromRecord > 0 || servicePriceFromRecord > 0;
+        const preTaxBase = subtotalFromRecord > 0
+          ? subtotalFromRecord
+          : (servicePriceFromRecord > 0 ? servicePriceFromRecord : baseFromPrice);
+
+        if (taxAmountFromRecord > 0 && totalFromRecord > 0) {
+          withTax = totalFromRecord;
+          withoutTax = Math.max(0, withTax - taxAmountFromRecord);
+        } else if (hasExplicitPreTax && preTaxBase > 0) {
+          withoutTax = preTaxBase;
+          withTax = withoutTax * (1 + taxRate / 100);
+        } else if (totalFromRecord > 0) {
+          withTax = totalFromRecord;
+          withoutTax = withTax / (1 + taxRate / 100);
+        } else {
+          withoutTax = Math.max(0, preTaxBase);
+          withTax = withoutTax * (1 + taxRate / 100);
+        }
+
+        acc.withTaxTotal += withTax;
+        acc.withoutTaxTotal += withoutTax;
+        return acc;
+      },
+      { withTaxTotal: 0, withoutTaxTotal: 0 }
+    );
+
+    const displayMode = calendarDisplaySettings?.totalValueDisplayMode || 'both';
+    const primaryTotal = displayMode === 'without-tax' ? totals.withoutTaxTotal : totals.withTaxTotal;
+    const primaryLabel = displayMode === 'without-tax' ? 'Booking Value (Excl Tax)' : 'Booking Value (With Tax)';
+
+    return {
+      displayMode,
+      currentBookings: filteredAppointments.length,
+      withTaxTotal: totals.withTaxTotal,
+      withoutTaxTotal: totals.withoutTaxTotal,
+      primaryTotal,
+      primaryLabel,
+    };
+  }, [filteredAppointments, calendarDisplaySettings?.totalValueDisplayMode]);
 
   const convertTo24Hour = (time12h: string): string => {
     if (!time12h) return "00:00";
@@ -2555,7 +2775,7 @@ const filteredAppointments = useMemo(() => {
 
   const getAppointmentsForSlot = (timeSlot: string, barber: string): Appointment[] => {
     return filteredAppointments.filter(
-      (apt) => apt.barber === barber && doesAppointmentCoverSlot(apt, timeSlot)
+      (apt) => isAppointmentAssignedToBarber(apt, barber) && doesAppointmentCoverSlot(apt, timeSlot)
     );
   };
 
@@ -2623,6 +2843,7 @@ const filteredAppointments = useMemo(() => {
   const getStatusColor = (status: string): string => {
     switch (status) {
       case "completed": return "bg-blue-600";
+      case "closed": return "bg-green-600";
       case "in-progress": return "bg-green-500";
       case "scheduled": return "bg-yellow-500";
       case "approved": return "bg-purple-500";
@@ -2641,26 +2862,9 @@ const filteredAppointments = useMemo(() => {
     setSelectedDate(newDate);
   };
 
-  const toggleHiddenHour = (hour: number) => {
-    setHiddenHours(prev =>
-      prev.includes(hour)
-        ? prev.filter(h => h !== hour)
-        : [...prev, hour]
-    );
-  };
-
-  const resetHiddenHours = () => {
-    setHiddenHours([]);
-  };
-
   const getStaffAvatar = (barberName: string): string => {
     const staff = staffMembers.find(s => s.name === barberName);
     return staff?.avatar || "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop";
-  };
-
-  const getStaffRole = (barberName: string): string => {
-    const staff = staffMembers.find(s => s.name === barberName);
-    return staff?.role || "Staff";
   };
 
   const handleAdvanceAppointmentClick = (appointment: Appointment) => {
@@ -2670,7 +2874,7 @@ const filteredAppointments = useMemo(() => {
     setShowAdvancePopup(true);
   };
 
-  const handleAppointmentAction = (action: 'reschedule' | 'edit' | 'checkin' | 'cancel' | 'delete' | 'checkout' | 'topup-wallet', appointment: Appointment) => {
+  const handleAppointmentAction = (action: 'reschedule' | 'edit' | 'checkin' | 'cancel' | 'delete' | 'checkout' | 'topup-wallet' | 'download-invoice' | 'close-booking', appointment: Appointment) => {
     if (action === 'reschedule') {
       setSelectedAdvanceAppointment(appointment);
       setInitialPopupAction('reschedule');
@@ -2711,6 +2915,24 @@ const filteredAppointments = useMemo(() => {
         onCheckoutBooking(appointment);
       } else {
         handleGenerateInvoiceClick(appointment);
+      }
+      return;
+    }
+
+    if (action === 'download-invoice') {
+      if (onDownloadInvoiceBooking) {
+        onDownloadInvoiceBooking(appointment);
+      } else {
+        handleGenerateInvoiceClick(appointment);
+      }
+      return;
+    }
+
+    if (action === 'close-booking') {
+      if (onCloseBooking) {
+        onCloseBooking(appointment);
+      } else {
+        onStatusChange(appointment.firebaseId || appointment.id, 'closed');
       }
       return;
     }
@@ -2926,112 +3148,98 @@ const filteredAppointments = useMemo(() => {
   return (
     <>
       <Card className="w-full">
-        <CardHeader>
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-           <CardTitle className="flex items-center gap-2">
-  <Calendar className="w-6 h-6 text-pink-600 " />
-  <span className="text-xl font-extrabold bg-linear-to-r from-pink-600 to-pink-600 bg-clip-text text-pink-600">
-     Booking Calendar
-  </span>
- 
-</CardTitle>
-            <div className="flex flex-wrap items-center gap-2">
-              {/* Branch Filter Dropdown - hidden for locked (branch admin) */}
+        <CardHeader className="px-3 py-2 sm:px-4 sm:py-3">
+          <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+            <div className="min-w-0 space-y-1">
+              <CardTitle className="flex items-center gap-2 leading-none">
+                <Calendar className="h-5 w-5 text-pink-600" />
+                <span className="text-base font-bold text-pink-600">Booking Calendar</span>
+              </CardTitle>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <Badge className="border-blue-200 bg-blue-100 px-2 py-0.5 text-xs text-blue-800">
+                  Current: {topBarBookingStats.currentBookings}
+                </Badge>
+                <Badge className="border-green-200 bg-green-100 px-2 py-0.5 text-xs text-green-800">
+                  {topBarBookingStats.primaryLabel}: {formatCurrency(topBarBookingStats.primaryTotal)}
+                </Badge>
+                {topBarBookingStats.displayMode === 'both' && (
+                  <Badge className="border-amber-200 bg-amber-100 px-2 py-0.5 text-xs text-amber-800">
+                    Excl Tax: {formatCurrency(topBarBookingStats.withoutTaxTotal)}
+                  </Badge>
+                )}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-1.5">
               {!lockedBranch && (
-              <Select value={selectedBranch} onValueChange={setSelectedBranch}>
-                <SelectTrigger className="w-40">
-                  <SelectValue placeholder="Select Branch" />
+                <Select value={selectedBranch} onValueChange={setSelectedBranch}>
+                  <SelectTrigger className="h-8 w-[135px] text-xs">
+                    <SelectValue placeholder="Branch" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Branches ({branches.length})</SelectItem>
+                    {branches.map(branch => (
+                      <SelectItem key={branch.id} value={branch.name}>
+                        <div className="flex items-center gap-2">
+                          <Building className="h-3.5 w-3.5" />
+                          <span>{branch.name}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+
+              <Select value={selectedBarber} onValueChange={setSelectedBarber}>
+                <SelectTrigger className="h-8 min-w-[145px] text-xs">
+                  <SelectValue placeholder="Staff" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Branches ({branches.length})</SelectItem>
-                  {branches.map(branch => (
-                    <SelectItem key={branch.id} value={branch.name}>
+                  <SelectItem value="all">All Staff ({branchFilteredStaff.length})</SelectItem>
+                  {branchFilteredStaff.map(staff => (
+                    <SelectItem key={staff.id} value={staff.name}>
                       <div className="flex items-center gap-2">
-                        <Building className="w-4 h-4" />
-                        <span>{branch.name}</span>
+                        <div className="relative h-4 w-4 overflow-hidden rounded-full">
+                          <img
+                            src={staff.avatar}
+                            alt={staff.name}
+                            className="h-full w-full object-cover"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.src = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop";
+                            }}
+                          />
+                        </div>
+                        <span>{staff.name}</span>
                       </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              )}
 
-
-
-  
-                 
-              
-
-               
-
-
-
-
- <Select value={selectedBarber} onValueChange={setSelectedBarber}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select Staff" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Staff ({branchFilteredStaff.length})</SelectItem>
-                      {branchFilteredStaff.map(staff => (
-                        <SelectItem key={staff.id} value={staff.name}>
-                          <div className="flex items-center gap-2">
-                            <div className="relative w-4 h-4 rounded-full overflow-hidden">
-                              <img 
-                                src={staff.avatar} 
-                                alt={staff.name} 
-                                className="object-cover w-full h-full"
-                                onError={(e) => {
-                                  const target = e.target as HTMLImageElement;
-                                  target.src = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop";
-                                }}
-                              />
-                            </div>
-                            <span>{staff.name}</span>
-                          
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 <Button
                   variant={layoutMode === 'time-top' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setLayoutMode('time-top')}
-                  className="flex items-center gap-1"
+                  className="h-8 gap-1 px-2 text-xs"
                 >
-                  <Grid3X3 className="w-4 h-4" />
-                  Time Top
+                  <Grid3X3 className="h-3.5 w-3.5" />
+                  Time
                 </Button>
                 <Button
                   variant={layoutMode === 'employee-top' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setLayoutMode('employee-top')}
-                  className="flex items-center gap-1"
+                  className="h-8 gap-1 px-2 text-xs"
                 >
-                  <RotateCcw className="w-4 h-4" />
-                  Employee Top
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Staff
                 </Button>
               </div>
 
               <Select value={timeSlotGap.toString()} onValueChange={(value) => setTimeSlotGap(parseInt(value))}>
-                <SelectTrigger className="w-24">
+                <SelectTrigger className="h-8 w-[84px] text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -3043,16 +3251,6 @@ const filteredAppointments = useMemo(() => {
                 </SelectContent>
               </Select>
 
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowSettings(!showSettings)}
-                className="flex items-center gap-1"
-              >
-                <Settings className="w-4 h-4" />
-                Settings
-              </Button>
-
               {onCreateBooking && (
                 <Button
                   variant="default"
@@ -3062,98 +3260,38 @@ const filteredAppointments = useMemo(() => {
                     if (!firstBookableSlot) return;
                     onCreateBooking(defaultBarber, format(selectedDate, 'yyyy-MM-dd'), firstBookableSlot);
                   }}
-                  className="flex items-center gap-1 bg-green-600 hover:bg-green-700"
+                  className="h-8 gap-1 bg-green-600 px-2 text-xs hover:bg-green-700"
                   disabled={!firstBookableSlot}
                 >
-                  <PlusCircle className="w-4 h-4" />
+                  <PlusCircle className="h-3.5 w-3.5" />
                   Quick Book
                 </Button>
               )}
 
               <div className="flex items-center gap-1">
-                <Button variant="outline" size="sm" onClick={() => navigateDate('prev')}>
-                  <ChevronLeft className="w-4 h-4" />
+                <Button variant="outline" size="sm" onClick={() => navigateDate('prev')} className="h-8 w-8 p-0">
+                  <ChevronLeft className="h-3.5 w-3.5" />
                 </Button>
-                <span className="font-medium min-w-[120px] text-center px-2">
+                <span className="min-w-[110px] px-1 text-center text-xs font-medium sm:min-w-[120px]">
                   {format(selectedDate, 'MMM dd, yyyy')}
                 </span>
-                <Button variant="outline" size="sm" onClick={() => navigateDate('next')}>
-                  <ChevronRight className="w-4 h-4" />
+                <Button variant="outline" size="sm" onClick={() => navigateDate('next')} className="h-8 w-8 p-0">
+                  <ChevronRight className="h-3.5 w-3.5" />
                 </Button>
               </div>
             </div>
           </div>
-
-          {showSettings && (
-            <div className="mt-4 p-4 bg-muted/50 rounded-lg border">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Business Hours</Label>
-                  <div className="flex items-center gap-2">
-                    <Select
-                      value={businessHours.start.toString()}
-                      onValueChange={(value) => setBusinessHours(prev => ({ ...prev, start: parseInt(value) }))}
-                    >
-                      <SelectTrigger className="w-20">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Array.from({ length: 12 }, (_, i) => i + 6).map(hour => (
-                          <SelectItem key={hour} value={hour.toString()}>
-                            {hour > 12 ? `${hour - 12} PM` : `${hour} AM`}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <span>to</span>
-                    <Select
-                      value={businessHours.end.toString()}
-                      onValueChange={(value) => setBusinessHours(prev => ({ ...prev, end: parseInt(value) }))}
-                    >
-                      <SelectTrigger className="w-20">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Array.from({ length: 12 }, (_, i) => i + 12).map(hour => (
-                          <SelectItem key={hour} value={hour.toString()}>
-                            {hour > 12 ? `${hour - 12} PM` : `${hour} AM`}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-sm font-medium">Hidden Hours</Label>
-                    <Button variant="ghost" size="sm" onClick={resetHiddenHours}>
-                      Reset
-                    </Button>
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    {Array.from({ length: businessHours.end - businessHours.start }, (_, i) => businessHours.start + i).map(hour => (
-                      <Button
-                        key={hour}
-                        variant={hiddenHours.includes(hour) ? "destructive" : "outline"}
-                        size="sm"
-                        className="w-12 h-8 text-xs"
-                        onClick={() => toggleHiddenHour(hour)}
-                      >
-                        {hour > 12 ? `${hour - 12}P` : `${hour}A`}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-
-               
-              </div>
-            </div>
-          )}
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-2 pb-3 pt-2 sm:px-3">
           <div className="overflow-x-auto overflow-y-auto max-h-[900px] sm:max-h-[600px] w-full">
             <div className="min-w-full" style={{ width: 'max-content' }}>
+              {isSelectedDayClosed && (
+                <div className="mb-3 px-3 py-2 rounded-md border border-amber-200 bg-amber-50 text-amber-800 text-xs font-medium flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4" />
+                  {`Business is closed on ${selectedWeekdayKey.charAt(0).toUpperCase()}${selectedWeekdayKey.slice(1)}. Booking slots are unavailable for this day.`}
+                </div>
+              )}
+
               {(isPastSelectedDate || isTodaySelected) && (
                 <div className="mb-3 px-3 py-2 rounded-md border border-red-200 bg-red-50 text-red-700 text-xs font-medium flex items-center gap-2">
                   <AlertCircle className="w-4 h-4" />
@@ -3239,6 +3377,17 @@ const filteredAppointments = useMemo(() => {
                                           <Receipt className="w-4 h-4 mr-2" />
                                           Checkout
                                         </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleAppointmentAction('download-invoice', appointment)}>
+                                          <Download className="w-4 h-4 mr-2" />
+                                          Download Invoice
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem
+                                          onClick={() => handleAppointmentAction('close-booking', appointment)}
+                                          disabled={String(appointment.status || '').toLowerCase() === 'closed'}
+                                        >
+                                          <FileCheck className="w-4 h-4 mr-2" />
+                                          Close Booking
+                                        </DropdownMenuItem>
                                         <DropdownMenuItem onClick={() => handleAppointmentAction('topup-wallet', appointment)}>
                                           <Wallet className="w-4 h-4 mr-2" />
                                           Topup Wallet
@@ -3307,9 +3456,7 @@ const filteredAppointments = useMemo(() => {
                       );
                     });
                     
-                    const staff = staffMembers.find(s => s.name === barber);
                     const staffAvatar = getStaffAvatar(barber);
-                    const staffRole = getStaffRole(barber);
                     
                     return (
                       <div key={barber} className="grid gap-1 mb-1" style={{ gridTemplateColumns: `clamp(120px, 15vw, 200px) repeat(${timeSlots.length}, minmax(50px, 1fr))` }}>
@@ -3327,7 +3474,6 @@ const filteredAppointments = useMemo(() => {
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="font-medium text-xs sm:text-sm truncate">{barber}</div>
-                            <div className="text-[10px] text-muted-foreground truncate">{staffRole}</div>
                           </div>
                         </div>
                         {rowElements}
@@ -3346,9 +3492,7 @@ const filteredAppointments = useMemo(() => {
                     Time / Staff
                   </div>
                   {(selectedBarber === 'all' ? barbers : [selectedBarber]).map(barber => {
-                    const staff = staffMembers.find(s => s.name === barber);
                     const staffAvatar = getStaffAvatar(barber);
-                    const staffRole = getStaffRole(barber);
                     
                     return (
                       <div key={barber} className="p-2 text-xs text-center font-medium text-muted-foreground border rounded flex flex-col items-center justify-center gap-1 sticky top-0 bg-background z-20 border-b">
@@ -3366,9 +3510,6 @@ const filteredAppointments = useMemo(() => {
                         <div className="text-center w-full px-1">
                           <div className="font-medium text-[11px] leading-tight whitespace-normal wrap-break-word">
                             {barber}
-                          </div>
-                          <div className="text-[10px] text-muted-foreground whitespace-normal wrap-break-word leading-tight mt-0.5">
-                            {staffRole}
                           </div>
                         </div>
                       </div>
@@ -3430,6 +3571,17 @@ const filteredAppointments = useMemo(() => {
                                           <DropdownMenuItem onClick={() => handleAppointmentAction('checkout', appointment)}>
                                             <Receipt className="w-4 h-4 mr-2" />
                                             Checkout
+                                          </DropdownMenuItem>
+                                          <DropdownMenuItem onClick={() => handleAppointmentAction('download-invoice', appointment)}>
+                                            <Download className="w-4 h-4 mr-2" />
+                                            Download Invoice
+                                          </DropdownMenuItem>
+                                          <DropdownMenuItem
+                                            onClick={() => handleAppointmentAction('close-booking', appointment)}
+                                            disabled={String(appointment.status || '').toLowerCase() === 'closed'}
+                                          >
+                                            <FileCheck className="w-4 h-4 mr-2" />
+                                            Close Booking
                                           </DropdownMenuItem>
                                           <DropdownMenuItem onClick={() => handleAppointmentAction('topup-wallet', appointment)}>
                                             <Wallet className="w-4 h-4 mr-2" />
@@ -3508,75 +3660,6 @@ const filteredAppointments = useMemo(() => {
             </div>
           </div>
 
-          <div className="mt-6 space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex flex-wrap gap-4 text-xs">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-blue-600" />
-                  <span>Completed</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-green-500" />
-                  <span>In Progress</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-yellow-500" />
-                  <span>Scheduled</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-purple-500" />
-                  <span>Approved</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-orange-500" />
-                  <span>Pending</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-indigo-500" />
-                  <span>Rescheduled</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-red-500" />
-                  <span>Cancelled/Rejected</span>
-                </div>
-              </div>
-
-              <div className="text-xs text-muted-foreground">
-                <div className="flex items-center gap-4">
-                  <span>Gap: {timeSlotGap}min</span>
-                  <span>Hours: {businessHours.start > 12 ? `${businessHours.start - 12}PM` : `${businessHours.start}AM`} - {businessHours.end > 12 ? `${businessHours.end - 12}PM` : `${businessHours.end}AM`}</span>
-                  <span>Layout: {layoutMode === 'time-top' ? 'Time → Staff' : 'Staff → Time'}</span>
-                </div>
-              </div>
-            </div>
-
-            {branchFilteredStaff.length > 0 && (
-              <div className="text-xs text-muted-foreground bg-muted/50 p-3 rounded-lg">
-                
-                <div className="flex flex-wrap gap-2">
-                  {branchFilteredStaff.slice(0, 3).map(staff => (
-                    <div key={staff.id} className="flex items-center gap-1 text-xs px-2 py-1 bg-background rounded">
-                      <div className="relative w-3 h-3 rounded-full overflow-hidden">
-                        <img 
-                          src={staff.avatar} 
-                          alt={staff.name} 
-                          className="object-cover w-full h-full"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.src = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop";
-                          }}
-                        />
-                      </div>
-                      <span>{staff.name.split(' ')[0]}</span>
-                    </div>
-                  ))}
-                  {branchFilteredStaff.length > 3 && (
-                    <span className="text-xs">+{branchFilteredStaff.length - 3} more</span>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
         </CardContent>
       </Card>
       

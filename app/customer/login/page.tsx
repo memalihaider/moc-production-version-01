@@ -13,7 +13,7 @@ import { Eye, EyeOff, Mail, Lock, User, Phone, ArrowRight, Sparkles } from 'luci
 // Firebase imports
 import { db, auth } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp, doc, setDoc } from 'firebase/firestore';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function CustomerLogin() {
@@ -21,6 +21,7 @@ export default function CustomerLogin() {
   const { login: authLogin } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   
@@ -148,6 +149,48 @@ export default function CustomerLogin() {
     }
   };
 
+  const handlePasswordReset = async () => {
+    const email = loginData.email.trim().toLowerCase();
+    if (!email) {
+      setError('Please enter your email to reset your password.');
+      setSuccess('');
+      return;
+    }
+
+    setIsResetting(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const continueUrl = typeof window !== 'undefined'
+        ? `${window.location.origin}/customer/login`
+        : 'http://localhost:3000/customer/login';
+
+      await sendPasswordResetEmail(auth, email, {
+        url: continueUrl,
+        handleCodeInApp: false,
+      });
+      setSuccess('Password reset email sent. Check your inbox.');
+    } catch (firebaseError: any) {
+      console.error('Password reset error:', firebaseError);
+      if (firebaseError.code === 'auth/invalid-email') {
+        setError('Invalid email address.');
+      } else if (firebaseError.code === 'auth/user-not-found') {
+        setError('No account found with this email.');
+      } else if (firebaseError.code === 'auth/unauthorized-continue-uri') {
+        setError('Password reset is not authorized for this domain. Add localhost:3000 to Firebase Auth authorized domains.');
+      } else if (firebaseError.code === 'auth/operation-not-allowed') {
+        setError('Password reset is disabled in Firebase Auth settings.');
+      } else if (firebaseError.code === 'auth/network-request-failed') {
+        setError('Network error. Please check your internet connection.');
+      } else {
+        setError(`Password reset failed: ${firebaseError.message}`);
+      }
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-zinc-900 via-black to-zinc-900">
       
@@ -268,6 +311,16 @@ export default function CustomerLogin() {
                           className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-[#c5a059] transition-colors"
                         >
                           {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          onClick={handlePasswordReset}
+                          disabled={isResetting}
+                          className="text-xs text-[#c5a059] hover:text-[#b08a45] transition-colors disabled:opacity-60"
+                        >
+                          {isResetting ? 'SENDING RESET...' : 'Forgot password?'}
                         </button>
                       </div>
                     </div>
