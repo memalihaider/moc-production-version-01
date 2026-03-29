@@ -1585,6 +1585,7 @@ export default function AdminAppointments() {
   const [paymentMethodAvailability, setPaymentMethodAvailability] = useState<PaymentMethodAvailability>(
     DEFAULT_PAYMENT_METHOD_AVAILABILITY
   );
+  const [taxRate, setTaxRate] = useState<number>(5);
   
   const [allowPendingOrders] = useState(true);
 
@@ -1651,6 +1652,7 @@ export default function AdminAppointments() {
             digital: snapshotData.acceptDigital !== false,
             ewallet: snapshotData.acceptEwallet !== false,
           });
+          setTaxRate(Number.isFinite(Number(snapshotData.taxRate)) ? Number(snapshotData.taxRate) : 5);
         });
       } catch (error) {
         console.error('Error loading calendar display settings:', error);
@@ -1701,6 +1703,25 @@ export default function AdminAppointments() {
     category: '',
     branch: (user?.role === 'admin' && user?.branchName) ? user.branchName : ''
   });
+
+  useEffect(() => {
+    setBookingData((prev) => {
+      const hasUserEdits = Boolean(
+        prev.customer ||
+        prev.services.length > 0 ||
+        prev.barber ||
+        prev.date ||
+        prev.time ||
+        prev.paymentMethods.length > 0
+      );
+
+      if (hasUserEdits || prev.tax === taxRate) {
+        return prev;
+      }
+
+      return { ...prev, tax: taxRate };
+    });
+  }, [taxRate]);
 
   const [customerDirectory, setCustomerDirectory] = useState<Array<{
     id: string;
@@ -2876,15 +2897,15 @@ export default function AdminAppointments() {
       : Math.min(subtotalWithCharges, Math.max(0, discountValue));
 
     const taxableAmount = Math.max(0, subtotalWithCharges - discountAmount);
-    const taxRate = mode === 'without-tax' ? 0 : Number(data.tax ?? 5);
-    const taxAmount = Math.max(0, (taxableAmount * taxRate) / 100);
+    const resolvedTaxRate = mode === 'without-tax' ? 0 : Number(data.tax ?? taxRate);
+    const taxAmount = Math.max(0, (taxableAmount * resolvedTaxRate) / 100);
     const teamTips = Number(data.teamMembers?.reduce((sum, tm) => sum + Number(tm.tip || 0), 0) || 0);
     const tipAmount = Number(data.serviceTip || 0) + teamTips;
     const total = taxableAmount + taxAmount + tipAmount;
 
     return {
       subtotal: itemsSubtotal,
-      taxRate,
+      taxRate: resolvedTaxRate,
       taxAmount,
       total,
     };
@@ -2978,7 +2999,7 @@ export default function AdminAppointments() {
       status: appointment.status,
       barber: appointment.barber,
       notes: appointment.notes || '',
-      tax: invoiceValueDisplayMode === 'without-tax' ? 0 : Number(appointment.tax ?? 5),
+      tax: invoiceValueDisplayMode === 'without-tax' ? 0 : Number(appointment.tax ?? taxRate),
       discount: appointment.discount || 0,
       discountType: appointment.discountType || 'fixed',
       customerAddress: `${branchInfo.name}, ${branchInfo.address || ''}`,
@@ -4034,7 +4055,7 @@ export default function AdminAppointments() {
       time: time,
       notes: '',
       products: [],
-      tax: 5,
+      tax: taxRate,
       serviceCharges: 0,
       discount: 0,
       discountType: 'fixed',
@@ -4106,7 +4127,7 @@ export default function AdminAppointments() {
         time: '',
         notes: '',
         products: [],
-        tax: 5,
+        tax: taxRate,
         serviceCharges: 0,
         discount: 0,
         discountType: 'fixed',
@@ -7430,7 +7451,7 @@ export default function AdminAppointments() {
                         <label className="text-sm font-medium text-gray-700">Tax (%)</label>
                         <Input
                           type="number"
-                          value={invoiceValueDisplayMode === 'without-tax' ? 0 : (invoiceData.tax ?? 5)}
+                          value={invoiceValueDisplayMode === 'without-tax' ? 0 : (invoiceData.tax ?? taxRate)}
                           onChange={(e) => handleInvoiceDataChange('tax', parseFloat(e.target.value) || 0)}
                           disabled={invoiceValueDisplayMode === 'without-tax'}
                           className="h-10"

@@ -182,6 +182,15 @@ const DEFAULT_WEEKLY_TIMINGS: Record<WeekdayKey, { open: string; close: string; 
   sunday: { open: '09:00', close: '22:00', closed: false },
 };
 
+const WALLET_TOPUP_TIERS = [
+  { amount: 1050, discountPercent: 20 },
+  { amount: 3105, discountPercent: 25 },
+  { amount: 5250, discountPercent: 30 },
+];
+
+const getWalletTopupTier = (amount: number) =>
+  WALLET_TOPUP_TIERS.find((tier) => Math.abs(amount - tier.amount) < 0.01);
+
 // INVOICE INTERFACES
 interface InvoiceItem {
   tip: number;
@@ -2383,6 +2392,10 @@ export function AdvancedCalendar({
   const [walletTopupLoading, setWalletTopupLoading] = useState(false);
   const [walletLookupLoading, setWalletLookupLoading] = useState(false);
   const [walletTopupError, setWalletTopupError] = useState<string | null>(null);
+  const walletTopupValue = Number(walletTopupAmount);
+  const selectedTopupTier = Number.isFinite(walletTopupValue)
+    ? getWalletTopupTier(walletTopupValue)
+    : undefined;
   
   // Load staff data
   useEffect(() => {
@@ -3078,6 +3091,7 @@ const filteredAppointments = useMemo(() => {
 
   const handleWalletTopupSubmit = async () => {
     const amount = Number(walletTopupAmount);
+    const selectedTier = getWalletTopupTier(amount);
 
     if (!walletDocId || !walletCustomerId) {
       alert('Wallet not found.');
@@ -3103,12 +3117,20 @@ const filteredAppointments = useMemo(() => {
       const updatedBalance = currentBalance + amount;
       const updatedPoints = currentPoints + pointsToAdd;
 
-      await updateDoc(walletRef, {
+      const updatePayload: Record<string, any> = {
         balance: updatedBalance,
         loyaltyPoints: updatedPoints,
         totalPointsEarned: currentTotalEarned + pointsToAdd,
         updatedAt: new Date()
-      });
+      };
+
+      if (selectedTier) {
+        updatePayload.serviceDiscountPercent = selectedTier.discountPercent;
+        updatePayload.serviceDiscountTopupAmount = selectedTier.amount;
+        updatePayload.serviceDiscountUpdatedAt = new Date();
+      }
+
+      await updateDoc(walletRef, updatePayload);
 
       await addDoc(collection(db, 'walletTransactions'), {
         customerId: walletCustomerId,
@@ -3124,13 +3146,18 @@ const filteredAppointments = useMemo(() => {
         previousLoyaltyPoints: currentPoints,
         newBalance: updatedBalance,
         newLoyaltyPoints: updatedPoints,
+        serviceDiscountPercent: selectedTier?.discountPercent || null,
+        serviceDiscountTopupAmount: selectedTier?.amount || null,
         createdAt: new Date(),
         updatedAt: new Date()
       });
 
       setWalletCurrentBalance(updatedBalance);
       setWalletTopupAmount('');
-      alert(`Wallet topped up successfully. New balance: ${formatCurrency(updatedBalance)}`);
+      const discountText = selectedTier
+        ? ` Service discount unlocked: ${selectedTier.discountPercent}%.`
+        : '';
+      alert(`Wallet topped up successfully. New balance: ${formatCurrency(updatedBalance)}.${discountText}`);
     } catch (error) {
       console.error('Error topping up wallet:', error);
       alert('Failed to topup wallet. Please try again.');
@@ -3731,6 +3758,29 @@ const filteredAppointments = useMemo(() => {
               />
             </div>
 
+            <div className="space-y-2">
+              <Label>Quick Topup</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {WALLET_TOPUP_TIERS.map((tier) => {
+                  const isSelected = selectedTopupTier?.amount === tier.amount;
+                  return (
+                    <Button
+                      key={tier.amount}
+                      type="button"
+                      variant="outline"
+                      className={`h-9 ${isSelected ? 'border-indigo-500 text-indigo-700 bg-indigo-50' : ''}`}
+                      onClick={() => setWalletTopupAmount(String(tier.amount))}
+                    >
+                      AED {tier.amount}
+                    </Button>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-gray-500">
+                1050 AED = 20% service discount, 3105 AED = 25%, 5250 AED = 30%
+              </p>
+            </div>
+
             {walletLookupLoading && (
               <p className="text-xs text-indigo-700">Loading customer wallet...</p>
             )}
@@ -3744,6 +3794,15 @@ const filteredAppointments = useMemo(() => {
                 <p className="text-xs text-green-700">Balance After Topup</p>
                 <p className="text-lg font-bold text-green-800">
                   {formatCurrency(walletCurrentBalance + Number(walletTopupAmount || 0))}
+                </p>
+              </div>
+            )}
+
+            {selectedTopupTier && (
+              <div className="p-3 bg-indigo-50 rounded-lg border border-indigo-200">
+                <p className="text-xs text-indigo-700">Service Discount Unlocked</p>
+                <p className="text-sm font-semibold text-indigo-900">
+                  {selectedTopupTier.discountPercent}% off services at checkout
                 </p>
               </div>
             )}

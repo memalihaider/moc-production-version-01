@@ -1545,6 +1545,7 @@ export default function AdminAppointments() {
   const [paymentMethodAvailability, setPaymentMethodAvailability] = useState<PaymentMethodAvailability>(
     DEFAULT_PAYMENT_METHOD_AVAILABILITY
   );
+  const [taxRate, setTaxRate] = useState<number>(5);
   
   const [allowupcomingOrders] = useState(true);
 
@@ -1596,6 +1597,7 @@ export default function AdminAppointments() {
         digital: snapshotData.acceptDigital !== false,
         ewallet: snapshotData.acceptEwallet !== false,
       });
+      setTaxRate(Number.isFinite(Number(snapshotData.taxRate)) ? Number(snapshotData.taxRate) : 5);
     });
 
     return () => unsubscribe();
@@ -1646,6 +1648,25 @@ export default function AdminAppointments() {
     category: '',
     branch: ''
   });
+
+  useEffect(() => {
+    setBookingData((prev) => {
+      const hasUserEdits = Boolean(
+        prev.customer ||
+        prev.services.length > 0 ||
+        prev.barber ||
+        prev.date ||
+        prev.time ||
+        prev.paymentMethods.length > 0
+      );
+
+      if (hasUserEdits || prev.tax === taxRate) {
+        return prev;
+      }
+
+      return { ...prev, tax: taxRate };
+    });
+  }, [taxRate]);
 
   const [customerDirectory, setCustomerDirectory] = useState<Array<{
     id: string;
@@ -2561,7 +2582,7 @@ export default function AdminAppointments() {
       time: time,
       notes: '',
       products: [],
-      tax: 5,
+      tax: taxRate,
       serviceCharges: 0,
       discount: 0,
       discountType: 'fixed',
@@ -2851,7 +2872,7 @@ export default function AdminAppointments() {
           time: '',
           notes: '',
           products: [],
-          tax: 5,
+          tax: taxRate,
           serviceCharges: 0,
           discount: 0,
           discountType: 'fixed',
@@ -2905,7 +2926,7 @@ export default function AdminAppointments() {
         time: '',
         notes: '',
         products: [],
-        tax: 5,
+        tax: taxRate,
         serviceCharges: 0,
         discount: 0,
         discountType: 'fixed',
@@ -3297,8 +3318,8 @@ export default function AdminAppointments() {
       ? Math.min(subtotalWithCharges, Math.max(0, (subtotalWithCharges * discountValue) / 100))
       : Math.min(subtotalWithCharges, Math.max(0, discountValue));
     const taxableAmount = Math.max(0, subtotalWithCharges - discountAmount);
-    const taxRate = invoiceValueDisplayMode === 'without-tax' ? 0 : Number(appointment.tax ?? 5);
-    const taxAmount = Math.max(0, (taxableAmount * taxRate) / 100);
+    const resolvedTaxRate = invoiceValueDisplayMode === 'without-tax' ? 0 : Number(appointment.tax ?? taxRate);
+    const taxAmount = Math.max(0, (taxableAmount * resolvedTaxRate) / 100);
     const tipAmount = Number(appointment.serviceTip || 0) + Number(appointment.teamMembers?.reduce((sum, t) => sum + Number(t.tip || 0), 0) || 0);
     const totalAmount = taxableAmount + taxAmount + tipAmount;
     
@@ -3338,7 +3359,7 @@ export default function AdminAppointments() {
       status: appointment.status,
       barber: appointment.barber,
       notes: appointment.notes || '',
-      tax: taxRate,
+      tax: resolvedTaxRate,
       discount: appointment.discount || 0,
       discountType: appointment.discountType || 'fixed',
       paymentMethod: appointment.paymentMethods?.join(', ') || appointment.paymentMethod || 'Cash',
@@ -3423,14 +3444,14 @@ export default function AdminAppointments() {
         ? Math.min(subtotalWithCharges, Math.max(0, (subtotalWithCharges * discountValue) / 100))
         : Math.min(subtotalWithCharges, Math.max(0, discountValue));
       const taxableAmount = Math.max(0, subtotalWithCharges - discountAmount);
-      const taxRate = invoiceValueDisplayMode === 'without-tax' ? 0 : Number(updatedData.tax ?? 5);
-      const taxAmount = Math.max(0, (taxableAmount * taxRate) / 100);
+      const resolvedTaxRate = invoiceValueDisplayMode === 'without-tax' ? 0 : Number(updatedData.tax ?? taxRate);
+      const taxAmount = Math.max(0, (taxableAmount * resolvedTaxRate) / 100);
       const tipAmount = Number(updatedData.serviceDetails?.reduce((sum, s) => sum + Number(s.tip || 0), 0) || 0)
         + Number(updatedData.serviceTip || 0);
 
       updatedData.price = servicesSubtotal;
       updatedData.subtotal = servicesSubtotal;
-      updatedData.tax = taxRate;
+      updatedData.tax = resolvedTaxRate;
       updatedData.taxAmount = taxAmount;
       updatedData.total = taxableAmount + taxAmount + tipAmount;
       
@@ -3843,8 +3864,8 @@ export default function AdminAppointments() {
       : Math.min(subtotalWithCharges, Math.max(0, discountValue));
 
     const taxableAmount = Math.max(0, subtotalWithCharges - discountAmount);
-    const taxRate = invoiceValueDisplayMode === 'without-tax' ? 0 : Number(invoiceData.tax ?? 5);
-    const taxAmount = Math.max(0, (taxableAmount * taxRate) / 100);
+    const resolvedTaxRate = invoiceValueDisplayMode === 'without-tax' ? 0 : Number(invoiceData.tax ?? taxRate);
+    const taxAmount = Math.max(0, (taxableAmount * resolvedTaxRate) / 100);
     const tipAmount = Number(invoiceData.serviceDetails?.reduce((sum, s) => sum + Number(s.tip || 0), 0) || 0)
       + Number(invoiceData.serviceTip || 0);
     const totalAmount = taxableAmount + taxAmount + tipAmount;
@@ -5408,7 +5429,7 @@ export default function AdminAppointments() {
 
                     {invoiceSummary.taxAmount > 0 && (
                       <div className="flex justify-between">
-                        <span>Tax ({Number(invoiceData.tax ?? 5).toFixed(2)}%):</span>
+                        <span>Tax ({Number(invoiceData.tax ?? taxRate).toFixed(2)}%):</span>
                         <span>AED {invoiceSummary.taxAmount.toFixed(2)}</span>
                       </div>
                     )}

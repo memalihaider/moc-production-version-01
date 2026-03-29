@@ -77,7 +77,7 @@ export default function AdminSettings() {
     acceptCheck: true,
     acceptDigital: true,
     acceptEwallet: true,
-    taxRate: 8.875,
+    taxRate: 5,
 
     // Calendar Display Settings
     calendarDisplaySettings: {
@@ -159,11 +159,27 @@ export default function AdminSettings() {
           businessLogo: data.image || data.businessLogo || prev.businessLogo,
           businessDescription: data.description || prev.businessDescription,
           timezone: data.timezone || prev.timezone,
+          emailNotifications: data.emailNotifications ?? prev.emailNotifications,
+          smsNotifications: data.smsNotifications ?? prev.smsNotifications,
+          bookingReminders: data.bookingReminders ?? prev.bookingReminders,
+          marketingEmails: data.marketingEmails ?? prev.marketingEmails,
+          advanceBookingDays: Number.isFinite(Number(data.advanceBookingDays))
+            ? Number(data.advanceBookingDays)
+            : prev.advanceBookingDays,
+          cancellationHours: Number.isFinite(Number(data.cancellationHours))
+            ? Number(data.cancellationHours)
+            : prev.cancellationHours,
+          autoConfirmBookings: data.autoConfirmBookings ?? prev.autoConfirmBookings,
+          requireDeposit: data.requireDeposit ?? prev.requireDeposit,
+          depositAmount: Number.isFinite(Number(data.depositAmount))
+            ? Number(data.depositAmount)
+            : prev.depositAmount,
           acceptCash: data.acceptCash ?? prev.acceptCash,
           acceptCard: data.acceptCard ?? prev.acceptCard,
           acceptCheck: data.acceptCheck ?? prev.acceptCheck,
           acceptDigital: data.acceptDigital ?? prev.acceptDigital,
           acceptEwallet: data.acceptEwallet ?? prev.acceptEwallet,
+          taxRate: Number.isFinite(Number(data.taxRate)) ? Number(data.taxRate) : prev.taxRate,
           monday: normalizeDayTiming(weekly.monday, prev.monday),
           tuesday: normalizeDayTiming(weekly.tuesday, prev.tuesday),
           wednesday: normalizeDayTiming(weekly.wednesday, prev.wednesday),
@@ -266,11 +282,21 @@ export default function AdminSettings() {
             sunday: { open: settings.sunday.open, close: settings.sunday.close, opening: settings.sunday.open, closing: settings.sunday.close, closed: settings.sunday.closed },
           },
           calendarDisplaySettings: settings.calendarDisplaySettings,
+          emailNotifications: settings.emailNotifications,
+          smsNotifications: settings.smsNotifications,
+          bookingReminders: settings.bookingReminders,
+          marketingEmails: settings.marketingEmails,
+          advanceBookingDays: settings.advanceBookingDays,
+          cancellationHours: settings.cancellationHours,
+          autoConfirmBookings: settings.autoConfirmBookings,
+          requireDeposit: settings.requireDeposit,
+          depositAmount: settings.depositAmount,
           acceptCash: settings.acceptCash,
           acceptCard: settings.acceptCard,
           acceptCheck: settings.acceptCheck,
           acceptDigital: settings.acceptDigital,
           acceptEwallet: settings.acceptEwallet,
+          taxRate: settings.taxRate,
           invoiceDisclaimerTemplate: settings.invoiceDisclaimerTemplate,
           updatedAt: serverTimestamp(),
         },

@@ -64,6 +64,7 @@ export default function SuperAdminSettings() {
     acceptCheck: true,
     acceptDigital: true,
     acceptEwallet: true,
+    taxRate: 5,
     twoFactorAuth: false,
     sessionTimeout: "30",
     passwordExpiry: "90",
@@ -138,6 +139,7 @@ export default function SuperAdminSettings() {
               ...prev,
               ...normalized,
               ...finalBusiness,
+              taxRate: Number.isFinite(Number(normalized.taxRate)) ? Number(normalized.taxRate) : prev.taxRate,
               calendarDisplaySettings: {
                 ...prev.calendarDisplaySettings,
                 ...(normalized.calendarDisplaySettings || {}),
@@ -370,6 +372,7 @@ export default function SuperAdminSettings() {
         acceptCheck: source.acceptCheck,
         acceptDigital: source.acceptDigital,
         acceptEwallet: source.acceptEwallet,
+        taxRate: source.taxRate,
         twoFactorAuth: source.twoFactorAuth,
         sessionTimeout: source.sessionTimeout,
         passwordExpiry: source.passwordExpiry,
@@ -812,6 +815,17 @@ export default function SuperAdminSettings() {
                             <p className="text-xs text-gray-500">
                               Use {'{{dateTime}}'} to auto insert current date and time on invoice generation.
                             </p>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="taxRate">Tax Rate (%)</Label>
+                            <Input
+                              id="taxRate"
+                              type="number"
+                              step="0.01"
+                              value={settings.taxRate}
+                              onChange={(e) => handleInputChange('taxRate', parseFloat(e.target.value))}
+                            />
                           </div>
 
                           <Separator />

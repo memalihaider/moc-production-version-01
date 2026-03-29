@@ -61,6 +61,9 @@ interface BookingData {
   serviceCategory: string;
   serviceCategoryId: string;
   serviceCharges: number;
+  discount?: number;
+  discountType?: 'fixed' | 'percentage';
+  serviceDiscountAmount?: number;
   serviceDuration: number;
   serviceId: string;
   serviceName: string;
@@ -157,6 +160,7 @@ interface CustomerData {
   phone: string;
   walletBalance?: number;
   loyaltyPoints?: number;
+  serviceDiscountPercent?: number;
 }
 
 interface BranchData {
@@ -584,12 +588,14 @@ export default function BookingCheckout() {
           const { isAuthenticated, customer: customerData } = JSON.parse(authData);
           if (isAuthenticated && customerData) {
             setIsLoggedIn(true);
-            
-            if (customerData.id) {
+
+            const resolvedCustomerId = customerData.id || customerData.uid;
+
+            if (resolvedCustomerId) {
               try {
                 const walletsQuery = query(
                   collection(db, 'wallets'),
-                  where('customerId', '==', customerData.id)
+                  where('customerId', '==', resolvedCustomerId)
                 );
                 
                 const walletSnapshot = await getDocs(walletsQuery);
@@ -600,26 +606,35 @@ export default function BookingCheckout() {
                   
                   setCustomer({
                     ...customerData,
+                    id: resolvedCustomerId,
                     walletBalance: walletData.balance || 0,
-                    loyaltyPoints: walletData.loyaltyPoints || 0
+                    loyaltyPoints: walletData.loyaltyPoints || 0,
+                    serviceDiscountPercent: walletData.serviceDiscountPercent || 0
                   });
                 } else {
                   setCustomer({
                     ...customerData,
+                    id: resolvedCustomerId,
                     walletBalance: 0,
-                    loyaltyPoints: 0
+                    loyaltyPoints: 0,
+                    serviceDiscountPercent: 0
                   });
                 }
               } catch (error) {
                 console.error('Error fetching customer wallet:', error);
                 setCustomer({
                   ...customerData,
+                  id: resolvedCustomerId,
                   walletBalance: 0,
-                  loyaltyPoints: 0
+                  loyaltyPoints: 0,
+                  serviceDiscountPercent: 0
                 });
               }
             } else {
-              setCustomer(customerData);
+              setCustomer({
+                ...customerData,
+                id: customerData.id || customerData.uid
+              });
             }
           }
         } catch (error) {
@@ -633,7 +648,11 @@ export default function BookingCheckout() {
 
   // Calculate total
   const cartTotal = getCartTotal();
-  const finalTotal = cartTotal;
+  const serviceDiscountPercent = Math.min(100, Math.max(0, Number(customer?.serviceDiscountPercent || 0)));
+  const serviceDiscountAmount = serviceDiscountPercent > 0
+    ? (cartTotal * serviceDiscountPercent) / 100
+    : 0;
+  const finalTotal = Math.max(0, cartTotal - serviceDiscountAmount);
 
   // Get wallet balance in AED
   const getWalletBalanceInAED = () => {
@@ -804,7 +823,9 @@ export default function BookingCheckout() {
     }
 
     const servicesTotal = cartItems.reduce((sum, item) => sum + item.price, 0);
-    const finalAmount = servicesTotal;
+    const discountPercent = Math.min(100, Math.max(0, Number(customer?.serviceDiscountPercent || 0)));
+    const discountAmount = discountPercent > 0 ? (servicesTotal * discountPercent) / 100 : 0;
+    const finalAmount = Math.max(0, servicesTotal - discountAmount);
     const walletBalanceAED = getWalletBalanceInAED();
 
     if (paymentMethod === 'wallet' && customer) {
@@ -941,7 +962,9 @@ export default function BookingCheckout() {
       const branchId = selectedBranchData?.id || branch;
       
       const servicesTotal = cartItems.reduce((sum, item) => sum + item.price, 0);
-      const finalAmount = servicesTotal;
+      const discountPercent = Math.min(100, Math.max(0, Number(customer?.serviceDiscountPercent || 0)));
+      const discountAmount = discountPercent > 0 ? (servicesTotal * discountPercent) / 100 : 0;
+      const finalAmount = Math.max(0, servicesTotal - discountAmount);
       
       const numWalletAmount = getNumericWalletAmount();
       const numCashAmount = getNumericCashAmount();
@@ -991,6 +1014,9 @@ export default function BookingCheckout() {
         serviceCategory: cartItems.map(item => item.category).join(', ') || "third category",
         serviceCategoryId: cartItems[0]?.serviceCategoryId || "KfUizOHVXwD1rU7qhvKd",
         serviceCharges: 0,
+        discount: discountPercent,
+        discountType: discountPercent > 0 ? 'percentage' : 'fixed',
+        serviceDiscountAmount: discountAmount,
         serviceDuration: getTotalDuration(),
         serviceId: cartItems[0]?.id || "wm4r0IVOcxZWoEfBNw9f",
         serviceName: cartItems[0]?.name || "Fifth Services",
@@ -1852,6 +1878,13 @@ export default function BookingCheckout() {
                           <span>Subtotal ({cartItems.length} services)</span>
                           <span>AED {cartTotal.toFixed(2)}</span>
                         </div>
+
+                        {serviceDiscountPercent > 0 && (
+                          <div className="flex justify-between text-xs text-white/60">
+                            <span>Wallet Service Discount ({serviceDiscountPercent.toFixed(0)}%)</span>
+                            <span>- AED {serviceDiscountAmount.toFixed(2)}</span>
+                          </div>
+                        )}
                         
                         <div className="flex justify-between text-xs text-white/60">
                           <span>Total Duration</span>

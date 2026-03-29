@@ -177,12 +177,38 @@ const DEFAULT_SETTINGS: CMSSettings = {
   heroTagline: 'For The Modern Caveman',
   footerDescription: 'The city\'s premier destination for luxury grooming and traditional barbering since 2020.',
   copyrightText: '© 2026 MAN OF CAVE. ALL RIGHTS RESERVED.',
-  whatsappNumber: '+9660545354361',
-  phoneNumber: '+9660545354361',
+  whatsappNumber: '+971 0545354361',
+  phoneNumber: '+971 0545354361',
   email: 'manofcave2024@gmail.com',
-  instagramUrl: '',
-  facebookUrl: '',
+  instagramUrl: 'https://www.instagram.com/manofcave.in?igsh=MTZ5NjY1NjQycHZoYQ%3D%3D&utm_source=qr',
+  facebookUrl: 'https://www.facebook.com/share/18Mfjfno28/?mibextid=wwXIfr',
   updatedAt: Date.now(),
+};
+
+const normalizeSettings = (data?: Partial<CMSSettings>): CMSSettings => {
+  const merged = { ...DEFAULT_SETTINGS, ...(data || {}) } as CMSSettings;
+  const whatsapp = String(data?.whatsappNumber || '').trim();
+  const phone = String(data?.phoneNumber || '').trim();
+  const instagram = String(data?.instagramUrl || '').trim();
+  const facebook = String(data?.facebookUrl || '').trim();
+
+  if (!whatsapp || whatsapp.startsWith('+966') || whatsapp.startsWith('966')) {
+    merged.whatsappNumber = DEFAULT_SETTINGS.whatsappNumber;
+  }
+
+  if (!phone || phone.startsWith('+966') || phone.startsWith('966')) {
+    merged.phoneNumber = DEFAULT_SETTINGS.phoneNumber;
+  }
+
+  if (!instagram) {
+    merged.instagramUrl = DEFAULT_SETTINGS.instagramUrl;
+  }
+
+  if (!facebook) {
+    merged.facebookUrl = DEFAULT_SETTINGS.facebookUrl;
+  }
+
+  return merged;
 };
 
 const DEFAULT_SECTIONS: Omit<CMSSection, 'id'>[] = [
@@ -337,7 +363,9 @@ export const useCMSStore = create<CMSStore>()(
           const heroSlides = slidesSnap.docs.map(d => ({ id: d.id, ...d.data() })) as HeroSlide[];
           const sections = sectionsSnap.docs.map(d => ({ id: d.id, ...d.data() })) as CMSSection[];
           const settingsDoc = settingsSnap.docs[0];
-          const settings = settingsDoc ? { ...DEFAULT_SETTINGS, ...settingsDoc.data() } as CMSSettings : DEFAULT_SETTINGS;
+          const settings = settingsDoc
+            ? normalizeSettings(settingsDoc.data() as Partial<CMSSettings>)
+            : DEFAULT_SETTINGS;
           const pageHeroes = pageHeroesSnap.docs.map(d => ({ id: d.id, ...d.data() })) as PageHero[];
 
           set({ heroSlides, sections, settings, pageHeroes, lastFetched: Date.now(), isLoading: false });
@@ -365,7 +393,7 @@ export const useCMSStore = create<CMSStore>()(
       subscribeToSettings: () => {
         return onSnapshot(collection(db, 'cms_settings'), (snap) => {
           if (snap.docs.length > 0) {
-            const settings = { ...DEFAULT_SETTINGS, ...snap.docs[0].data() } as CMSSettings;
+            const settings = normalizeSettings(snap.docs[0].data() as Partial<CMSSettings>);
             set({ settings });
           }
         });
