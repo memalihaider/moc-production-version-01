@@ -9,6 +9,11 @@ const cinzel = Cinzel({ subsets: ["latin"], variable: "--font-cinzel", weight: [
 export const metadata: Metadata = {
   title: "MAN OF CAVE",
   description: "MAN OF CAVE – Premium grooming services for the modern gentleman.",
+  icons: {
+    icon: "/manofcave.png",
+    shortcut: "/manofcave.png",
+    apple: "/manofcave.png",
+  },
 };
 
 export default function RootLayout({
