@@ -64,6 +64,9 @@ interface BookingData {
   discount?: number;
   discountType?: 'fixed' | 'percentage';
   serviceDiscountAmount?: number;
+  serviceDiscountPercent?: number;
+  discountSource?: string;
+  discountDescription?: string;
   serviceDuration: number;
   serviceId: string;
   serviceName: string;
@@ -593,23 +596,38 @@ export default function BookingCheckout() {
 
             if (resolvedCustomerId) {
               try {
-                const walletsQuery = query(
-                  collection(db, 'wallets'),
-                  where('customerId', '==', resolvedCustomerId)
-                );
-                
-                const walletSnapshot = await getDocs(walletsQuery);
-                
-                if (!walletSnapshot.empty) {
-                  const walletDoc = walletSnapshot.docs[0];
-                  const walletData = walletDoc.data();
+                let walletData: any = null;
+
+                const walletDocById = await getDoc(doc(db, 'wallets', resolvedCustomerId));
+                if (walletDocById.exists()) {
+                  walletData = walletDocById.data();
+                } else {
+                  const walletsQuery = query(
+                    collection(db, 'wallets'),
+                    where('customerId', '==', resolvedCustomerId)
+                  );
+                  const walletSnapshot = await getDocs(walletsQuery);
+                  if (!walletSnapshot.empty) {
+                    walletData = walletSnapshot.docs[0].data();
+                  }
+                }
+
+                if (walletData) {
+                  const loyaltyPoints = Number(walletData.loyaltyPoints || 0);
+                  const walletBalanceFromPoints = convertPointsToAED(loyaltyPoints);
+                  const walletBalance = Math.max(
+                    0,
+                    Number(walletData.balance ?? walletBalanceFromPoints ?? 0)
+                  );
+                  const walletDiscountPercent = Math.min(100, Math.max(0, Number(walletData.serviceDiscountPercent || 0)));
+                  const activeWalletDiscountPercent = walletBalance > 0 ? walletDiscountPercent : 0;
                   
                   setCustomer({
                     ...customerData,
                     id: resolvedCustomerId,
-                    walletBalance: walletData.balance || 0,
-                    loyaltyPoints: walletData.loyaltyPoints || 0,
-                    serviceDiscountPercent: walletData.serviceDiscountPercent || 0
+                    walletBalance: walletBalance,
+                    loyaltyPoints: loyaltyPoints,
+                    serviceDiscountPercent: activeWalletDiscountPercent
                   });
                 } else {
                   setCustomer({
@@ -648,7 +666,8 @@ export default function BookingCheckout() {
 
   // Calculate total
   const cartTotal = getCartTotal();
-  const serviceDiscountPercent = Math.min(100, Math.max(0, Number(customer?.serviceDiscountPercent || 0)));
+  const rawServiceDiscountPercent = Math.min(100, Math.max(0, Number(customer?.serviceDiscountPercent || 0)));
+  const serviceDiscountPercent = Number(customer?.walletBalance || 0) > 0 ? rawServiceDiscountPercent : 0;
   const serviceDiscountAmount = serviceDiscountPercent > 0
     ? (cartTotal * serviceDiscountPercent) / 100
     : 0;
@@ -656,8 +675,12 @@ export default function BookingCheckout() {
 
   // Get wallet balance in AED
   const getWalletBalanceInAED = () => {
-    if (!customer || customer.loyaltyPoints === undefined) return 0;
-    return convertPointsToAED(customer.loyaltyPoints);
+    if (!customer) return 0;
+    if (typeof customer.walletBalance === 'number') {
+      return Math.max(0, Number(customer.walletBalance));
+    }
+    if (customer.loyaltyPoints === undefined) return 0;
+    return Math.max(0, convertPointsToAED(customer.loyaltyPoints));
   };
 
   // Calculate remaining balance after wallet payment
@@ -823,10 +846,12 @@ export default function BookingCheckout() {
     }
 
     const servicesTotal = cartItems.reduce((sum, item) => sum + item.price, 0);
-    const discountPercent = Math.min(100, Math.max(0, Number(customer?.serviceDiscountPercent || 0)));
+    const walletBalanceAED = getWalletBalanceInAED();
+    const discountPercent = walletBalanceAED > 0
+      ? Math.min(100, Math.max(0, Number(customer?.serviceDiscountPercent || 0)))
+      : 0;
     const discountAmount = discountPercent > 0 ? (servicesTotal * discountPercent) / 100 : 0;
     const finalAmount = Math.max(0, servicesTotal - discountAmount);
-    const walletBalanceAED = getWalletBalanceInAED();
 
     if (paymentMethod === 'wallet' && customer) {
       if (walletBalanceAED < finalAmount) {
@@ -962,7 +987,10 @@ export default function BookingCheckout() {
       const branchId = selectedBranchData?.id || branch;
       
       const servicesTotal = cartItems.reduce((sum, item) => sum + item.price, 0);
-      const discountPercent = Math.min(100, Math.max(0, Number(customer?.serviceDiscountPercent || 0)));
+      const walletBalanceAED = getWalletBalanceInAED();
+      const discountPercent = walletBalanceAED > 0
+        ? Math.min(100, Math.max(0, Number(customer?.serviceDiscountPercent || 0)))
+        : 0;
       const discountAmount = discountPercent > 0 ? (servicesTotal * discountPercent) / 100 : 0;
       const finalAmount = Math.max(0, servicesTotal - discountAmount);
       
@@ -1016,7 +1044,10 @@ export default function BookingCheckout() {
         serviceCharges: 0,
         discount: discountPercent,
         discountType: discountPercent > 0 ? 'percentage' : 'fixed',
+        discountSource: discountPercent > 0 ? 'ewallet_topup' : undefined,
+        discountDescription: discountPercent > 0 ? 'Discount applied due to eWallet top-up' : undefined,
         serviceDiscountAmount: discountAmount,
+        serviceDiscountPercent: discountPercent > 0 ? discountPercent : 0,
         serviceDuration: getTotalDuration(),
         serviceId: cartItems[0]?.id || "wm4r0IVOcxZWoEfBNw9f",
         serviceName: cartItems[0]?.name || "Fifth Services",
@@ -1057,24 +1088,44 @@ export default function BookingCheckout() {
       
       if ((paymentMethod === 'wallet' || (paymentMethod === 'mixed' && walletPayment > 0)) && customer && customer.id) {
         try {
-          const walletsQuery = query(
-            collection(db, 'wallets'),
-            where('customerId', '==', customer.id)
-          );
-          
-          const walletSnapshot = await getDocs(walletsQuery);
-          
-          if (!walletSnapshot.empty) {
-            const walletDoc = walletSnapshot.docs[0];
-            const walletData = walletDoc.data();
+          let walletDocRef: any = null;
+          let walletData: any = null;
+
+          const walletDocById = await getDoc(doc(db, 'wallets', customer.id));
+          if (walletDocById.exists()) {
+            walletDocRef = walletDocById.ref;
+            walletData = walletDocById.data();
+          } else {
+            const walletsQuery = query(
+              collection(db, 'wallets'),
+              where('customerId', '==', customer.id)
+            );
+            const walletSnapshot = await getDocs(walletsQuery);
+            if (!walletSnapshot.empty) {
+              walletDocRef = walletSnapshot.docs[0].ref;
+              walletData = walletSnapshot.docs[0].data();
+            }
+          }
+
+          if (walletDocRef && walletData) {
             
             const pointsToDeduct = convertAEDToPoints(walletPayment);
             const newLoyaltyPoints = Math.max(0, (walletData.loyaltyPoints || 0) - pointsToDeduct);
             const newBalance = Math.max(0, (walletData.balance || 0) - walletPayment);
+            const hasRemainingWalletBalance = newBalance > 0;
+            const persistedDiscountPercent = hasRemainingWalletBalance
+              ? Math.min(100, Math.max(0, Number(walletData.serviceDiscountPercent || 0)))
+              : 0;
             
-            await updateDoc(walletDoc.ref, {
+            await updateDoc(walletDocRef, {
               loyaltyPoints: newLoyaltyPoints,
               balance: newBalance,
+              serviceDiscountPercent: persistedDiscountPercent,
+              serviceDiscountActive: hasRemainingWalletBalance,
+              serviceDiscountTopupAmount: hasRemainingWalletBalance
+                ? Number(walletData.serviceDiscountTopupAmount || 0)
+                : null,
+              serviceDiscountUpdatedAt: serverTimestamp(),
               updatedAt: serverTimestamp()
             });
             
@@ -1100,7 +1151,8 @@ export default function BookingCheckout() {
             setCustomer({
               ...customer,
               loyaltyPoints: newLoyaltyPoints,
-              walletBalance: newBalance
+              walletBalance: newBalance,
+              serviceDiscountPercent: persistedDiscountPercent
             });
           }
         } catch (walletError) {
@@ -1155,7 +1207,7 @@ export default function BookingCheckout() {
                   <div className="pt-4 border-t border-gray-100">
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
                       <div className="flex items-start gap-2">
-                        <Info className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                        <Info className="w-5 h-5 text-blue-600 mt-0.5 shrink-0" />
                         <div className="text-left">
                           <p className="text-xs font-bold text-blue-900 mb-2">✅ Account Created</p>
                           <p className="text-xs text-blue-800 mb-3">Your account has been automatically created. Use these credentials to log in:</p>
@@ -1234,7 +1286,7 @@ export default function BookingCheckout() {
                   <CardContent className="p-6">
                     <div className="space-y-4">
                       <div className="flex items-start gap-4">
-                        <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center shrink-0">
                           <AlertCircle className="w-6 h-6 text-red-600" />
                         </div>
                         <div className="flex-1">
@@ -1468,7 +1520,7 @@ export default function BookingCheckout() {
                       {selectedStaff && (
                         <div className="p-4 bg-gray-50 rounded-xl">
                           <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0">
+                            <div className="w-12 h-12 rounded-full overflow-hidden shrink-0">
                               <img 
                                 src={staffMembers.find(s => s.name === selectedStaff)?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedStaff)}&background=random`} 
                                 alt={selectedStaff}
@@ -1797,7 +1849,7 @@ export default function BookingCheckout() {
             <div className="space-y-6">
               <Card className="border-none shadow-lg rounded-none bg-primary text-white sticky top-24">
                 {/* Staff Profile */}
-                <div className="h-40 w-full bg-gradient-to-b from-secondary/20 to-primary flex items-center justify-center overflow-hidden">
+                <div className="h-40 w-full bg-linear-to-b from-secondary/20 to-primary flex items-center justify-center overflow-hidden">
                   {selectedStaff ? (
                     <div className="relative w-full h-full flex items-center justify-center">
                       <img
@@ -1805,7 +1857,7 @@ export default function BookingCheckout() {
                         alt={selectedStaff}
                         className="w-full h-full object-cover"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-primary via-transparent to-transparent"></div>
+                      <div className="absolute inset-0 bg-linear-to-t from-primary via-transparent to-transparent"></div>
                       <div className="absolute bottom-0 left-0 right-0 p-4 text-center">
                         <p className="font-sans font-bold text-lg text-white">{selectedStaff}</p>
                         <p className="text-sm text-white/80">
@@ -1881,7 +1933,7 @@ export default function BookingCheckout() {
 
                         {serviceDiscountPercent > 0 && (
                           <div className="flex justify-between text-xs text-white/60">
-                            <span>Wallet Service Discount ({serviceDiscountPercent.toFixed(0)}%)</span>
+                            <span>eWallet Top-up Discount ({serviceDiscountPercent.toFixed(0)}%)</span>
                             <span>- AED {serviceDiscountAmount.toFixed(2)}</span>
                           </div>
                         )}

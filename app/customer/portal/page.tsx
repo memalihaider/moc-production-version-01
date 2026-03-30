@@ -41,6 +41,7 @@ import {
   Eye,
   Check,
   X,
+  Download,
   CreditCard,
   MapPin,
   Tag,
@@ -69,6 +70,12 @@ import {
   setDoc,
 } from "firebase/firestore";
 import { onAuthStateChanged, signOut } from "firebase/auth";
+import {
+  buildWalletTopupWhatsAppUrl,
+  downloadWalletTopupInvoicePdf,
+  WALLET_TOPUP_WHATSAPP_SENDER_NUMBER,
+  type WalletTopupInvoiceData,
+} from "@/lib/wallet-topup-invoice";
 
 // Types
 interface Customer {
@@ -272,6 +279,11 @@ interface Transaction {
   createdAt: any;
   status: "success" | "failed" | "pending";
   referenceId?: string;
+  invoiceNumber?: string;
+  invoiceDate?: string;
+  invoiceType?: string;
+  customerPhone?: string;
+  invoiceData?: WalletTopupInvoiceData;
 }
 
 interface CustomerWallet {
@@ -1600,6 +1612,13 @@ export default function CustomerPortal() {
               | "failed"
               | "pending",
             referenceId: data.referenceId || "",
+            invoiceNumber: data.invoiceNumber || "",
+            invoiceDate: data.invoiceDate || "",
+            invoiceType: data.invoiceType || "",
+            customerPhone: data.customerPhone || "",
+            invoiceData: (data.invoiceData || undefined) as
+              | WalletTopupInvoiceData
+              | undefined,
           });
         });
 
@@ -2256,6 +2275,13 @@ export default function CustomerPortal() {
                 | "failed"
                 | "pending",
               referenceId: data.referenceId || "",
+              invoiceNumber: data.invoiceNumber || "",
+              invoiceDate: data.invoiceDate || "",
+              invoiceType: data.invoiceType || "",
+              customerPhone: data.customerPhone || "",
+              invoiceData: (data.invoiceData || undefined) as
+                | WalletTopupInvoiceData
+                | undefined,
             });
           });
 
@@ -3180,6 +3206,40 @@ export default function CustomerPortal() {
     }
   };
 
+  const resolveTopupInvoiceData = (txn: Transaction): WalletTopupInvoiceData => {
+    if (txn.invoiceData) return txn.invoiceData;
+
+    return {
+      invoiceNumber: txn.invoiceNumber || txn.referenceId || `WTI-${txn.id.slice(0, 8)}`,
+      invoiceDate: txn.invoiceDate || formatDate(txn.createdAt),
+      amount: Math.abs(Number(txn.amount || 0)),
+      customerName: customer?.name || "Customer",
+      customerEmail: customer?.email || "",
+      customerPhone: txn.customerPhone || customer?.phone || "",
+      branchName: "Main Branch",
+      sourceNote: "Wallet top-up transaction from customer portal history.",
+    };
+  };
+
+  const handleDownloadTopupInvoiceFromHistory = async (txn: Transaction) => {
+    try {
+      await downloadWalletTopupInvoicePdf(resolveTopupInvoiceData(txn));
+    } catch (error) {
+      console.error("Error downloading top-up invoice:", error);
+      alert("Unable to download this top-up invoice right now.");
+    }
+  };
+
+  const handleSendTopupInvoiceViaWhatsApp = (txn: Transaction) => {
+    const whatsappUrl = buildWalletTopupWhatsAppUrl(resolveTopupInvoiceData(txn));
+    if (!whatsappUrl) {
+      alert("Customer phone number is missing, so WhatsApp sharing is not available.");
+      return;
+    }
+
+    window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+  };
+
   // Force update wallet function for debugging
   const forceUpdateWallet = async () => {
     if (!customer) return;
@@ -3896,6 +3956,30 @@ export default function CustomerPortal() {
                                     <p className="text-xs text-muted-foreground">
                                       {getTimeAgo(txn.createdAt)}
                                     </p>
+                                    {txn.type === "wallet_topup" && (txn.invoiceNumber || txn.invoiceData) && (
+                                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                                        <Button
+                                          type="button"
+                                          size="sm"
+                                          variant="outline"
+                                          className="h-7 px-2 text-[11px]"
+                                          onClick={() => handleDownloadTopupInvoiceFromHistory(txn)}
+                                        >
+                                          <Download className="mr-1 h-3 w-3" />
+                                          Invoice
+                                        </Button>
+                                        <Button
+                                          type="button"
+                                          size="sm"
+                                          className="h-7 bg-green-600 px-2 text-[11px] hover:bg-green-700"
+                                          title={`WhatsApp desk: ${WALLET_TOPUP_WHATSAPP_SENDER_NUMBER}`}
+                                          onClick={() => handleSendTopupInvoiceViaWhatsApp(txn)}
+                                        >
+                                          <Phone className="mr-1 h-3 w-3" />
+                                          WhatsApp
+                                        </Button>
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                                 <div className="text-right">
@@ -5510,6 +5594,30 @@ export default function CustomerPortal() {
                                     <p className="text-xs text-muted-foreground">
                                       {getTimeAgo(txn.createdAt)}
                                     </p>
+                                    {txn.type === "wallet_topup" && (txn.invoiceNumber || txn.invoiceData) && (
+                                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                                        <Button
+                                          type="button"
+                                          size="sm"
+                                          variant="outline"
+                                          className="h-7 px-2 text-[11px]"
+                                          onClick={() => handleDownloadTopupInvoiceFromHistory(txn)}
+                                        >
+                                          <Download className="mr-1 h-3 w-3" />
+                                          Invoice
+                                        </Button>
+                                        <Button
+                                          type="button"
+                                          size="sm"
+                                          className="h-7 bg-green-600 px-2 text-[11px] hover:bg-green-700"
+                                          title={`WhatsApp desk: ${WALLET_TOPUP_WHATSAPP_SENDER_NUMBER}`}
+                                          onClick={() => handleSendTopupInvoiceViaWhatsApp(txn)}
+                                        >
+                                          <Phone className="mr-1 h-3 w-3" />
+                                          WhatsApp
+                                        </Button>
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                                 <div className="text-right">

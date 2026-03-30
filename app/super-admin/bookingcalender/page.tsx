@@ -61,6 +61,12 @@ interface ExtendedInvoiceData extends InvoiceData {
   taxAmount?: number;
   discountAmount?: number;
   discountType?: 'fixed' | 'percentage';
+  discountSource?: string;
+  discountDescription?: string;
+  couponCode?: string;
+  couponDiscountAmount?: number;
+  taxType?: 'inclusive' | 'exclusive';
+  ewalletBalanceAvailable?: number;
   cardLast4Digits?: string;
   trnNumber?: string;
   referenceNumber?: string;
@@ -155,6 +161,11 @@ interface FirebaseBooking {
   };
   discount?: number;
   discountType?: 'fixed' | 'percentage';
+  discountSource?: string;
+  discountDescription?: string;
+  couponCode?: string;
+  couponDiscountAmount?: number;
+  taxType?: 'inclusive' | 'exclusive';
   serviceTip?: number;
   tax?: number;
 }
@@ -382,6 +393,11 @@ interface Appointment {
   };
   discount?: number;
   discountType?: 'fixed' | 'percentage';
+  discountSource?: string;
+  discountDescription?: string;
+  couponCode?: string;
+  couponDiscountAmount?: number;
+  taxType?: 'inclusive' | 'exclusive';
   serviceTip?: number;
   serviceCharges?: number;
   tax?: number;
@@ -405,6 +421,9 @@ interface BookingFormData {
   discountType: 'fixed' | 'percentage';
   serviceTip: number;
   paymentMethods: Array<string>;
+  couponCode?: string;
+  couponDiscountAmount?: number;
+  taxType?: 'inclusive' | 'exclusive';
   paymentAmounts: {
     cash: number;
     card: number;
@@ -1086,20 +1105,40 @@ const generatePDFInvoice = async (invoiceData: ExtendedInvoiceData) => {
       : (invoiceData.serviceDetails?.reduce((sum, s) => sum + Number(s.price || 0), 0)
         || Number(invoiceData.subtotal || invoiceData.price || 0));
     const serviceCharges = Number(invoiceData.serviceCharges || 0);
+    const couponDiscountAmount = Math.max(0, Number(invoiceData.couponDiscountAmount || 0));
     const tipAmount = Number(invoiceData.serviceDetails?.reduce((sum, s) => sum + Number(s.tip || 0), 0) || 0)
       + Number(invoiceData.serviceTip || 0);
 
     const subtotal = servicesSubtotal + serviceCharges;
 
     const discountValue = Number(invoiceData.discount || 0);
+    const chargeableAmount = Math.max(0, subtotal - couponDiscountAmount);
     const discountAmount = invoiceData.discountType === 'percentage'
-      ? Math.min(subtotal, Math.max(0, (subtotal * discountValue) / 100))
-      : Math.min(subtotal, Math.max(0, discountValue));
+      ? Math.min(chargeableAmount, Math.max(0, (chargeableAmount * discountValue) / 100))
+      : Math.min(chargeableAmount, Math.max(0, discountValue));
 
-    const taxableAmount = Math.max(0, subtotal - discountAmount);
+    const taxableAmount = Math.max(0, chargeableAmount - discountAmount);
     const taxPercent = Number(invoiceData.tax || 0);
-    const taxAmount = Math.max(0, (taxableAmount * taxPercent) / 100);
-    const totalAmount = taxableAmount + taxAmount + tipAmount;
+    const normalizedTaxType = invoiceData.taxType === 'exclusive' ? 'exclusive' : 'inclusive';
+
+    let taxAmount = 0;
+    let totalWithoutVatCore = taxableAmount;
+    let totalAmountCore = taxableAmount;
+
+    if (taxPercent > 0) {
+      if (normalizedTaxType === 'inclusive') {
+        taxAmount = Math.max(0, (taxableAmount * taxPercent) / (100 + taxPercent));
+        totalWithoutVatCore = Math.max(0, taxableAmount - taxAmount);
+        totalAmountCore = taxableAmount;
+      } else {
+        taxAmount = Math.max(0, (taxableAmount * taxPercent) / 100);
+        totalWithoutVatCore = taxableAmount;
+        totalAmountCore = taxableAmount + taxAmount;
+      }
+    }
+
+    const totalAmount = totalAmountCore + tipAmount;
+    const totalWithoutVat = totalWithoutVatCore + tipAmount;
 
     const paymentMethods = invoiceData.paymentAmounts
       ? Object.entries(invoiceData.paymentAmounts)
@@ -1115,7 +1154,7 @@ const generatePDFInvoice = async (invoiceData: ExtendedInvoiceData) => {
       paymentMethods.push({ label, amount: totalAmount });
     }
 
-    const invoiceItems = (invoiceData.items && invoiceData.items.length > 0)
+    const baseInvoiceItems = (invoiceData.items && invoiceData.items.length > 0)
       ? invoiceData.items.map((item) => ({
           description: item.name,
           quantity: Number(item.quantity || 1),
@@ -1138,6 +1177,38 @@ const generatePDFInvoice = async (invoiceData: ExtendedInvoiceData) => {
           details: [invoiceData.branch, invoiceData.barber].filter(Boolean).join(' - '),
         }];
 
+    const invoiceItems = serviceCharges > 0
+      ? [
+          ...baseInvoiceItems,
+          {
+            description: 'Service Charges',
+            quantity: 1,
+            unitPrice: serviceCharges,
+            lineTotal: serviceCharges,
+            details: 'Additional service charge',
+          },
+        ]
+      : baseInvoiceItems;
+
+    const amountPaid = Math.max(
+      0,
+      paymentMethods.reduce((sum, method) => sum + Number(method.amount || 0), 0)
+    );
+    const amountDue = Math.max(0, totalAmount - amountPaid);
+    const ewalletUsed = Math.max(
+      0,
+      Number(invoiceData.paymentAmounts?.ewallet ?? invoiceData.paymentAmounts?.wallet ?? 0)
+    );
+    const hasEwalletAvailability = Number.isFinite(Number(invoiceData.ewalletBalanceAvailable));
+    const ewalletBalanceAvailable = Math.max(0, Number(invoiceData.ewalletBalanceAvailable || 0));
+    const ewalletBalanceLeft = Math.max(0, ewalletBalanceAvailable - ewalletUsed);
+    const taxTypeLabel = normalizedTaxType === 'exclusive' ? 'Exclusive' : 'Inclusive';
+    const couponCode = String(invoiceData.couponCode || '').trim();
+    const finalNotes = [
+      String(invoiceData.notes || '').trim(),
+      couponCode ? `Coupon Code: ${couponCode}` : '',
+    ].filter(Boolean).join('\n');
+
     await generateUnifiedInvoicePdf({
       invoiceNumber: invoiceData.invoiceNumber || `INV-${Date.now()}`,
       invoiceDate: invoiceData.date || new Date().toLocaleDateString(),
@@ -1149,15 +1220,23 @@ const generatePDFInvoice = async (invoiceData: ExtendedInvoiceData) => {
       serviceTime: invoiceData.time,
       branchName: invoiceData.branch || 'Main Branch',
       items: invoiceItems,
-      subtotal,
+      subtotal: servicesSubtotal,
+      couponDiscountAmount,
       discountAmount,
       taxAmount,
       taxPercent,
+      taxTypeLabel,
+      totalWithoutVat,
       serviceCharges,
       tipAmount,
       totalAmount,
+      amountPaid,
+      amountDue,
+      ewalletBalanceAvailable: hasEwalletAvailability ? ewalletBalanceAvailable : undefined,
+      ewalletBalanceLeft: hasEwalletAvailability ? ewalletBalanceLeft : undefined,
+      summaryLayout: 'booking-vat',
       paymentMethods,
-      notes: invoiceData.notes,
+      notes: finalNotes,
       disclaimerText: invoiceData.disclaimerText,
       trnNumber: invoiceData.trnNumber,
       logoPath: '/manofcave.png',
@@ -1513,6 +1592,7 @@ export default function AdminAppointments() {
   const [invoiceProductSearchTerm, setInvoiceProductSearchTerm] = useState('');
   const [showInvoiceProductSuggestions, setShowInvoiceProductSuggestions] = useState(false);
   const [invoiceEwalletBalance, setInvoiceEwalletBalance] = useState<number | null>(null);
+  const [invoiceEwalletDiscountPercent, setInvoiceEwalletDiscountPercent] = useState(0);
   const [invoiceEwalletLoading, setInvoiceEwalletLoading] = useState(false);
   const [closingInvoiceBooking, setClosingInvoiceBooking] = useState(false);
   
@@ -2013,6 +2093,9 @@ export default function AdminAppointments() {
               paymentAmounts: data.paymentAmounts || { cash: 0, card: 0, check: 0, digital: 0 },
               discount: data.discount || 0,
               discountType: data.discountType || 'fixed',
+              couponCode: String(data.couponCode || ''),
+              couponDiscountAmount: Number(data.couponDiscountAmount || 0),
+              taxType: data.taxType === 'exclusive' ? 'exclusive' : 'inclusive',
               serviceTip: data.serviceTip || 0,
               serviceCharges: data.serviceCharges || 0,
               tax: data.tax || 5,
@@ -3312,16 +3395,31 @@ export default function AdminAppointments() {
     
     const subtotal = serviceDetails.reduce((sum, s) => sum + Number(s.price || 0), 0);
     const serviceCharges = Number(appointment.serviceCharges || 0);
+    const couponDiscountAmount = Math.max(0, Number(appointment.couponDiscountAmount || 0));
     const discountValue = Number(appointment.discount || 0);
-    const subtotalWithCharges = subtotal + serviceCharges;
+    const subtotalWithCharges = Math.max(0, subtotal + serviceCharges - couponDiscountAmount);
     const discountAmount = appointment.discountType === 'percentage'
       ? Math.min(subtotalWithCharges, Math.max(0, (subtotalWithCharges * discountValue) / 100))
       : Math.min(subtotalWithCharges, Math.max(0, discountValue));
     const taxableAmount = Math.max(0, subtotalWithCharges - discountAmount);
     const resolvedTaxRate = invoiceValueDisplayMode === 'without-tax' ? 0 : Number(appointment.tax ?? taxRate);
-    const taxAmount = Math.max(0, (taxableAmount * resolvedTaxRate) / 100);
+    const effectiveTaxType = invoiceValueDisplayMode === 'without-tax'
+      ? 'exclusive'
+      : (appointment.taxType === 'exclusive' ? 'exclusive' : 'inclusive');
+
+    let taxAmount = 0;
+    let totalAmountCore = taxableAmount;
+    if (resolvedTaxRate > 0) {
+      if (effectiveTaxType === 'inclusive') {
+        taxAmount = Math.max(0, (taxableAmount * resolvedTaxRate) / (100 + resolvedTaxRate));
+        totalAmountCore = taxableAmount;
+      } else {
+        taxAmount = Math.max(0, (taxableAmount * resolvedTaxRate) / 100);
+        totalAmountCore = taxableAmount + taxAmount;
+      }
+    }
     const tipAmount = Number(appointment.serviceTip || 0) + Number(appointment.teamMembers?.reduce((sum, t) => sum + Number(t.tip || 0), 0) || 0);
-    const totalAmount = taxableAmount + taxAmount + tipAmount;
+    const totalAmount = totalAmountCore + tipAmount;
     
     const items: InvoiceItem[] = serviceDetails.map(s => ({
       name: s.serviceName,
@@ -3362,6 +3460,11 @@ export default function AdminAppointments() {
       tax: resolvedTaxRate,
       discount: appointment.discount || 0,
       discountType: appointment.discountType || 'fixed',
+      discountSource: appointment.discountSource,
+      discountDescription: appointment.discountDescription,
+      couponCode: appointment.couponCode || '',
+      couponDiscountAmount: Number(appointment.couponDiscountAmount || 0),
+      taxType: effectiveTaxType,
       paymentMethod: appointment.paymentMethods?.join(', ') || appointment.paymentMethod || 'Cash',
       paymentMethods: appointment.paymentMethods,
       paymentAmounts: appointment.paymentAmounts,
@@ -3408,6 +3511,12 @@ export default function AdminAppointments() {
 
   const handleInvoiceDataChange = (field: keyof ExtendedInvoiceData, value: any) => {
     if (invoiceData) {
+      const isEwalletDiscountLocked =
+        invoiceData.discountSource === 'ewallet_topup' && invoiceEwalletDiscountPercent > 0;
+      if (isEwalletDiscountLocked && (field === 'discount' || field === 'discountType')) {
+        return;
+      }
+
       const updatedData = {
         ...invoiceData,
         [field]: value
@@ -3438,14 +3547,29 @@ export default function AdminAppointments() {
         ? itemsSubtotal
         : (servicesSubtotalFromDetails > 0 ? servicesSubtotalFromDetails : Number(updatedData.subtotal || updatedData.price || 0));
       const serviceCharges = Number(updatedData.serviceCharges || 0);
+      const couponDiscountAmount = Math.max(0, Number(updatedData.couponDiscountAmount || 0));
       const discountValue = Number(updatedData.discount || 0);
-      const subtotalWithCharges = servicesSubtotal + serviceCharges;
+      const subtotalWithCharges = Math.max(0, servicesSubtotal + serviceCharges - couponDiscountAmount);
       const discountAmount = updatedData.discountType === 'percentage'
         ? Math.min(subtotalWithCharges, Math.max(0, (subtotalWithCharges * discountValue) / 100))
         : Math.min(subtotalWithCharges, Math.max(0, discountValue));
       const taxableAmount = Math.max(0, subtotalWithCharges - discountAmount);
       const resolvedTaxRate = invoiceValueDisplayMode === 'without-tax' ? 0 : Number(updatedData.tax ?? taxRate);
-      const taxAmount = Math.max(0, (taxableAmount * resolvedTaxRate) / 100);
+      const effectiveTaxType = invoiceValueDisplayMode === 'without-tax'
+        ? 'exclusive'
+        : (updatedData.taxType === 'exclusive' ? 'exclusive' : 'inclusive');
+
+      let taxAmount = 0;
+      let totalAmountCore = taxableAmount;
+      if (resolvedTaxRate > 0) {
+        if (effectiveTaxType === 'inclusive') {
+          taxAmount = Math.max(0, (taxableAmount * resolvedTaxRate) / (100 + resolvedTaxRate));
+          totalAmountCore = taxableAmount;
+        } else {
+          taxAmount = Math.max(0, (taxableAmount * resolvedTaxRate) / 100);
+          totalAmountCore = taxableAmount + taxAmount;
+        }
+      }
       const tipAmount = Number(updatedData.serviceDetails?.reduce((sum, s) => sum + Number(s.tip || 0), 0) || 0)
         + Number(updatedData.serviceTip || 0);
 
@@ -3453,7 +3577,8 @@ export default function AdminAppointments() {
       updatedData.subtotal = servicesSubtotal;
       updatedData.tax = resolvedTaxRate;
       updatedData.taxAmount = taxAmount;
-      updatedData.total = taxableAmount + taxAmount + tipAmount;
+      updatedData.total = totalAmountCore + tipAmount;
+      updatedData.taxType = effectiveTaxType;
       
       setInvoiceData(updatedData);
     }
@@ -3463,6 +3588,9 @@ export default function AdminAppointments() {
     () => normalizeInvoiceSplitMethods(invoiceData?.paymentMethods, invoiceData?.paymentMethod),
     [invoiceData?.paymentMethods, invoiceData?.paymentMethod, availableInvoiceSplitMethods, fallbackInvoiceSplitMethod]
   );
+
+  const isInvoiceEwalletDiscountLocked =
+    invoiceData?.discountSource === 'ewallet_topup' && invoiceEwalletDiscountPercent > 0;
 
   const invoiceGrandTotal = useMemo(
     () => (invoiceData ? getInvoiceGrandTotal(invoiceData) : 0),
@@ -3558,10 +3686,9 @@ export default function AdminAppointments() {
   }, [invoiceData?.total, invoiceData?.taxAmount, invoiceValueDisplayMode, availableInvoiceSplitMethods, fallbackInvoiceSplitMethod]);
 
   useEffect(() => {
-    const hasEwallet = selectedInvoicePaymentMethods.includes('ewallet');
-
-    if (!showInvoiceModal || !invoiceData || !hasEwallet) {
+    if (!showInvoiceModal || !invoiceData) {
       setInvoiceEwalletBalance(null);
+      setInvoiceEwalletDiscountPercent(0);
       setInvoiceEwalletLoading(false);
       return;
     }
@@ -3604,31 +3731,172 @@ export default function AdminAppointments() {
         if (!resolvedCustomerId) {
           if (!cancelled) {
             setInvoiceEwalletBalance(null);
+            setInvoiceData((prev) => {
+              if (!prev || prev.ewalletBalanceAvailable === undefined) return prev;
+              return {
+                ...prev,
+                ewalletBalanceAvailable: undefined,
+              };
+            });
           }
           return;
         }
 
         let balance: number | null = null;
+        let walletDiscountPercent = 0;
         const walletDoc = await getDoc(doc(db, 'wallets', resolvedCustomerId));
 
         if (walletDoc.exists()) {
           const walletData: any = walletDoc.data();
           balance = Number(walletData.balance ?? walletData.walletBalance ?? walletData.wallet ?? 0);
+          const rawDiscount = Number(walletData.serviceDiscountPercent ?? walletData.walletTopupDiscountPercent ?? 0);
+          walletDiscountPercent = balance > 0 ? Math.min(100, Math.max(0, rawDiscount)) : 0;
         } else {
           const walletSnapshot = await getDocs(query(collection(db, 'wallets'), where('customerId', '==', resolvedCustomerId)));
           if (!walletSnapshot.empty) {
             const walletData: any = walletSnapshot.docs[0].data();
             balance = Number(walletData.balance ?? walletData.walletBalance ?? walletData.wallet ?? 0);
+            const rawDiscount = Number(walletData.serviceDiscountPercent ?? walletData.walletTopupDiscountPercent ?? 0);
+            walletDiscountPercent = balance > 0 ? Math.min(100, Math.max(0, rawDiscount)) : 0;
           }
         }
 
         if (!cancelled) {
           setInvoiceEwalletBalance(balance ?? 0);
+          setInvoiceEwalletDiscountPercent(walletDiscountPercent);
+          setInvoiceData((prev) => {
+            if (!prev) return prev;
+            const nextBalance = Math.max(0, Number(balance ?? 0));
+            if (Number(prev.ewalletBalanceAvailable ?? -1) === nextBalance) return prev;
+            return {
+              ...prev,
+              ewalletBalanceAvailable: nextBalance,
+            };
+          });
+
+          if (walletDiscountPercent > 0) {
+            setInvoiceData((prev) => {
+              if (!prev) return prev;
+
+              const currentPercent = prev.discountType === 'percentage'
+                ? Number(prev.discount || 0)
+                : 0;
+              if (currentPercent >= walletDiscountPercent && prev.discountType === 'percentage') {
+                return prev;
+              }
+
+              const updated: ExtendedInvoiceData = {
+                ...prev,
+                discountType: 'percentage',
+                discount: walletDiscountPercent,
+                discountSource: 'ewallet_topup',
+                discountDescription: 'Discount applied due to eWallet top-up',
+              };
+              const servicesSubtotalFromDetails = Number(updated.serviceDetails?.reduce((sum, s) => sum + Number(s.price || 0), 0) || 0);
+              const itemsSubtotal = Number(updated.items?.reduce((sum, item) => sum + Number(item.total || item.price || 0), 0) || 0);
+              const servicesSubtotal = itemsSubtotal > 0
+                ? itemsSubtotal
+                : (servicesSubtotalFromDetails > 0 ? servicesSubtotalFromDetails : Number(updated.subtotal || updated.price || 0));
+              const serviceCharges = Number(updated.serviceCharges || 0);
+              const couponDiscountAmount = Math.max(0, Number(updated.couponDiscountAmount || 0));
+              const discountValue = Number(updated.discount || 0);
+              const subtotalWithCharges = Math.max(0, servicesSubtotal + serviceCharges - couponDiscountAmount);
+              const discountAmount = updated.discountType === 'percentage'
+                ? Math.min(subtotalWithCharges, Math.max(0, (subtotalWithCharges * discountValue) / 100))
+                : Math.min(subtotalWithCharges, Math.max(0, discountValue));
+              const taxableAmount = Math.max(0, subtotalWithCharges - discountAmount);
+              const resolvedTaxRate = invoiceValueDisplayMode === 'without-tax' ? 0 : Number(updated.tax ?? taxRate);
+              const effectiveTaxType = invoiceValueDisplayMode === 'without-tax'
+                ? 'exclusive'
+                : (updated.taxType === 'exclusive' ? 'exclusive' : 'inclusive');
+
+              let taxAmount = 0;
+              let totalAmountCore = taxableAmount;
+              if (resolvedTaxRate > 0) {
+                if (effectiveTaxType === 'inclusive') {
+                  taxAmount = Math.max(0, (taxableAmount * resolvedTaxRate) / (100 + resolvedTaxRate));
+                  totalAmountCore = taxableAmount;
+                } else {
+                  taxAmount = Math.max(0, (taxableAmount * resolvedTaxRate) / 100);
+                  totalAmountCore = taxableAmount + taxAmount;
+                }
+              }
+              const tipAmount = Number(updated.serviceDetails?.reduce((sum, s) => sum + Number(s.tip || 0), 0) || 0)
+                + Number(updated.serviceTip || 0);
+
+              updated.price = servicesSubtotal;
+              updated.subtotal = servicesSubtotal;
+              updated.tax = resolvedTaxRate;
+              updated.taxAmount = taxAmount;
+              updated.total = totalAmountCore + tipAmount;
+              updated.taxType = effectiveTaxType;
+              return updated;
+            });
+          } else {
+            setInvoiceData((prev) => {
+              if (!prev || prev.discountSource !== 'ewallet_topup') return prev;
+              const updated: ExtendedInvoiceData = {
+                ...prev,
+                discountType: 'fixed',
+                discount: 0,
+                discountSource: undefined,
+                discountDescription: undefined,
+              };
+
+              const servicesSubtotalFromDetails = Number(updated.serviceDetails?.reduce((sum, s) => sum + Number(s.price || 0), 0) || 0);
+              const itemsSubtotal = Number(updated.items?.reduce((sum, item) => sum + Number(item.total || item.price || 0), 0) || 0);
+              const servicesSubtotal = itemsSubtotal > 0
+                ? itemsSubtotal
+                : (servicesSubtotalFromDetails > 0 ? servicesSubtotalFromDetails : Number(updated.subtotal || updated.price || 0));
+              const serviceCharges = Number(updated.serviceCharges || 0);
+              const couponDiscountAmount = Math.max(0, Number(updated.couponDiscountAmount || 0));
+              const discountValue = Number(updated.discount || 0);
+              const subtotalWithCharges = Math.max(0, servicesSubtotal + serviceCharges - couponDiscountAmount);
+              const discountAmount = updated.discountType === 'percentage'
+                ? Math.min(subtotalWithCharges, Math.max(0, (subtotalWithCharges * discountValue) / 100))
+                : Math.min(subtotalWithCharges, Math.max(0, discountValue));
+              const taxableAmount = Math.max(0, subtotalWithCharges - discountAmount);
+              const resolvedTaxRate = invoiceValueDisplayMode === 'without-tax' ? 0 : Number(updated.tax ?? taxRate);
+              const effectiveTaxType = invoiceValueDisplayMode === 'without-tax'
+                ? 'exclusive'
+                : (updated.taxType === 'exclusive' ? 'exclusive' : 'inclusive');
+
+              let taxAmount = 0;
+              let totalAmountCore = taxableAmount;
+              if (resolvedTaxRate > 0) {
+                if (effectiveTaxType === 'inclusive') {
+                  taxAmount = Math.max(0, (taxableAmount * resolvedTaxRate) / (100 + resolvedTaxRate));
+                  totalAmountCore = taxableAmount;
+                } else {
+                  taxAmount = Math.max(0, (taxableAmount * resolvedTaxRate) / 100);
+                  totalAmountCore = taxableAmount + taxAmount;
+                }
+              }
+              const tipAmount = Number(updated.serviceDetails?.reduce((sum, s) => sum + Number(s.tip || 0), 0) || 0)
+                + Number(updated.serviceTip || 0);
+
+              updated.price = servicesSubtotal;
+              updated.subtotal = servicesSubtotal;
+              updated.tax = resolvedTaxRate;
+              updated.taxAmount = taxAmount;
+              updated.total = totalAmountCore + tipAmount;
+              updated.taxType = effectiveTaxType;
+              return updated;
+            });
+          }
         }
       } catch (error) {
         console.error('Error loading e-wallet balance:', error);
         if (!cancelled) {
           setInvoiceEwalletBalance(null);
+          setInvoiceEwalletDiscountPercent(0);
+          setInvoiceData((prev) => {
+            if (!prev || prev.ewalletBalanceAvailable === undefined) return prev;
+            return {
+              ...prev,
+              ewalletBalanceAvailable: undefined,
+            };
+          });
         }
       } finally {
         if (!cancelled) {
@@ -3646,7 +3914,6 @@ export default function AdminAppointments() {
     showInvoiceModal,
     invoiceData,
     selectedAppointmentForInvoice?.customerId,
-    selectedInvoicePaymentMethods,
   ]);
 
   const handleAddInvoiceItem = () => {
@@ -3740,6 +4007,13 @@ export default function AdminAppointments() {
               paymentMethod: normalizedMethods.map((method) => INVOICE_SPLIT_LABELS[method]).join(', '),
               paymentMethods: normalizedMethods,
               paymentAmounts: invoiceData.paymentAmounts || {},
+              discount: Number(invoiceData.discount || 0),
+              discountType: invoiceData.discountType || 'fixed',
+              discountSource: invoiceData.discountSource || null,
+              discountDescription: invoiceData.discountDescription || null,
+              couponCode: String(invoiceData.couponCode || '').trim(),
+              couponDiscountAmount: Number(invoiceData.couponDiscountAmount || 0),
+              taxType: invoiceData.taxType || (invoiceValueDisplayMode === 'without-tax' ? 'exclusive' : 'inclusive'),
               referenceNumber: normalizedReferenceNumber,
               invoiceNumber: invoiceData.invoiceNumber || '',
               updatedAt: serverTimestamp(),
@@ -3752,6 +4026,11 @@ export default function AdminAppointments() {
                     paymentMethod: normalizedMethods.map((method) => INVOICE_SPLIT_LABELS[method]).join(', '),
                     paymentMethods: normalizedMethods,
                     paymentAmounts: (invoiceData.paymentAmounts as any) || booking.paymentAmounts,
+                    discount: Number(invoiceData.discount || 0),
+                    discountType: invoiceData.discountType || 'fixed',
+                    couponCode: String(invoiceData.couponCode || '').trim(),
+                    couponDiscountAmount: Number(invoiceData.couponDiscountAmount || 0),
+                    taxType: invoiceData.taxType || (invoiceValueDisplayMode === 'without-tax' ? 'exclusive' : 'inclusive'),
                     referenceNumber: normalizedReferenceNumber,
                   }
                 : booking
@@ -3787,6 +4066,54 @@ export default function AdminAppointments() {
     } catch (error) {
       console.error('Error generating invoice:', error);
     }
+  };
+
+  const handleSendInvoiceWhatsApp = () => {
+    if (!invoiceData) {
+      addNotification({
+        type: 'error',
+        title: 'Invoice Error',
+        message: 'No invoice data found'
+      });
+      return;
+    }
+
+    const rawPhone = String(invoiceData.phone || selectedAppointmentForInvoice?.phone || '').trim();
+    const customerPhone = rawPhone.replace(/[^0-9]/g, '');
+
+    if (!customerPhone) {
+      addNotification({
+        type: 'warning',
+        title: 'WhatsApp Not Available',
+        message: 'Customer phone number is missing. Please add phone number first.'
+      });
+      return;
+    }
+
+    const grandTotal = getInvoiceGrandTotal(invoiceData);
+    const invoiceNo = String(invoiceData.invoiceNumber || invoiceNumber || 'N/A');
+    const invoiceDateValue = String(invoiceData.date || selectedAppointmentForInvoice?.date || new Date().toISOString().split('T')[0]);
+    const customerName = String(invoiceData.customer || selectedAppointmentForInvoice?.customer || 'Customer');
+    const branchName = String(invoiceData.branch || selectedAppointmentForInvoice?.branch || 'Main Branch');
+
+    const message = [
+      `Hello ${customerName},`,
+      `Your invoice is ready.`,
+      `Invoice #: ${invoiceNo}`,
+      `Date: ${invoiceDateValue}`,
+      `Branch: ${branchName}`,
+      `Total: AED ${grandTotal.toFixed(2)}`,
+      `Thank you for choosing Man of Cave.`,
+    ].join('\n');
+
+    const whatsappUrl = `https://wa.me/${customerPhone}?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+
+    addNotification({
+      type: 'success',
+      title: 'WhatsApp Opened',
+      message: 'Invoice details are ready to send on WhatsApp.'
+    });
   };
 
   const handleCloseBookingFromInvoice = async () => {
@@ -3839,10 +4166,17 @@ export default function AdminAppointments() {
         servicesSubtotal: 0,
         serviceCharges: 0,
         subtotalWithCharges: 0,
+        couponDiscountAmount: 0,
         discountAmount: 0,
         taxAmount: 0,
         tipAmount: 0,
+        totalWithoutVat: 0,
         totalAmount: 0,
+        amountPaid: 0,
+        amountDue: 0,
+        ewalletBalanceLeft: null as number | null,
+        taxTypeLabel: invoiceValueDisplayMode === 'without-tax' ? 'Exclusive' : 'Inclusive',
+        vatRate: Number(taxRate || 0),
       };
     }
 
@@ -3856,7 +4190,8 @@ export default function AdminAppointments() {
       : (invoiceData.serviceDetails?.reduce((sum, s) => sum + Number(s.price || 0), 0)
         || Number(invoiceData.subtotal || invoiceData.price || 0));
     const serviceCharges = Number(invoiceData.serviceCharges || 0);
-    const subtotalWithCharges = servicesSubtotal + serviceCharges;
+    const couponDiscountAmount = Math.max(0, Number(invoiceData.couponDiscountAmount || 0));
+    const subtotalWithCharges = Math.max(0, servicesSubtotal + serviceCharges - couponDiscountAmount);
 
     const discountValue = Number(invoiceData.discount || 0);
     const discountAmount = invoiceData.discountType === 'percentage'
@@ -3865,21 +4200,59 @@ export default function AdminAppointments() {
 
     const taxableAmount = Math.max(0, subtotalWithCharges - discountAmount);
     const resolvedTaxRate = invoiceValueDisplayMode === 'without-tax' ? 0 : Number(invoiceData.tax ?? taxRate);
-    const taxAmount = Math.max(0, (taxableAmount * resolvedTaxRate) / 100);
+    const effectiveTaxType = invoiceValueDisplayMode === 'without-tax'
+      ? 'exclusive'
+      : (invoiceData.taxType === 'exclusive' ? 'exclusive' : 'inclusive');
+
+    let taxAmount = 0;
+    let totalWithoutVatCore = taxableAmount;
+    let totalAmountCore = taxableAmount;
+    if (resolvedTaxRate > 0) {
+      if (effectiveTaxType === 'inclusive') {
+        taxAmount = Math.max(0, (taxableAmount * resolvedTaxRate) / (100 + resolvedTaxRate));
+        totalWithoutVatCore = Math.max(0, taxableAmount - taxAmount);
+        totalAmountCore = taxableAmount;
+      } else {
+        taxAmount = Math.max(0, (taxableAmount * resolvedTaxRate) / 100);
+        totalWithoutVatCore = taxableAmount;
+        totalAmountCore = taxableAmount + taxAmount;
+      }
+    }
     const tipAmount = Number(invoiceData.serviceDetails?.reduce((sum, s) => sum + Number(s.tip || 0), 0) || 0)
       + Number(invoiceData.serviceTip || 0);
-    const totalAmount = taxableAmount + taxAmount + tipAmount;
+    const totalAmount = totalAmountCore + tipAmount;
+    const totalWithoutVat = totalWithoutVatCore + tipAmount;
+    const amountPaid = Math.max(0, Number(selectedInvoicePaymentTotal || 0));
+    const ewalletUsed = Math.max(
+      0,
+      Number(invoiceData?.paymentAmounts?.ewallet ?? invoiceData?.paymentAmounts?.wallet ?? 0)
+    );
+    const hasEwalletAvailability = Number.isFinite(Number(invoiceData?.ewalletBalanceAvailable));
+    const ewalletBalanceAvailable = hasEwalletAvailability
+      ? Math.max(0, Number(invoiceData?.ewalletBalanceAvailable || 0))
+      : null;
 
     return {
       servicesSubtotal,
       serviceCharges,
       subtotalWithCharges,
+      couponDiscountAmount,
       discountAmount,
       taxAmount,
       tipAmount,
+      totalWithoutVat,
       totalAmount,
+      amountPaid,
+      amountDue: Math.max(0, totalAmount - amountPaid),
+      ewalletBalanceLeft: ewalletBalanceAvailable === null
+        ? null
+        : Math.max(0, ewalletBalanceAvailable - ewalletUsed),
+      taxTypeLabel: invoiceValueDisplayMode === 'without-tax'
+        ? 'Exclusive'
+        : (effectiveTaxType === 'exclusive' ? 'Exclusive' : 'Inclusive'),
+      vatRate: Number(invoiceData.tax ?? taxRate),
     };
-  }, [invoiceData, invoiceValueDisplayMode]);
+  }, [invoiceData, invoiceValueDisplayMode, selectedInvoicePaymentTotal, taxRate]);
 
   const invoiceTotalWithTax = invoiceSummary.totalAmount;
   const invoiceTotalWithoutTax = invoiceValueDisplayMode === 'without-tax'
@@ -4202,6 +4575,7 @@ export default function AdminAppointments() {
                     onDownloadInvoiceBooking={(appointment: any) => { void handleDownloadInvoiceDirectFromCalendar(appointment); }}
                     onCloseBooking={(appointment: any) => { void handleCloseBookingFromCalendar(appointment); }}
                     staff={staffMembers as any}
+                    paymentMethodAvailability={paymentMethodAvailability}
                     calendarDisplaySettings={calendarDisplaySettings}
                     showFullDetails={true}
                   />
@@ -4327,7 +4701,7 @@ export default function AdminAppointments() {
                             <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
                               <div className="md:col-span-3">
                                 <div className="flex items-center gap-3 mb-2">
-                                  <div className="w-10 h-10 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-full flex items-center justify-center">
+                                  <div className="w-10 h-10 bg-linear-to-br from-primary/20 to-secondary/20 rounded-full flex items-center justify-center">
                                     <User className="w-5 h-5 text-primary" />
                                   </div>
                                   <div className="min-w-0">
@@ -4693,7 +5067,7 @@ export default function AdminAppointments() {
 </Sheet>
 
       <Sheet open={showBookingDialog} onOpenChange={setShowBookingDialog}>
-        <SheetContent className="w-[98vw] sm:max-w-6xl rounded-2xl z-[60] overflow-y-auto">
+        <SheetContent className="w-[98vw] sm:max-w-6xl rounded-2xl z-60 overflow-y-auto">
           <SheetHeader className="border-b pb-4 mb-6">
             <SheetTitle className="text-xl font-semibold">{editingBookingId ? 'Edit Booking' : 'Create New Booking'}</SheetTitle>
             <SheetDescription className="text-base">
@@ -5358,6 +5732,11 @@ export default function AdminAppointments() {
                           ? `AED ${invoiceEwalletBalance.toFixed(2)}`
                           : 'Balance not available'}
                       </p>
+                      {invoiceEwalletDiscountPercent > 0 && (
+                        <p className="mt-1 text-xs text-indigo-700">
+                          Active eWallet top-up discount: {invoiceEwalletDiscountPercent.toFixed(0)}% (applied while balance is available)
+                        </p>
+                      )}
                     </div>
                   )}
 
@@ -5406,6 +5785,57 @@ export default function AdminAppointments() {
                       </div>
                     </div>
                   ))}
+
+                  <div className="grid grid-cols-1 gap-4 pt-2 md:grid-cols-3">
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Tax (%)</label>
+                      <Input
+                        type="number"
+                        value={invoiceValueDisplayMode === 'without-tax' ? 0 : (invoiceData.tax ?? taxRate)}
+                        onChange={(e) => handleInvoiceDataChange('tax', parseFloat(e.target.value) || 0)}
+                        disabled={invoiceValueDisplayMode === 'without-tax'}
+                        className="h-10"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Discount Type</label>
+                      <Select
+                        value={invoiceData.discountType || 'fixed'}
+                        onValueChange={(value) => handleInvoiceDataChange('discountType', value as 'fixed' | 'percentage')}
+                        disabled={isInvoiceEwalletDiscountLocked}
+                      >
+                        <SelectTrigger className="h-10">
+                          <SelectValue placeholder="Select discount type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="fixed">Fixed (AED)</SelectItem>
+                          <SelectItem value="percentage">Percentage (%)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">
+                        Discount ({invoiceData.discountType === 'percentage' ? '%' : 'AED'})
+                      </label>
+                      <Input
+                        type="number"
+                        value={invoiceData.discount || 0}
+                        onChange={(e) => handleInvoiceDataChange('discount', parseFloat(e.target.value) || 0)}
+                        className="h-10"
+                        step={invoiceData.discountType === 'percentage' ? '0.01' : '0.1'}
+                        disabled={isInvoiceEwalletDiscountLocked}
+                      />
+                    </div>
+                  </div>
+
+                  {invoiceEwalletDiscountPercent > 0 && (
+                    <div className="rounded-md border bg-indigo-50 p-3 text-sm text-indigo-900">
+                      <p className="font-medium">
+                        eWallet Top-up Discount: {invoiceEwalletDiscountPercent.toFixed(0)}%
+                      </p>
+                      <p className="text-xs text-indigo-700">This discount is due to eWallet top-up.</p>
+                    </div>
+                  )}
                   
                   <div className="border-t pt-3 mt-3">
                     <div className="flex justify-between font-medium">
@@ -5420,19 +5850,35 @@ export default function AdminAppointments() {
                       </div>
                     )}
 
-                    {invoiceSummary.discountAmount > 0 && (
-                      <div className="flex justify-between text-red-600">
-                        <span>Discount:</span>
-                        <span>- AED {invoiceSummary.discountAmount.toFixed(2)}</span>
-                      </div>
-                    )}
+                    <div className="flex justify-between">
+                      <span>Total Amount (Without VAT):</span>
+                      <span>AED {invoiceSummary.totalWithoutVat.toFixed(2)}</span>
+                    </div>
 
-                    {invoiceSummary.taxAmount > 0 && (
-                      <div className="flex justify-between">
-                        <span>Tax ({Number(invoiceData.tax ?? taxRate).toFixed(2)}%):</span>
-                        <span>AED {invoiceSummary.taxAmount.toFixed(2)}</span>
-                      </div>
-                    )}
+                    <div className="flex justify-between text-red-600">
+                      <span>
+                        Coupon Code Discount{invoiceData.couponCode ? ` (${invoiceData.couponCode})` : ''}:
+                      </span>
+                      <span>- AED {invoiceSummary.couponDiscountAmount.toFixed(2)}</span>
+                    </div>
+
+                    <div className="flex justify-between text-red-600">
+                      <span>
+                        Discount Amount ({invoiceData.discountType === 'percentage' ? `${Number(invoiceData.discount || 0).toFixed(2)}%` : 'Fixed'})
+                        {invoiceData.discountSource === 'ewallet_topup' ? ' - eWallet Top-up' : ''}:
+                      </span>
+                      <span>- AED {invoiceSummary.discountAmount.toFixed(2)}</span>
+                    </div>
+
+                    <div className="flex justify-between">
+                      <span>Tax Type:</span>
+                      <span>{invoiceSummary.taxTypeLabel}</span>
+                    </div>
+
+                    <div className="flex justify-between">
+                      <span>VAT ({invoiceSummary.vatRate.toFixed(2)}%):</span>
+                      <span>AED {invoiceSummary.taxAmount.toFixed(2)}</span>
+                    </div>
                     
                     {invoiceSummary.tipAmount > 0 && (
                       <div className="flex justify-between text-green-600">
@@ -5442,13 +5888,28 @@ export default function AdminAppointments() {
                     )}
 
                     <div className="flex justify-between text-lg font-bold pt-3 border-t mt-3">
-                      <span>
-                        {invoiceValueDisplayMode === 'without-tax' ? 'Grand Total (Without Tax):' : 'Grand Total (With Tax):'}
-                      </span>
+                      <span>Total Amount:</span>
                       <span className="text-green-600">
-                        AED {(invoiceValueDisplayMode === 'without-tax' ? invoiceTotalWithoutTax : invoiceTotalWithTax).toFixed(2)}
+                        AED {invoiceSummary.totalAmount.toFixed(2)}
                       </span>
                     </div>
+
+                    <div className="flex justify-between">
+                      <span>Amount Paid:</span>
+                      <span>AED {invoiceSummary.amountPaid.toFixed(2)}</span>
+                    </div>
+
+                    <div className="flex justify-between">
+                      <span>Amount Due:</span>
+                      <span>AED {invoiceSummary.amountDue.toFixed(2)}</span>
+                    </div>
+
+                    {invoiceSummary.ewalletBalanceLeft !== null && (
+                      <div className="flex justify-between">
+                        <span>E-Wallet Balance Left:</span>
+                        <span>AED {invoiceSummary.ewalletBalanceLeft.toFixed(2)}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -5473,6 +5934,14 @@ export default function AdminAppointments() {
                 <Button onClick={handleDownloadInvoicePDF} className="px-6 h-11 bg-primary hover:bg-primary/90 gap-2">
                   <Download className="w-4 h-4" />
                   Download PDF
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleSendInvoiceWhatsApp}
+                  className="px-6 h-11 bg-green-600 hover:bg-green-700 gap-2"
+                >
+                  <Phone className="w-4 h-4" />
+                  Send via WhatsApp
                 </Button>
               </div>
             </div>

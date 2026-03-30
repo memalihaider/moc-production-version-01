@@ -32,11 +32,19 @@ export interface UnifiedInvoicePdfData {
   items: UnifiedInvoiceLineItem[];
   subtotal: number;
   discountAmount: number;
+  couponDiscountAmount?: number;
   taxAmount: number;
   taxPercent?: number;
+  taxTypeLabel?: string;
+  totalWithoutVat?: number;
   serviceCharges?: number;
   tipAmount?: number;
   totalAmount: number;
+  amountPaid?: number;
+  amountDue?: number;
+  ewalletBalanceAvailable?: number;
+  ewalletBalanceLeft?: number;
+  summaryLayout?: 'standard' | 'booking-vat';
   paymentMethods: UnifiedInvoicePaymentMethod[];
   notes?: string;
   disclaimerText?: string;
@@ -202,18 +210,48 @@ export async function generateUnifiedInvoicePdf(data: UnifiedInvoicePdfData): Pr
   const finalY = ((doc as any).lastAutoTable?.finalY || 204) + 18;
   const summaryX = pageWidth - margin - 210;
 
-  const summaryRows: Array<{ label: string; value: number; negative?: boolean }> = [
-    { label: 'Subtotal', value: data.subtotal },
-    { label: 'Discount', value: data.discountAmount, negative: true },
-    { label: data.taxPercent !== undefined ? `Tax (${data.taxPercent.toFixed(2)}%)` : 'Tax', value: data.taxAmount },
-  ];
+  const summaryRows: Array<{ label: string; valueText: string }> = [];
+  const summaryLayout = data.summaryLayout || 'standard';
 
-  if ((data.serviceCharges || 0) > 0) {
-    summaryRows.push({ label: 'Service Charges', value: Number(data.serviceCharges || 0) });
-  }
+  if (summaryLayout === 'booking-vat') {
+    const couponDiscountAmount = Math.max(0, Number(data.couponDiscountAmount || 0));
+    const totalWithoutVat = Number.isFinite(Number(data.totalWithoutVat))
+      ? Math.max(0, Number(data.totalWithoutVat || 0))
+      : Math.max(0, Number(data.totalAmount || 0) - Number(data.taxAmount || 0));
+    const taxTypeRaw = String(data.taxTypeLabel || 'inclusive').trim().toLowerCase();
+    const taxTypeLabel = taxTypeRaw === 'exclusive' ? 'Exclusive' : 'Inclusive';
 
-  if ((data.tipAmount || 0) > 0) {
-    summaryRows.push({ label: 'Tips', value: Number(data.tipAmount || 0) });
+    if ((data.serviceCharges || 0) > 0) {
+      summaryRows.push({ label: 'Service Charges', valueText: formatCurrency(Number(data.serviceCharges || 0)) });
+    }
+
+    summaryRows.push(
+      { label: 'Total Amount (Without VAT)', valueText: formatCurrency(totalWithoutVat) },
+      { label: 'Coupon Code Discount', valueText: `- ${formatCurrency(couponDiscountAmount)}` },
+      { label: 'Discount Amount', valueText: `- ${formatCurrency(Math.max(0, Number(data.discountAmount || 0)))}` },
+      { label: 'Tax Type', valueText: taxTypeLabel },
+      {
+        label: data.taxPercent !== undefined ? `VAT (${Number(data.taxPercent || 0).toFixed(2)}%)` : 'VAT',
+        valueText: formatCurrency(Math.max(0, Number(data.taxAmount || 0))),
+      }
+    );
+  } else {
+    summaryRows.push(
+      { label: 'Subtotal', valueText: formatCurrency(Number(data.subtotal || 0)) },
+      { label: 'Discount', valueText: `- ${formatCurrency(Math.max(0, Number(data.discountAmount || 0)))}` },
+      {
+        label: data.taxPercent !== undefined ? `Tax (${data.taxPercent.toFixed(2)}%)` : 'Tax',
+        valueText: formatCurrency(Math.max(0, Number(data.taxAmount || 0))),
+      }
+    );
+
+    if ((data.serviceCharges || 0) > 0) {
+      summaryRows.push({ label: 'Service Charges', valueText: formatCurrency(Number(data.serviceCharges || 0)) });
+    }
+
+    if ((data.tipAmount || 0) > 0) {
+      summaryRows.push({ label: 'Tips', valueText: formatCurrency(Number(data.tipAmount || 0)) });
+    }
   }
 
   doc.setFont('helvetica', 'bold');
@@ -226,8 +264,7 @@ export async function generateUnifiedInvoicePdf(data: UnifiedInvoicePdfData): Pr
 
   summaryRows.forEach((row) => {
     doc.text(row.label, summaryX, summaryY);
-    const amountText = row.negative ? `- ${formatCurrency(row.value)}` : formatCurrency(row.value);
-    doc.text(amountText, pageWidth - margin, summaryY, { align: 'right' });
+    doc.text(row.valueText, pageWidth - margin, summaryY, { align: 'right' });
     summaryY += 14;
   });
 
@@ -237,8 +274,44 @@ export async function generateUnifiedInvoicePdf(data: UnifiedInvoicePdfData): Pr
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(12);
-  doc.text('Total Amount', summaryX, summaryY);
-  doc.text(formatCurrency(data.totalAmount), pageWidth - margin, summaryY, { align: 'right' });
+
+  if (summaryLayout === 'booking-vat') {
+    const paidFromMethods = data.paymentMethods.reduce((sum, method) => sum + Number(method.amount || 0), 0);
+    const amountPaid = Number.isFinite(Number(data.amountPaid))
+      ? Math.max(0, Number(data.amountPaid || 0))
+      : Math.max(0, paidFromMethods);
+    const amountDue = Number.isFinite(Number(data.amountDue))
+      ? Math.max(0, Number(data.amountDue || 0))
+      : Math.max(0, Number(data.totalAmount || 0) - amountPaid);
+
+    doc.text('Total Amount', summaryX, summaryY);
+    doc.text(formatCurrency(data.totalAmount), pageWidth - margin, summaryY, { align: 'right' });
+    summaryY += 16;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.text('Amount Paid', summaryX, summaryY);
+    doc.text(formatCurrency(amountPaid), pageWidth - margin, summaryY, { align: 'right' });
+    summaryY += 14;
+
+    doc.text('Amount Due', summaryX, summaryY);
+    doc.text(formatCurrency(amountDue), pageWidth - margin, summaryY, { align: 'right' });
+
+    const hasWalletAvailability = Number.isFinite(Number(data.ewalletBalanceAvailable));
+    if (hasWalletAvailability) {
+      const walletBalanceAvailable = Math.max(0, Number(data.ewalletBalanceAvailable || 0));
+      const walletBalanceLeft = Number.isFinite(Number(data.ewalletBalanceLeft))
+        ? Math.max(0, Number(data.ewalletBalanceLeft || 0))
+        : walletBalanceAvailable;
+
+      summaryY += 14;
+      doc.text('E-Wallet Balance Left', summaryX, summaryY);
+      doc.text(formatCurrency(walletBalanceLeft), pageWidth - margin, summaryY, { align: 'right' });
+    }
+  } else {
+    doc.text('Total Amount', summaryX, summaryY);
+    doc.text(formatCurrency(data.totalAmount), pageWidth - margin, summaryY, { align: 'right' });
+  }
 
   const payments = data.paymentMethods.filter((method) => Number(method.amount || 0) > 0);
   let paymentY = finalY;

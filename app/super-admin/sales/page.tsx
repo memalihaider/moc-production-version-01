@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { collection, query, getDocs, orderBy, where, Timestamp, documentId } from 'firebase/firestore';
+import { useState, useEffect, useMemo } from 'react';
+import { collection, query, getDocs, orderBy, where, Timestamp, documentId, doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -69,6 +69,9 @@ interface Booking {
 interface BookingSummary {
   totalBookings: number;
   totalBookingRevenue: number;
+  totalWithVatRevenue: number;
+  totalWithoutVatRevenue: number;
+  totalVatAmount: number;
   totalServicesBooked: number;
   averageBookingValue: number;
   pendingPayments: number;
@@ -76,16 +79,39 @@ interface BookingSummary {
   totalDuration: number;
   totalTips: number;
   totalStaffMembers: number;
-  totalCashPayments: number;
-  totalWalletPayments: number;
-  totalOnlinePayments: number;
+  paymentMethodTotals: {
+    cash: number;
+    card: number;
+    check: number;
+    digital: number;
+    ewallet: number;
+  };
 }
+
+type PaymentMethodAvailability = {
+  cash: boolean;
+  card: boolean;
+  check: boolean;
+  digital: boolean;
+  ewallet: boolean;
+};
+
+const DEFAULT_PAYMENT_METHOD_AVAILABILITY: PaymentMethodAvailability = {
+  cash: true,
+  card: true,
+  check: true,
+  digital: true,
+  ewallet: true,
+};
 
 export default function BookingReportPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [summary, setSummary] = useState<BookingSummary>({
     totalBookings: 0,
     totalBookingRevenue: 0,
+    totalWithVatRevenue: 0,
+    totalWithoutVatRevenue: 0,
+    totalVatAmount: 0,
     totalServicesBooked: 0,
     averageBookingValue: 0,
     pendingPayments: 0,
@@ -93,10 +119,18 @@ export default function BookingReportPage() {
     totalDuration: 0,
     totalTips: 0,
     totalStaffMembers: 0,
-    totalCashPayments: 0,
-    totalWalletPayments: 0,
-    totalOnlinePayments: 0,
+    paymentMethodTotals: {
+      cash: 0,
+      card: 0,
+      check: 0,
+      digital: 0,
+      ewallet: 0,
+    },
   });
+  const [paymentMethodAvailability, setPaymentMethodAvailability] = useState<PaymentMethodAvailability>(
+    DEFAULT_PAYMENT_METHOD_AVAILABILITY
+  );
+  const [reportTaxRate, setReportTaxRate] = useState<number>(5);
   const [walletBalances, setWalletBalances] = useState<Record<string, number>>({});
   
   // Filters
@@ -114,7 +148,85 @@ export default function BookingReportPage() {
   const [showDateInputs, setShowDateInputs] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
+  const enabledSalesPaymentMethods = useMemo<Array<{ key: keyof BookingSummary['paymentMethodTotals']; label: string; enabled: boolean }>>(
+    () => [
+      { key: 'cash', label: 'Cash', enabled: paymentMethodAvailability.cash },
+      { key: 'card', label: 'Card', enabled: paymentMethodAvailability.card },
+      { key: 'check', label: 'Check', enabled: paymentMethodAvailability.check },
+      { key: 'digital', label: 'Digital', enabled: paymentMethodAvailability.digital },
+      { key: 'ewallet', label: 'E-Wallet', enabled: paymentMethodAvailability.ewallet },
+    ].filter((method) => method.enabled),
+    [paymentMethodAvailability]
+  );
+
+  useEffect(() => {
+    const settingsRef = doc(db, 'general', 'settings');
+    const unsubscribe = onSnapshot(settingsRef, (snap) => {
+      const data = snap.data() || {};
+      setPaymentMethodAvailability({
+        cash: data.acceptCash !== false,
+        card: data.acceptCard !== false,
+        check: data.acceptCheck !== false,
+        digital: data.acceptDigital !== false,
+        ewallet: data.acceptEwallet !== false,
+      });
+      const configuredTaxRate = Number(data.taxRate);
+      setReportTaxRate(Number.isFinite(configuredTaxRate) ? configuredTaxRate : 5);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
   // Fetch data from Firebase
+  const getVatBreakdown = (booking: Booking) => {
+    const totalWithVat = Math.max(0, Number(booking.totalAmount || 0));
+    const bookingTaxRate = Number.isFinite(Number(booking.tax))
+      ? Number(booking.tax)
+      : reportTaxRate;
+    const explicitTaxAmount = Math.max(0, Number(booking.taxAmount || 0));
+    const explicitSubtotal = Math.max(0, Number(booking.subtotal || 0));
+
+    if (explicitTaxAmount > 0 && totalWithVat >= explicitTaxAmount) {
+      return {
+        withVat: totalWithVat,
+        withoutVat: Math.max(0, totalWithVat - explicitTaxAmount),
+        taxAmount: explicitTaxAmount,
+      };
+    }
+
+    if (explicitSubtotal > 0) {
+      if (totalWithVat > 0) {
+        return {
+          withVat: totalWithVat,
+          withoutVat: explicitSubtotal,
+          taxAmount: Math.max(0, totalWithVat - explicitSubtotal),
+        };
+      }
+
+      const computedTax = bookingTaxRate > 0 ? (explicitSubtotal * bookingTaxRate) / 100 : 0;
+      return {
+        withVat: explicitSubtotal + computedTax,
+        withoutVat: explicitSubtotal,
+        taxAmount: computedTax,
+      };
+    }
+
+    if (totalWithVat > 0 && bookingTaxRate > 0) {
+      const withoutVat = totalWithVat / (1 + bookingTaxRate / 100);
+      return {
+        withVat: totalWithVat,
+        withoutVat,
+        taxAmount: Math.max(0, totalWithVat - withoutVat),
+      };
+    }
+
+    return {
+      withVat: totalWithVat,
+      withoutVat: totalWithVat,
+      taxAmount: 0,
+    };
+  };
+
   const fetchCustomerWalletBalances = async (customerIds: string[]) => {
     if (customerIds.length === 0) return {};
 
@@ -208,40 +320,69 @@ export default function BookingReportPage() {
       setWalletBalances(walletMap);
       
       // Calculate summary
-      const totalBookingRevenue = bookingsData.reduce((sum, b) => sum + (b.totalAmount || 0), 0);
+      const vatTotals = bookingsData.reduce(
+        (acc, booking) => {
+          const vat = getVatBreakdown(booking);
+          acc.withVat += vat.withVat;
+          acc.withoutVat += vat.withoutVat;
+          acc.taxAmount += vat.taxAmount;
+          return acc;
+        },
+        { withVat: 0, withoutVat: 0, taxAmount: 0 }
+      );
+
+      const totalBookingRevenue = vatTotals.withVat;
       const pendingBookings = bookingsData.filter(b => b.paymentStatus === 'pending').length;
       const completedBookings = bookingsData.filter(b => b.paymentStatus === 'completed').length;
       const totalDuration = bookingsData.reduce((sum, b) => sum + (b.totalDuration || 0), 0);
       const totalTips = bookingsData.reduce((sum, b) => sum + (b.totalTips || 0), 0);
       
-      // Calculate payment breakdown
-      let totalCashPayments = 0; // Includes both 'cash' and 'cod'
-      let totalWalletPayments = 0;
-      let totalOnlinePayments = 0; // For card, online, bank transfer etc.
-      
-      bookingsData.forEach(booking => {
-        const paymentAmounts = booking.paymentAmounts || {};
-        
-        // Cash payments (includes both cash and cod)
-        if (paymentAmounts.cash) {
-          totalCashPayments += paymentAmounts.cash;
+      // Calculate payment breakdown by explicit method keys.
+      const paymentMethodTotals = {
+        cash: 0,
+        card: 0,
+        check: 0,
+        digital: 0,
+        ewallet: 0,
+      };
+
+      const readPaymentAmount = (paymentAmounts: Record<string, unknown>, keys: string[]) =>
+        keys.reduce((sum, key) => sum + Math.max(0, Number(paymentAmounts?.[key] || 0)), 0);
+
+      bookingsData.forEach((booking) => {
+        const paymentAmounts = (booking.paymentAmounts || {}) as Record<string, unknown>;
+
+        let cash = readPaymentAmount(paymentAmounts, ['cash', 'Cash']);
+        let card = readPaymentAmount(paymentAmounts, ['card', 'Card']);
+        let check = readPaymentAmount(paymentAmounts, ['check', 'Check']);
+        let digital = readPaymentAmount(paymentAmounts, ['digital', 'Digital']);
+        let ewallet = readPaymentAmount(paymentAmounts, ['ewallet', 'Ewallet', 'wallet', 'Wallet']);
+
+        const assigned = cash + card + check + digital + ewallet;
+        if (assigned <= 0 && Number(booking.totalAmount || 0) > 0) {
+          const methodText = String(booking.paymentMethod || '').toLowerCase();
+          if (methodText.includes('wallet') || methodText.includes('ewallet')) {
+            ewallet += Number(booking.totalAmount || 0);
+          } else if (methodText.includes('card') || methodText.includes('credit') || methodText.includes('debit')) {
+            card += Number(booking.totalAmount || 0);
+          } else if (methodText.includes('check')) {
+            check += Number(booking.totalAmount || 0);
+          } else if (
+            methodText.includes('digital') ||
+            methodText.includes('online') ||
+            methodText.includes('bank')
+          ) {
+            digital += Number(booking.totalAmount || 0);
+          } else if (methodText.includes('cash') || methodText.includes('cod')) {
+            cash += Number(booking.totalAmount || 0);
+          }
         }
-        
-        // If payment method is 'cod', add to cash
-        if (booking.paymentMethod === 'cod') {
-          totalCashPayments += booking.totalAmount;
-        }
-        
-        // Wallet payments
-        if (paymentAmounts.wallet) {
-          totalWalletPayments += paymentAmounts.wallet;
-        }
-        
-        // Online payments (card, online, bank transfer etc.)
-        const onlineMethods = ['card', 'online', 'bank_transfer', 'credit_card', 'debit_card'];
-        if (onlineMethods.includes(booking.paymentMethod) && !paymentAmounts.cash && !paymentAmounts.wallet) {
-          totalOnlinePayments += booking.totalAmount;
-        }
+
+        paymentMethodTotals.cash += cash;
+        paymentMethodTotals.card += card;
+        paymentMethodTotals.check += check;
+        paymentMethodTotals.digital += digital;
+        paymentMethodTotals.ewallet += ewallet;
       });
       
       // Get unique staff count
@@ -256,6 +397,9 @@ export default function BookingReportPage() {
       setSummary({
         totalBookings: bookingsData.length,
         totalBookingRevenue,
+        totalWithVatRevenue: vatTotals.withVat,
+        totalWithoutVatRevenue: vatTotals.withoutVat,
+        totalVatAmount: vatTotals.taxAmount,
         totalServicesBooked: bookingsData.length,
         averageBookingValue: bookingsData.length > 0 ? totalBookingRevenue / bookingsData.length : 0,
         pendingPayments: pendingBookings,
@@ -263,9 +407,7 @@ export default function BookingReportPage() {
         totalDuration,
         totalTips,
         totalStaffMembers: staffSet.size,
-        totalCashPayments,
-        totalWalletPayments,
-        totalOnlinePayments,
+        paymentMethodTotals,
       });
       
     } catch (error) {
@@ -275,7 +417,7 @@ export default function BookingReportPage() {
 
   useEffect(() => {
     fetchData();
-  }, [dateRange]);
+  }, [dateRange, reportTaxRate]);
 
   // Apply filters
   const filteredBookings = bookings.filter(booking => {
@@ -337,13 +479,14 @@ export default function BookingReportPage() {
 
   // Export to CSV
   const exportToCSV = () => {
-    const headers = ['Booking #', 'Date', 'Time', 'Customer', 'Service', 'Staff', 'Branch', 'Total Amount', 'Cash/COD', 'Wallet', 'Wallet Balance', 'Wallet Left', 'Payment Method', 'Status', 'Payment Status'];
+    const headers = ['Booking #', 'Date', 'Time', 'Customer', 'Service', 'Staff', 'Branch', 'With VAT', 'Without VAT', 'VAT Amount', 'Cash/COD', 'Wallet', 'Wallet Balance', 'Wallet Left', 'Payment Method', 'Status', 'Payment Status'];
     const csvContent = [
       headers.join(','),
       ...filteredBookings.map(booking => {
         const paymentAmounts = booking.paymentAmounts || {};
         const cashAmount = paymentAmounts.cash || 0;
         const walletAmount = paymentAmounts.wallet || 0;
+        const vatBreakdown = getVatBreakdown(booking);
         const walletBalance = walletBalances[booking.customerId] || 0;
         const walletLeft = Math.max(0, walletBalance - walletAmount);
         
@@ -358,7 +501,9 @@ export default function BookingReportPage() {
           booking.serviceName,
           booking.staffName,
           booking.branch,
-          booking.totalAmount,
+          vatBreakdown.withVat.toFixed(2),
+          vatBreakdown.withoutVat.toFixed(2),
+          vatBreakdown.taxAmount.toFixed(2),
           totalCashCOD,
           walletAmount,
           walletBalance,
@@ -381,7 +526,17 @@ export default function BookingReportPage() {
   // Get unique values for filters
   const branches = Array.from(new Set(bookings.map(b => b.branch).filter(Boolean)));
   const statuses = Array.from(new Set(bookings.map(b => b.status).filter(Boolean)));
-  const paymentMethods = Array.from(new Set(bookings.map(b => b.paymentMethod).filter(Boolean)));
+  const isPaymentMethodEnabled = (method: string) => {
+    const normalized = String(method || '').toLowerCase();
+    if (normalized.includes('wallet') || normalized.includes('ewallet')) return paymentMethodAvailability.ewallet;
+    if (normalized.includes('card') || normalized.includes('credit') || normalized.includes('debit')) return paymentMethodAvailability.card;
+    if (normalized.includes('check')) return paymentMethodAvailability.check;
+    if (normalized.includes('digital') || normalized.includes('online') || normalized.includes('bank')) return paymentMethodAvailability.digital;
+    if (normalized.includes('cash') || normalized.includes('cod')) return paymentMethodAvailability.cash;
+    return true;
+  };
+
+  const paymentMethods = Array.from(new Set(bookings.map(b => b.paymentMethod).filter(Boolean))).filter(isPaymentMethodEnabled);
   const paymentStatuses = Array.from(new Set(bookings.map(b => b.paymentStatus).filter(Boolean)));
   const staffMembers = Array.from(new Set(bookings.map(b => b.staffName).filter(Boolean)));
 
@@ -401,7 +556,7 @@ export default function BookingReportPage() {
     <div className="flex h-screen overflow-hidden">
       {/* Sidebar - Fixed height full screen */}
       <div className={cn(
-        "h-screen overflow-y-auto flex-shrink-0 sticky top-0",
+        "h-screen overflow-y-auto shrink-0 sticky top-0",
         sidebarOpen ? "w-64" : "w-16"
       )}>
         <AdminSidebar 
@@ -448,55 +603,60 @@ export default function BookingReportPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-                
+                <CardTitle className="text-sm font-medium">Revenue (With VAT)</CardTitle>
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">AED{summary.totalBookingRevenue.toFixed(2)}</div>
+                <div className="text-2xl font-bold">AED{summary.totalWithVatRevenue.toFixed(2)}</div>
                 <p className="text-xs text-muted-foreground">
-                 AED {summary.totalBookings} bookings
+                  {summary.totalBookings} bookings
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Revenue (Without VAT)</CardTitle>
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">AED{summary.totalWithoutVatRevenue.toFixed(2)}</div>
+                <p className="text-xs text-muted-foreground">
+                  Net sales before VAT
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">VAT Amount ({reportTaxRate.toFixed(0)}%)</CardTitle>
+                <CalendarIcon2 className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">AED{summary.totalVatAmount.toFixed(2)}</div>
+                <p className="text-xs text-muted-foreground">
+                  Calculated from booking tax values
                 </p>
               </CardContent>
             </Card>
             
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Cash/COD Payments</CardTitle>
-                <CreditCard className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">AED{summary.totalCashPayments.toFixed(2)}</div>
-                <p className="text-xs text-muted-foreground">
-                  {(summary.totalCashPayments / summary.totalBookingRevenue * 100 || 0).toFixed(1)}% of total
-                </p>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Wallet Payments</CardTitle>
-                <Wallet className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">AED{summary.totalWalletPayments.toFixed(2)}</div>
-                <p className="text-xs text-muted-foreground">
-                  {(summary.totalWalletPayments / summary.totalBookingRevenue * 100 || 0).toFixed(1)}% of total
-                </p>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Online Payments</CardTitle>
-                <ShoppingBag className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">AED{summary.totalOnlinePayments.toFixed(2)}</div>
-                <p className="text-xs text-muted-foreground">
-                  {(summary.totalOnlinePayments / summary.totalBookingRevenue * 100 || 0).toFixed(1)}% of total
-                </p>
-              </CardContent>
-            </Card>
+            {enabledSalesPaymentMethods.map((method) => {
+              const methodTotal = Number(summary.paymentMethodTotals[method.key] || 0);
+              return (
+                <Card key={method.key}>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">{method.label} Payments</CardTitle>
+                    <CreditCard className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">AED{methodTotal.toFixed(2)}</div>
+                    <p className="text-xs text-muted-foreground">
+                      {(methodTotal / summary.totalBookingRevenue * 100 || 0).toFixed(1)}% of total
+                    </p>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
 
           {/* Filters Section */}
@@ -691,7 +851,9 @@ export default function BookingReportPage() {
                           <TableHead>Wallet Used</TableHead>
                           <TableHead>Wallet Balance</TableHead>
                           <TableHead>Wallet Left</TableHead>
-                          <TableHead>Total Amount</TableHead>
+                          <TableHead>With VAT</TableHead>
+                          <TableHead>Without VAT</TableHead>
+                          <TableHead>VAT</TableHead>
                           <TableHead>Status</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -700,6 +862,7 @@ export default function BookingReportPage() {
                           const paymentAmounts = booking.paymentAmounts || {};
                           const cashAmount = paymentAmounts.cash || 0;
                           const walletAmount = paymentAmounts.wallet || 0;
+                          const vatBreakdown = getVatBreakdown(booking);
                           const walletBalance = walletBalances[booking.customerId] || 0;
                           const walletLeft = Math.max(0, walletBalance - walletAmount);
                           
@@ -802,7 +965,13 @@ export default function BookingReportPage() {
                                 AED{walletLeft.toFixed(2)}
                               </TableCell>
                               <TableCell className="font-bold text-lg">
-                                AED{booking.totalAmount.toFixed(2)}
+                                AED{vatBreakdown.withVat.toFixed(2)}
+                              </TableCell>
+                              <TableCell className="font-medium">
+                                AED{vatBreakdown.withoutVat.toFixed(2)}
+                              </TableCell>
+                              <TableCell className="font-medium text-orange-700">
+                                AED{vatBreakdown.taxAmount.toFixed(2)}
                               </TableCell>
                               <TableCell>
                                 <Badge variant={
@@ -841,7 +1010,9 @@ export default function BookingReportPage() {
                           <TableHead>Booking #</TableHead>
                           <TableHead>Customer</TableHead>
                           <TableHead>Service</TableHead>
-                          <TableHead>Total Amount</TableHead>
+                          <TableHead>With VAT</TableHead>
+                          <TableHead>Without VAT</TableHead>
+                          <TableHead>VAT</TableHead>
                           <TableHead>Cash/COD</TableHead>
                           <TableHead>Wallet</TableHead>
                           <TableHead>Other</TableHead>
@@ -857,6 +1028,7 @@ export default function BookingReportPage() {
                           const paymentAmounts = booking.paymentAmounts || {};
                           const cashAmount = paymentAmounts.cash || 0;
                           const walletAmount = paymentAmounts.wallet || 0;
+                          const vatBreakdown = getVatBreakdown(booking);
                           const walletBalance = walletBalances[booking.customerId] || 0;
                           const walletLeft = Math.max(0, walletBalance - walletAmount);
                           
@@ -877,7 +1049,9 @@ export default function BookingReportPage() {
                                   AED{booking.servicePrice.toFixed(2)}
                                 </div>
                               </TableCell>
-                              <TableCell className="font-bold">AED{booking.totalAmount.toFixed(2)}</TableCell>
+                              <TableCell className="font-bold">AED{vatBreakdown.withVat.toFixed(2)}</TableCell>
+                              <TableCell className="font-medium">AED{vatBreakdown.withoutVat.toFixed(2)}</TableCell>
+                              <TableCell className="font-medium text-orange-700">AED{vatBreakdown.taxAmount.toFixed(2)}</TableCell>
                               <TableCell>
                                 <div className={cn(
                                   "font-medium",

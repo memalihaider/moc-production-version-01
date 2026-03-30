@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { 
   Calendar, Clock, User, ChevronLeft, ChevronRight, Settings, 
-  RotateCcw, Grid3X3, Users, PlusCircle, X, DollarSign, CheckCircle, 
+  RotateCcw, Users, PlusCircle, X, DollarSign, CheckCircle, 
   Scissors, Phone, Mail, MapPin, FileText, CreditCard, Calculator, 
   AlertCircle, Receipt, Trash2, Plus, Minus, Download, Hash, 
   Building, Tag, Package, Smartphone, Wallet, FileCheck, Printer,
@@ -24,6 +24,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { generateUnifiedInvoicePdf } from "@/lib/unified-invoice-pdf";
+import {
+  buildWalletTopupWhatsAppUrl,
+  downloadWalletTopupInvoicePdf,
+  WALLET_TOPUP_WHATSAPP_SENDER_NUMBER,
+  type WalletTopupInvoiceData,
+} from "@/lib/wallet-topup-invoice";
 
 interface Appointment {
   customerId?: string;
@@ -152,6 +158,13 @@ interface AdvancedCalendarProps {
   formatCurrency?: (amount: number) => string;
   /** When set, locks the calendar to this branch and hides the branch filter dropdown */
   lockedBranch?: string;
+  paymentMethodAvailability?: {
+    cash?: boolean;
+    card?: boolean;
+    check?: boolean;
+    digital?: boolean;
+    ewallet?: boolean;
+  };
   calendarDisplaySettings?: {
     weeklyTimings?: {
       monday?: { open?: string; close?: string; opening?: string; closing?: string; closed?: boolean };
@@ -2363,6 +2376,7 @@ export function AdvancedCalendar({
   showFullDetails = true,
   formatCurrency = (amount) => `AED ${amount.toFixed(2)}`,
   lockedBranch,
+  paymentMethodAvailability,
   calendarDisplaySettings
 }: AdvancedCalendarProps) {
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -2392,6 +2406,11 @@ export function AdvancedCalendar({
   const [walletTopupLoading, setWalletTopupLoading] = useState(false);
   const [walletLookupLoading, setWalletLookupLoading] = useState(false);
   const [walletTopupError, setWalletTopupError] = useState<string | null>(null);
+  const [latestTopupInvoice, setLatestTopupInvoice] = useState<WalletTopupInvoiceData | null>(null);
+  const calendarScrollRef = useRef<HTMLDivElement | null>(null);
+  const redLineTimeHeaderRef = useRef<HTMLDivElement | null>(null);
+  const redLineTimeRowRef = useRef<HTMLDivElement | null>(null);
+  const lastAutoScrollKeyRef = useRef<string>('');
   const walletTopupValue = Number(walletTopupAmount);
   const selectedTopupTier = Number.isFinite(walletTopupValue)
     ? getWalletTopupTier(walletTopupValue)
@@ -2597,6 +2616,69 @@ export function AdvancedCalendar({
     [timeSlots, isPastSelectedDate, isTodaySelected, currentSystemTime]
   );
 
+  useEffect(() => {
+    if (!isTodaySelected || redLineSlotIndex === null) return;
+
+    const autoScrollKey = `${format(selectedDate, 'yyyy-MM-dd')}-${layoutMode}-${redLineSlotIndex}-${timeSlots.length}`;
+    if (lastAutoScrollKeyRef.current === autoScrollKey) return;
+
+    let cancelled = false;
+    let attempts = 0;
+    const maxAttempts = 10;
+
+    const tryScrollToRedLine = () => {
+      if (cancelled) return;
+      attempts += 1;
+
+      const scrollContainer = calendarScrollRef.current;
+      const target = layoutMode === 'time-top'
+        ? redLineTimeHeaderRef.current
+        : redLineTimeRowRef.current;
+
+      const canMeasure = Boolean(
+        scrollContainer &&
+        target &&
+        scrollContainer.clientWidth > 0 &&
+        scrollContainer.clientHeight > 0
+      );
+
+      if (!canMeasure) {
+        if (attempts < maxAttempts) {
+          window.requestAnimationFrame(tryScrollToRedLine);
+        }
+        return;
+      }
+
+      const containerRect = scrollContainer!.getBoundingClientRect();
+      const targetRect = target!.getBoundingClientRect();
+
+      if (layoutMode === 'time-top') {
+        const desiredLeft = Math.max(
+          0,
+          scrollContainer!.scrollLeft + (targetRect.left - containerRect.left) - 140
+        );
+        scrollContainer!.scrollTo({ left: desiredLeft, behavior: 'smooth' });
+      } else {
+        const desiredTop = Math.max(
+          0,
+          scrollContainer!.scrollTop + (targetRect.top - containerRect.top) - 120
+        );
+        scrollContainer!.scrollTo({ top: desiredTop, behavior: 'smooth' });
+      }
+
+      lastAutoScrollKeyRef.current = autoScrollKey;
+    };
+
+    const kickoffTimer = window.setTimeout(() => {
+      window.requestAnimationFrame(tryScrollToRedLine);
+    }, 0);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(kickoffTimer);
+    };
+  }, [isTodaySelected, redLineSlotIndex, layoutMode, selectedDate, timeSlots.length, appointments.length]);
+
   const normalizeStaffName = (value?: string): string => String(value || '').trim().toLowerCase();
 
   const getAssignedStaffNames = (appointment: Appointment): string[] => {
@@ -2678,6 +2760,9 @@ const filteredAppointments = useMemo(() => {
   const topBarBookingStats = useMemo(() => {
     const DEFAULT_TAX_RATE = 5;
 
+    const readPaymentAmount = (paymentAmounts: Record<string, unknown>, keys: string[]) =>
+      keys.reduce((sum, key) => sum + Math.max(0, Number(paymentAmounts?.[key] || 0)), 0);
+
     const totals = filteredAppointments.reduce(
       (acc, appointment) => {
         const totalFromRecord = Number(appointment.totalAmount ?? 0);
@@ -2715,9 +2800,52 @@ const filteredAppointments = useMemo(() => {
 
         acc.withTaxTotal += withTax;
         acc.withoutTaxTotal += withoutTax;
+
+        const paymentAmounts = (appointment.paymentAmounts || {}) as Record<string, unknown>;
+        let cashAmount = readPaymentAmount(paymentAmounts, ['cash', 'Cash']);
+        let cardAmount = readPaymentAmount(paymentAmounts, ['card', 'Card']);
+        let checkAmount = readPaymentAmount(paymentAmounts, ['check', 'Check']);
+        let digitalAmount = readPaymentAmount(paymentAmounts, ['digital', 'Digital']);
+        let ewalletAmount = readPaymentAmount(paymentAmounts, ['ewallet', 'Ewallet', 'wallet', 'Wallet']);
+
+        const allocatedAmount = cashAmount + cardAmount + checkAmount + digitalAmount + ewalletAmount;
+        if (allocatedAmount <= 0 && withTax > 0) {
+          const paymentMethodText = String(appointment.paymentMethod || '').toLowerCase();
+          if (paymentMethodText.includes('wallet') || paymentMethodText.includes('ewallet')) {
+            ewalletAmount += withTax;
+          } else if (paymentMethodText.includes('card')) {
+            cardAmount += withTax;
+          } else if (paymentMethodText.includes('check')) {
+            checkAmount += withTax;
+          } else if (
+            paymentMethodText.includes('digital') ||
+            paymentMethodText.includes('online') ||
+            paymentMethodText.includes('bank')
+          ) {
+            digitalAmount += withTax;
+          } else if (paymentMethodText.includes('cash') || paymentMethodText.includes('cod')) {
+            cashAmount += withTax;
+          }
+        }
+
+        acc.paymentTotals.cash += cashAmount;
+        acc.paymentTotals.card += cardAmount;
+        acc.paymentTotals.check += checkAmount;
+        acc.paymentTotals.digital += digitalAmount;
+        acc.paymentTotals.ewallet += ewalletAmount;
         return acc;
       },
-      { withTaxTotal: 0, withoutTaxTotal: 0 }
+      {
+        withTaxTotal: 0,
+        withoutTaxTotal: 0,
+        paymentTotals: {
+          cash: 0,
+          card: 0,
+          check: 0,
+          digital: 0,
+          ewallet: 0,
+        },
+      }
     );
 
     const displayMode = calendarDisplaySettings?.totalValueDisplayMode || 'both';
@@ -2731,8 +2859,20 @@ const filteredAppointments = useMemo(() => {
       withoutTaxTotal: totals.withoutTaxTotal,
       primaryTotal,
       primaryLabel,
+      paymentTotals: totals.paymentTotals,
     };
   }, [filteredAppointments, calendarDisplaySettings?.totalValueDisplayMode]);
+
+  const enabledPaymentMethods = useMemo(
+    () => ({
+      cash: paymentMethodAvailability?.cash !== false,
+      card: paymentMethodAvailability?.card !== false,
+      check: paymentMethodAvailability?.check !== false,
+      digital: paymentMethodAvailability?.digital !== false,
+      ewallet: paymentMethodAvailability?.ewallet !== false,
+    }),
+    [paymentMethodAvailability]
+  );
 
   const convertTo24Hour = (time12h: string): string => {
     if (!time12h) return "00:00";
@@ -2957,6 +3097,7 @@ const filteredAppointments = useMemo(() => {
       setWalletDocId(null);
       setWalletCustomerId(null);
       setWalletTopupError(null);
+      setLatestTopupInvoice(null);
       setShowWalletTopupPopup(true);
     }
   };
@@ -3108,6 +3249,26 @@ const filteredAppointments = useMemo(() => {
       const walletRef = doc(db, 'wallets', walletDocId);
       const walletSnap = await getDoc(walletRef);
       const walletData = walletSnap.exists() ? walletSnap.data() : {};
+      const now = new Date();
+      const invoiceDate = now.toISOString().split('T')[0];
+      const invoiceNumber = `WTI-${Date.now().toString().slice(-8)}`;
+
+      const topupInvoiceData: WalletTopupInvoiceData = {
+        invoiceNumber,
+        invoiceDate,
+        amount,
+        customerName:
+          selectedWalletAppointment?.customerName || selectedWalletAppointment?.customer || 'Customer',
+        customerEmail:
+          selectedWalletAppointment?.customerEmail || selectedWalletAppointment?.email || '',
+        customerPhone:
+          selectedWalletAppointment?.customerPhone || selectedWalletAppointment?.phone || '',
+        branchName: selectedWalletAppointment?.branch || 'Main Branch',
+        discountPercent: selectedTier?.discountPercent,
+        sourceNote: 'Wallet top-up completed by branch admin.',
+      };
+      const portalCustomerId =
+        String(selectedWalletAppointment?.customerId || '').trim() || walletCustomerId;
 
       const currentBalance = Number(walletData.balance || 0);
       const currentPoints = Number(walletData.loyaltyPoints || 0);
@@ -3127,6 +3288,8 @@ const filteredAppointments = useMemo(() => {
       if (selectedTier) {
         updatePayload.serviceDiscountPercent = selectedTier.discountPercent;
         updatePayload.serviceDiscountTopupAmount = selectedTier.amount;
+        updatePayload.serviceDiscountSource = 'ewallet_topup';
+        updatePayload.serviceDiscountActive = updatedBalance > 0;
         updatePayload.serviceDiscountUpdatedAt = new Date();
       }
 
@@ -3134,8 +3297,10 @@ const filteredAppointments = useMemo(() => {
 
       await addDoc(collection(db, 'walletTransactions'), {
         customerId: walletCustomerId,
+        customerUid: selectedWalletAppointment?.customerId || '',
         customerName: selectedWalletAppointment?.customerName || selectedWalletAppointment?.customer || 'Customer',
         customerEmail: selectedWalletAppointment?.customerEmail || '',
+        customerPhone: selectedWalletAppointment?.customerPhone || selectedWalletAppointment?.phone || '',
         amount,
         amountInPoints: pointsToAdd,
         type: 'credit',
@@ -3148,14 +3313,84 @@ const filteredAppointments = useMemo(() => {
         newLoyaltyPoints: updatedPoints,
         serviceDiscountPercent: selectedTier?.discountPercent || null,
         serviceDiscountTopupAmount: selectedTier?.amount || null,
+        invoiceNumber,
+        invoiceDate,
+        invoiceType: 'wallet_topup',
+        invoiceData: topupInvoiceData,
         createdAt: new Date(),
         updatedAt: new Date()
       });
 
+      await addDoc(collection(db, 'transactions'), {
+        customerId: portalCustomerId,
+        customerUid: selectedWalletAppointment?.customerId || '',
+        type: 'wallet_topup',
+        amount,
+        pointsAmount: pointsToAdd,
+        description: `Wallet top-up invoice ${invoiceNumber}`,
+        status: 'success',
+        referenceId: invoiceNumber,
+        invoiceNumber,
+        invoiceDate,
+        invoiceType: 'wallet_topup',
+        invoiceData: topupInvoiceData,
+        customerPhone: selectedWalletAppointment?.customerPhone || selectedWalletAppointment?.phone || '',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      // Apply top-up discount to active and upcoming bookings for this customer.
+      if (selectedTier) {
+        const bookingsSnapshot = await getDocs(
+          query(collection(db, 'bookings'), where('customerId', '==', walletCustomerId))
+        );
+
+        const nonFinalStatuses = new Set([
+          'pending',
+          'approved',
+          'scheduled',
+          'confirmed',
+          'in-progress',
+          'in_progress',
+          'checked-in',
+          'checkedin',
+          'ongoing'
+        ]);
+
+        const bookingUpdates = bookingsSnapshot.docs
+          .filter((bookingDoc) => {
+            const bookingData: any = bookingDoc.data();
+            const status = String(bookingData.status || '').toLowerCase().trim();
+            return nonFinalStatuses.has(status);
+          })
+          .map((bookingDoc) => {
+            const bookingData: any = bookingDoc.data();
+            const existingPercent = bookingData.discountType === 'percentage'
+              ? Number(bookingData.discount || 0)
+              : 0;
+            const appliedPercent = Math.max(existingPercent, selectedTier.discountPercent);
+
+            return updateDoc(bookingDoc.ref, {
+              discount: appliedPercent,
+              discountType: 'percentage',
+              walletTopupDiscountPercent: appliedPercent,
+              walletTopupDiscountSource: 'ewallet_topup',
+              walletTopupDiscountActive: true,
+              walletTopupDiscountUpdatedAt: new Date(),
+              updatedAt: new Date(),
+            });
+          });
+
+        if (bookingUpdates.length > 0) {
+          await Promise.all(bookingUpdates);
+        }
+      }
+
       setWalletCurrentBalance(updatedBalance);
       setWalletTopupAmount('');
+      setLatestTopupInvoice(topupInvoiceData);
       const discountText = selectedTier
-        ? ` Service discount unlocked: ${selectedTier.discountPercent}%.`
+        ? ` Service discount unlocked: ${selectedTier.discountPercent}% (active while e-wallet balance is above zero).`
         : '';
       alert(`Wallet topped up successfully. New balance: ${formatCurrency(updatedBalance)}.${discountText}`);
     } catch (error) {
@@ -3164,6 +3399,29 @@ const filteredAppointments = useMemo(() => {
     } finally {
       setWalletTopupLoading(false);
     }
+  };
+
+  const handleDownloadTopupInvoice = async () => {
+    if (!latestTopupInvoice) return;
+
+    try {
+      await downloadWalletTopupInvoicePdf(latestTopupInvoice);
+    } catch (error) {
+      console.error('Error downloading top-up invoice:', error);
+      alert('Unable to download top-up invoice. Please try again.');
+    }
+  };
+
+  const handleSendTopupInvoiceToWhatsApp = () => {
+    if (!latestTopupInvoice) return;
+
+    const whatsappUrl = buildWalletTopupWhatsAppUrl(latestTopupInvoice);
+    if (!whatsappUrl) {
+      alert('Customer phone number is missing, so WhatsApp sharing is not available.');
+      return;
+    }
+
+    window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
   };
 
   const handleGenerateInvoiceClick = (appointment: Appointment) => {
@@ -3175,8 +3433,8 @@ const filteredAppointments = useMemo(() => {
   return (
     <>
       <Card className="w-full">
-        <CardHeader className="px-3 py-2 sm:px-4 sm:py-3">
-          <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+        <CardHeader className="px-2 py-1.5 sm:px-3 sm:py-2">
+          <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
             <div className="min-w-0 space-y-1">
               <CardTitle className="flex items-center gap-2 leading-none">
                 <Calendar className="h-5 w-5 text-pink-600" />
@@ -3194,13 +3452,26 @@ const filteredAppointments = useMemo(() => {
                     Excl Tax: {formatCurrency(topBarBookingStats.withoutTaxTotal)}
                   </Badge>
                 )}
+                {([
+                  { key: 'cash', label: 'Cash', enabled: enabledPaymentMethods.cash, className: 'border-emerald-200 bg-emerald-100 text-emerald-800' },
+                  { key: 'card', label: 'Card', enabled: enabledPaymentMethods.card, className: 'border-sky-200 bg-sky-100 text-sky-800' },
+                  { key: 'check', label: 'Check', enabled: enabledPaymentMethods.check, className: 'border-orange-200 bg-orange-100 text-orange-800' },
+                  { key: 'digital', label: 'Digital', enabled: enabledPaymentMethods.digital, className: 'border-violet-200 bg-violet-100 text-violet-800' },
+                  { key: 'ewallet', label: 'E-Wallet', enabled: enabledPaymentMethods.ewallet, className: 'border-indigo-200 bg-indigo-100 text-indigo-800' },
+                ] as const)
+                  .filter((item) => item.enabled)
+                  .map((item) => (
+                    <Badge key={item.key} className={`px-2 py-0.5 text-xs ${item.className}`}>
+                      {item.label}: {formatCurrency(topBarBookingStats.paymentTotals[item.key])}
+                    </Badge>
+                  ))}
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-1.5">
+            <div className="flex w-full flex-wrap items-center gap-2 rounded-xl border bg-muted/30 p-1.5 md:w-auto md:justify-end">
               {!lockedBranch && (
                 <Select value={selectedBranch} onValueChange={setSelectedBranch}>
-                  <SelectTrigger className="h-8 w-[135px] text-xs">
+                  <SelectTrigger className="h-8 w-[132px] text-xs">
                     <SelectValue placeholder="Branch" />
                   </SelectTrigger>
                   <SelectContent>
@@ -3218,7 +3489,7 @@ const filteredAppointments = useMemo(() => {
               )}
 
               <Select value={selectedBarber} onValueChange={setSelectedBarber}>
-                <SelectTrigger className="h-8 min-w-[145px] text-xs">
+                <SelectTrigger className="h-8 min-w-[132px] text-xs sm:min-w-[145px]">
                   <SelectValue placeholder="Staff" />
                 </SelectTrigger>
                 <SelectContent>
@@ -3241,40 +3512,6 @@ const filteredAppointments = useMemo(() => {
                       </div>
                     </SelectItem>
                   ))}
-                </SelectContent>
-              </Select>
-
-              <div className="flex items-center gap-1.5">
-                <Button
-                  variant={layoutMode === 'time-top' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setLayoutMode('time-top')}
-                  className="h-8 gap-1 px-2 text-xs"
-                >
-                  <Grid3X3 className="h-3.5 w-3.5" />
-                  Time
-                </Button>
-                <Button
-                  variant={layoutMode === 'employee-top' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setLayoutMode('employee-top')}
-                  className="h-8 gap-1 px-2 text-xs"
-                >
-                  <RotateCcw className="h-3.5 w-3.5" />
-                  Staff
-                </Button>
-              </div>
-
-              <Select value={timeSlotGap.toString()} onValueChange={(value) => setTimeSlotGap(parseInt(value))}>
-                <SelectTrigger className="h-8 w-[84px] text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="15">15 min</SelectItem>
-                  <SelectItem value="30">30 min</SelectItem>
-                  <SelectItem value="45">45 min</SelectItem>
-                  <SelectItem value="60">1 hour</SelectItem>
-                  <SelectItem value="120">2 hours</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -3309,18 +3546,18 @@ const filteredAppointments = useMemo(() => {
             </div>
           </div>
         </CardHeader>
-        <CardContent className="px-2 pb-3 pt-2 sm:px-3">
-          <div className="overflow-x-auto overflow-y-auto max-h-[900px] sm:max-h-[600px] w-full">
+        <CardContent className="px-1.5 pb-2 pt-1 sm:px-2">
+          <div ref={calendarScrollRef} className="h-[calc(100vh-300px)] min-h-[420px] w-full overflow-x-auto overflow-y-auto sm:h-[calc(100vh-250px)] sm:min-h-[520px]">
             <div className="min-w-full" style={{ width: 'max-content' }}>
               {isSelectedDayClosed && (
-                <div className="mb-3 px-3 py-2 rounded-md border border-amber-200 bg-amber-50 text-amber-800 text-xs font-medium flex items-center gap-2">
+                <div className="mb-2 px-3 py-2 rounded-md border border-amber-200 bg-amber-50 text-amber-800 text-xs font-medium flex items-center gap-2">
                   <AlertCircle className="w-4 h-4" />
                   {`Business is closed on ${selectedWeekdayKey.charAt(0).toUpperCase()}${selectedWeekdayKey.slice(1)}. Booking slots are unavailable for this day.`}
                 </div>
               )}
 
               {(isPastSelectedDate || isTodaySelected) && (
-                <div className="mb-3 px-3 py-2 rounded-md border border-red-200 bg-red-50 text-red-700 text-xs font-medium flex items-center gap-2">
+                <div className="mb-2 px-3 py-2 rounded-md border border-red-200 bg-red-50 text-red-700 text-xs font-medium flex items-center gap-2">
                   <AlertCircle className="w-4 h-4" />
                   {isPastSelectedDate
                     ? 'Selected date is in the past. New bookings are disabled, but past bookings remain visible.'
@@ -3339,6 +3576,7 @@ const filteredAppointments = useMemo(() => {
                       return (
                         <div
                           key={slot}
+                          ref={isRedLinePoint ? redLineTimeHeaderRef : null}
                           className={`p-1 text-xs text-center font-medium text-muted-foreground border rounded bg-muted/50 min-w-[50px] ${isRedLinePoint ? 'relative border-l-2 border-l-red-500' : ''}`}
                         >
                           {slot}
@@ -3545,7 +3783,10 @@ const filteredAppointments = useMemo(() => {
 
                   {timeSlots.map((slot, slotIndex) => (
                     <React.Fragment key={slot}>
-                      <div className={`p-2 sm:p-3 bg-muted rounded flex items-center gap-2 sticky left-0 z-20 border-r min-h-20 ${redLineSlotIndex === slotIndex ? 'border-t-2 border-t-red-500' : ''}`}>
+                      <div
+                        ref={redLineSlotIndex === slotIndex ? redLineTimeRowRef : null}
+                        className={`p-2 sm:p-3 bg-muted rounded flex items-center gap-2 sticky left-0 z-20 border-r min-h-20 ${redLineSlotIndex === slotIndex ? 'border-t-2 border-t-red-500' : ''}`}
+                      >
                         <Clock className="w-3 h-3 sm:w-4 sm:h-4" />
                         <span className="font-medium text-xs sm:text-sm">{slot}</span>
                       </div>
@@ -3777,7 +4018,8 @@ const filteredAppointments = useMemo(() => {
                 })}
               </div>
               <p className="text-xs text-gray-500">
-                1050 AED = 20% service discount, 3105 AED = 25%, 5250 AED = 30%
+                1050 AED = 20% service discount, 3105 AED = 25%, 5250 AED = 30%.
+                Discount remains active while the customer has e-wallet balance.
               </p>
             </div>
 
@@ -3802,8 +4044,41 @@ const filteredAppointments = useMemo(() => {
               <div className="p-3 bg-indigo-50 rounded-lg border border-indigo-200">
                 <p className="text-xs text-indigo-700">Service Discount Unlocked</p>
                 <p className="text-sm font-semibold text-indigo-900">
-                  {selectedTopupTier.discountPercent}% off services at checkout
+                  {selectedTopupTier.discountPercent}% off services at checkout (valid while e-wallet balance is available)
                 </p>
+              </div>
+            )}
+
+            {latestTopupInvoice && (
+              <div className="space-y-3 rounded-lg border border-blue-200 bg-blue-50 p-3">
+                <div>
+                  <p className="text-xs text-blue-700">Top-up Invoice Ready</p>
+                  <p className="text-sm font-semibold text-blue-900">
+                    #{latestTopupInvoice.invoiceNumber} | AED {latestTopupInvoice.amount.toFixed(2)}
+                  </p>
+                  <p className="text-xs text-blue-700">
+                    WhatsApp desk number: {WALLET_TOPUP_WHATSAPP_SENDER_NUMBER}
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="border-blue-300 text-blue-800"
+                    onClick={handleDownloadTopupInvoice}
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Download Invoice
+                  </Button>
+                  <Button
+                    type="button"
+                    className="bg-green-600 hover:bg-green-700"
+                    onClick={handleSendTopupInvoiceToWhatsApp}
+                  >
+                    <Phone className="mr-2 h-4 w-4" />
+                    Send via WhatsApp
+                  </Button>
+                </div>
               </div>
             )}
 
