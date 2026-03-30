@@ -149,13 +149,17 @@ export default function BookingReportPage() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const enabledSalesPaymentMethods = useMemo<Array<{ key: keyof BookingSummary['paymentMethodTotals']; label: string; enabled: boolean }>>(
-    () => [
-      { key: 'cash', label: 'Cash', enabled: paymentMethodAvailability.cash },
-      { key: 'card', label: 'Card', enabled: paymentMethodAvailability.card },
-      { key: 'check', label: 'Check', enabled: paymentMethodAvailability.check },
-      { key: 'digital', label: 'Digital', enabled: paymentMethodAvailability.digital },
-      { key: 'ewallet', label: 'E-Wallet', enabled: paymentMethodAvailability.ewallet },
-    ].filter((method) => method.enabled),
+    () => {
+      const allMethods: Array<{ key: keyof BookingSummary['paymentMethodTotals']; label: string; enabled: boolean }> = [
+        { key: 'cash', label: 'Cash', enabled: paymentMethodAvailability.cash },
+        { key: 'card', label: 'Card', enabled: paymentMethodAvailability.card },
+        { key: 'check', label: 'Check', enabled: paymentMethodAvailability.check },
+        { key: 'digital', label: 'Digital', enabled: paymentMethodAvailability.digital },
+        { key: 'ewallet', label: 'E-Wallet', enabled: paymentMethodAvailability.ewallet },
+      ];
+
+      return allMethods.filter((method) => method.enabled);
+    },
     [paymentMethodAvailability]
   );
 

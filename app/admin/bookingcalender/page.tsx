@@ -347,6 +347,8 @@ interface Appointment {
   };
   discount?: number;
   discountType?: 'fixed' | 'percentage';
+  discountSource?: string;
+  discountDescription?: string;
   couponCode?: string;
   couponDiscountAmount?: number;
   taxType?: 'inclusive' | 'exclusive';
@@ -2975,7 +2977,7 @@ export default function AdminAppointments() {
       : Math.min(subtotalWithCharges, Math.max(0, discountValue));
 
     const taxableAmount = Math.max(0, subtotalWithCharges - discountAmount);
-    const resolvedTaxRate = mode === 'without-tax' ? 0 : Number(data.tax ?? taxRate);
+    const resolvedTaxRate = mode === 'without-tax' ? 0 : Number(taxRate);
     const effectiveTaxType = mode === 'without-tax'
       ? 'exclusive'
       : (data.taxType === 'exclusive' ? 'exclusive' : 'inclusive');
@@ -3097,7 +3099,7 @@ export default function AdminAppointments() {
       status: appointment.status,
       barber: appointment.barber,
       notes: appointment.notes || '',
-      tax: invoiceValueDisplayMode === 'without-tax' ? 0 : Number(appointment.tax ?? taxRate),
+      tax: invoiceValueDisplayMode === 'without-tax' ? 0 : Number(taxRate),
       discount: appointment.discount || 0,
       discountType: appointment.discountType || 'fixed',
       discountSource: appointment.discountSource,
@@ -3269,7 +3271,7 @@ export default function AdminAppointments() {
       taxTypeLabel: invoiceValueDisplayMode === 'without-tax'
         ? 'Exclusive'
         : (invoiceData?.taxType === 'exclusive' ? 'Exclusive' : 'Inclusive'),
-      vatRate: Number(invoiceData?.tax ?? taxRate),
+      vatRate: Number(taxRate),
     };
   }, [
     invoiceData?.subtotal,
@@ -3277,7 +3279,6 @@ export default function AdminAppointments() {
     invoiceData?.couponDiscountAmount,
     invoiceData?.discount,
     invoiceData?.discountType,
-    invoiceData?.tax,
     invoiceData?.paymentAmounts,
     invoiceData?.ewalletBalanceAvailable,
     invoiceTaxAmount,
@@ -7760,12 +7761,12 @@ export default function AdminAppointments() {
                     
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                       <div>
-                        <label className="text-sm font-medium text-gray-700">Tax (%)</label>
+                        <label className="text-sm font-medium text-gray-700">Tax (%) - Auto from Settings</label>
                         <Input
                           type="number"
-                          value={invoiceValueDisplayMode === 'without-tax' ? 0 : (invoiceData.tax ?? taxRate)}
-                          onChange={(e) => handleInvoiceDataChange('tax', parseFloat(e.target.value) || 0)}
-                          disabled={invoiceValueDisplayMode === 'without-tax'}
+                          value={invoiceValueDisplayMode === 'without-tax' ? 0 : taxRate}
+                          readOnly
+                          disabled
                           className="h-10"
                         />
                       </div>

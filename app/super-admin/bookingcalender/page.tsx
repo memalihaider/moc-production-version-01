@@ -3402,7 +3402,7 @@ export default function AdminAppointments() {
       ? Math.min(subtotalWithCharges, Math.max(0, (subtotalWithCharges * discountValue) / 100))
       : Math.min(subtotalWithCharges, Math.max(0, discountValue));
     const taxableAmount = Math.max(0, subtotalWithCharges - discountAmount);
-    const resolvedTaxRate = invoiceValueDisplayMode === 'without-tax' ? 0 : Number(appointment.tax ?? taxRate);
+    const resolvedTaxRate = invoiceValueDisplayMode === 'without-tax' ? 0 : Number(taxRate);
     const effectiveTaxType = invoiceValueDisplayMode === 'without-tax'
       ? 'exclusive'
       : (appointment.taxType === 'exclusive' ? 'exclusive' : 'inclusive');
@@ -3554,7 +3554,7 @@ export default function AdminAppointments() {
         ? Math.min(subtotalWithCharges, Math.max(0, (subtotalWithCharges * discountValue) / 100))
         : Math.min(subtotalWithCharges, Math.max(0, discountValue));
       const taxableAmount = Math.max(0, subtotalWithCharges - discountAmount);
-      const resolvedTaxRate = invoiceValueDisplayMode === 'without-tax' ? 0 : Number(updatedData.tax ?? taxRate);
+      const resolvedTaxRate = invoiceValueDisplayMode === 'without-tax' ? 0 : Number(taxRate);
       const effectiveTaxType = invoiceValueDisplayMode === 'without-tax'
         ? 'exclusive'
         : (updatedData.taxType === 'exclusive' ? 'exclusive' : 'inclusive');
@@ -3805,7 +3805,7 @@ export default function AdminAppointments() {
                 ? Math.min(subtotalWithCharges, Math.max(0, (subtotalWithCharges * discountValue) / 100))
                 : Math.min(subtotalWithCharges, Math.max(0, discountValue));
               const taxableAmount = Math.max(0, subtotalWithCharges - discountAmount);
-              const resolvedTaxRate = invoiceValueDisplayMode === 'without-tax' ? 0 : Number(updated.tax ?? taxRate);
+              const resolvedTaxRate = invoiceValueDisplayMode === 'without-tax' ? 0 : Number(taxRate);
               const effectiveTaxType = invoiceValueDisplayMode === 'without-tax'
                 ? 'exclusive'
                 : (updated.taxType === 'exclusive' ? 'exclusive' : 'inclusive');
@@ -3856,7 +3856,7 @@ export default function AdminAppointments() {
                 ? Math.min(subtotalWithCharges, Math.max(0, (subtotalWithCharges * discountValue) / 100))
                 : Math.min(subtotalWithCharges, Math.max(0, discountValue));
               const taxableAmount = Math.max(0, subtotalWithCharges - discountAmount);
-              const resolvedTaxRate = invoiceValueDisplayMode === 'without-tax' ? 0 : Number(updated.tax ?? taxRate);
+              const resolvedTaxRate = invoiceValueDisplayMode === 'without-tax' ? 0 : Number(taxRate);
               const effectiveTaxType = invoiceValueDisplayMode === 'without-tax'
                 ? 'exclusive'
                 : (updated.taxType === 'exclusive' ? 'exclusive' : 'inclusive');
@@ -4199,7 +4199,7 @@ export default function AdminAppointments() {
       : Math.min(subtotalWithCharges, Math.max(0, discountValue));
 
     const taxableAmount = Math.max(0, subtotalWithCharges - discountAmount);
-    const resolvedTaxRate = invoiceValueDisplayMode === 'without-tax' ? 0 : Number(invoiceData.tax ?? taxRate);
+    const resolvedTaxRate = invoiceValueDisplayMode === 'without-tax' ? 0 : Number(taxRate);
     const effectiveTaxType = invoiceValueDisplayMode === 'without-tax'
       ? 'exclusive'
       : (invoiceData.taxType === 'exclusive' ? 'exclusive' : 'inclusive');
@@ -4250,7 +4250,7 @@ export default function AdminAppointments() {
       taxTypeLabel: invoiceValueDisplayMode === 'without-tax'
         ? 'Exclusive'
         : (effectiveTaxType === 'exclusive' ? 'Exclusive' : 'Inclusive'),
-      vatRate: Number(invoiceData.tax ?? taxRate),
+      vatRate: Number(taxRate),
     };
   }, [invoiceData, invoiceValueDisplayMode, selectedInvoicePaymentTotal, taxRate]);
 
@@ -5788,12 +5788,12 @@ export default function AdminAppointments() {
 
                   <div className="grid grid-cols-1 gap-4 pt-2 md:grid-cols-3">
                     <div>
-                      <label className="text-sm font-medium text-gray-700">Tax (%)</label>
+                      <label className="text-sm font-medium text-gray-700">Tax (%) - Auto from Settings</label>
                       <Input
                         type="number"
-                        value={invoiceValueDisplayMode === 'without-tax' ? 0 : (invoiceData.tax ?? taxRate)}
-                        onChange={(e) => handleInvoiceDataChange('tax', parseFloat(e.target.value) || 0)}
-                        disabled={invoiceValueDisplayMode === 'without-tax'}
+                        value={invoiceValueDisplayMode === 'without-tax' ? 0 : taxRate}
+                        readOnly
+                        disabled
                         className="h-10"
                       />
                     </div>

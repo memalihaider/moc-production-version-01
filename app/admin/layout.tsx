@@ -119,6 +119,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect } from 'react';
+import { hasPagePermission } from '@/lib/page-permissions';
 
 // Map admin routes to their pageKey permission IDs
 const routeToPageKey: Record<string, string> = {
@@ -173,9 +174,7 @@ export default function AdminLayout({
     // Dashboard is always accessible
     if (pageKey === 'dashboard') return;
 
-    const allowedPages = (user.allowedPages || []).map(p => p.toLowerCase());
-    
-    if (!allowedPages.includes(pageKey.toLowerCase())) {
+    if (!hasPagePermission(user.allowedPages, pageKey)) {
       // User does not have permission for this page
       router.push('/admin');
     }

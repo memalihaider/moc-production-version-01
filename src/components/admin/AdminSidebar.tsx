@@ -607,6 +607,7 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { hasPagePermission } from '@/lib/page-permissions';
 import { ChevronDown, ChevronRight, ChevronLeft, Menu } from 'lucide-react';
 import {
   BarChart3,
@@ -737,7 +738,7 @@ const branchAdminNavItems = [
     title: 'Customer chat',
     href: '/admin/customer-chats',
     icon: MessageCircle,
-    pageKey: 'messages'
+    pageKey: 'customer-chats'
   },
   {
     title: 'Custom Invoice',
@@ -957,11 +958,9 @@ export function AdminSidebar({
   let navItems = baseNavItems;
   
   if (role === 'branch_admin' && allowedPages && allowedPages.length > 0) {
-    const allowedPagesLower = allowedPages.map(page => page.toLowerCase());
-    
     navItems = baseNavItems.filter(item => {
       if (item.pageKey) {
-        return allowedPagesLower.includes(item.pageKey.toLowerCase());
+        return hasPagePermission(allowedPages, item.pageKey);
       }
       return true;
     });
