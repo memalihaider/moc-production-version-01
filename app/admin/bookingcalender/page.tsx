@@ -1686,6 +1686,7 @@ export default function AdminAppointments() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [selectedAppointmentForInvoice, setSelectedAppointmentForInvoice] = useState<Appointment | null>(null);
+  const [selectedInvoiceAppointments, setSelectedInvoiceAppointments] = useState<Appointment[]>([]);
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [invoiceData, setInvoiceData] = useState<ExtendedInvoiceData | null>(null);
   const [isEditingInvoice, setIsEditingInvoice] = useState(false);
@@ -2457,6 +2458,32 @@ export default function AdminAppointments() {
   const mockAppointments: Appointment[] = [];
 
   const allAppointments = [...mockAppointments, ...convertedBookings];
+
+  const getBookingGroupKey = (bookingNumber?: string): string | null => {
+    const value = String(bookingNumber || '').trim();
+    if (!value.startsWith('ADMIN-')) return null;
+    const parts = value.split('-');
+    if (parts.length < 3) return null;
+    const last = parts[parts.length - 1];
+    if (!/^\d+$/.test(last)) return null;
+    return parts.slice(0, -1).join('-');
+  };
+
+  const getRelatedAppointments = (appointment: Appointment): Appointment[] => {
+    const groupKey = getBookingGroupKey(appointment.bookingNumber);
+    if (!groupKey) return [appointment];
+    const related = allAppointments.filter((apt) =>
+      getBookingGroupKey(apt.bookingNumber) === groupKey
+    );
+    return related.length > 0 ? related : [appointment];
+  };
+
+  const getAppointmentIds = (appointments: Appointment[]): string[] => {
+    const ids = appointments
+      .map((appointment) => appointment.firebaseId)
+      .filter((id): id is string => Boolean(id));
+    return Array.from(new Set(ids));
+  };
 
   const filteredAppointments = allAppointments.filter(appointment => {
     const matchesStatus = statusFilter === 'all' || appointment.status === statusFilter;
@@ -3558,9 +3585,95 @@ export default function AdminAppointments() {
     return initialInvoiceData;
   };
 
+  const mergeInvoiceTeamMembers = (entries: ExtendedInvoiceData[]) => {
+    const memberMap = new Map<string, number>();
+
+    entries.forEach((entry) => {
+      (entry.teamMembers || []).forEach((member) => {
+        const name = String(member?.name || '').trim();
+        if (!name) return;
+        const tip = Number(member?.tip || 0);
+        memberMap.set(name, (memberMap.get(name) || 0) + tip);
+      });
+    });
+
+    return Array.from(memberMap.entries()).map(([name, tip]) => ({ name, tip }));
+  };
+
+  const buildInvoiceDataFromAppointments = (appointments: Appointment[]): ExtendedInvoiceData => {
+    const validAppointments = appointments.filter(Boolean);
+    if (validAppointments.length === 0) {
+      return buildInvoiceDataFromAppointment(appointments[0]);
+    }
+
+    const slices = validAppointments.map(buildInvoiceDataFromAppointment);
+    const base = slices[0];
+    if (slices.length === 1) return base;
+
+    const mergedItems = slices.flatMap((slice) => slice.items || []);
+    const mergedServiceDetails = slices.flatMap((slice) => slice.serviceDetails || []);
+    const mergedServices = slices.flatMap((slice) => slice.services || []).filter(Boolean);
+    const mergedTeamMembers = mergeInvoiceTeamMembers(slices);
+    const mergedServiceCharges = slices.reduce((sum, slice) => sum + Number(slice.serviceCharges || 0), 0);
+    const mergedServiceTip = slices.reduce((sum, slice) => sum + Number(slice.serviceTip || 0), 0);
+
+    const mergedPaymentMethods = Array.from(
+      new Set(slices.flatMap((slice) => slice.paymentMethods || []))
+    );
+    const mergedPaymentAmounts = slices.reduce((acc, slice) => {
+      Object.entries(slice.paymentAmounts || {}).forEach(([method, amount]) => {
+        acc[method] = Number(acc[method] || 0) + Number(amount || 0);
+      });
+      return acc;
+    }, {} as Record<string, number>);
+
+    const combined: ExtendedInvoiceData = {
+      ...base,
+      items: mergedItems,
+      serviceDetails: mergedServiceDetails,
+      services: mergedServices,
+      teamMembers: mergedTeamMembers,
+      serviceCharges: mergedServiceCharges,
+      serviceTip: mergedServiceTip,
+      paymentMethods: mergedPaymentMethods.length > 0 ? mergedPaymentMethods : base.paymentMethods,
+      paymentAmounts: mergedPaymentAmounts,
+      subtotal: mergedItems.reduce((sum, item) => sum + Number(item.total || 0), 0),
+      taxAmount: 0,
+      total: 0,
+    };
+
+    const computed = computeInvoiceTotals(combined, invoiceValueDisplayMode);
+    combined.price = computed.subtotal;
+    combined.subtotal = computed.subtotal;
+    combined.tax = computed.taxRate;
+    combined.taxAmount = computed.taxAmount;
+    combined.total = computed.total;
+
+    const normalizedMethods = normalizeInvoiceSplitMethods(
+      combined.paymentMethods,
+      combined.paymentMethod
+    );
+    const normalizedAmounts = buildInvoiceSplitAmounts(
+      getInvoiceGrandTotal(combined),
+      normalizedMethods,
+      combined.paymentAmounts as Record<string, number | undefined> | undefined
+    );
+
+    combined.paymentMethods = normalizedMethods;
+    combined.paymentMethod = normalizedMethods.map((method) => INVOICE_SPLIT_LABELS[method]).join(', ');
+    combined.paymentAmounts = normalizedAmounts;
+
+    return combined;
+  };
+
   const handleGenerateInvoiceClick = (appointment: Appointment, options?: { openModal?: boolean }) => {
-    const normalizedStatus = String(appointment.status || '').toLowerCase();
-    if (normalizedStatus !== 'completed' && normalizedStatus !== 'closed') {
+    const relatedAppointments = getRelatedAppointments(appointment);
+    const invalidAppointment = relatedAppointments.find((entry) => {
+      const normalizedStatus = String(entry.status || '').toLowerCase();
+      return normalizedStatus !== 'completed' && normalizedStatus !== 'closed';
+    });
+
+    if (invalidAppointment) {
       addNotification({
         type: 'error',
         title: 'Invoice Not Available',
@@ -3569,10 +3682,11 @@ export default function AdminAppointments() {
       return null;
     }
 
-    const initialInvoiceData = buildInvoiceDataFromAppointment(appointment);
+    const initialInvoiceData = buildInvoiceDataFromAppointments(relatedAppointments);
 
     setInvoiceNumber(initialInvoiceData.invoiceNumber || generateInvoiceNumber());
     setSelectedAppointmentForInvoice(appointment);
+    setSelectedInvoiceAppointments(relatedAppointments);
     setIsEditingInvoice(true);
     
     setInvoiceData(initialInvoiceData);
@@ -4503,9 +4617,13 @@ export default function AdminAppointments() {
       (apt) => apt.id === appointment.id || apt.firebaseId === appointment.firebaseId
     );
     const resolvedAppointment = (fullAppointment || appointment) as Appointment;
-    const normalizedStatus = String(resolvedAppointment.status || '').toLowerCase();
+    const relatedAppointments = getRelatedAppointments(resolvedAppointment);
+    const invalidAppointment = relatedAppointments.find((entry) => {
+      const normalizedStatus = String(entry.status || '').toLowerCase();
+      return normalizedStatus !== 'completed' && normalizedStatus !== 'closed';
+    });
 
-    if (normalizedStatus !== 'completed' && normalizedStatus !== 'closed') {
+    if (invalidAppointment) {
       addNotification({
         type: 'warning',
         title: 'Invoice Not Available',
@@ -4520,7 +4638,7 @@ export default function AdminAppointments() {
         .replace(/\{\{dateTime\}\}/gi, generatedAt)
         .trim();
 
-      const preparedInvoice = buildInvoiceDataFromAppointment(resolvedAppointment);
+      const preparedInvoice = buildInvoiceDataFromAppointments(relatedAppointments);
       const success = await generatePDFInvoice({
         ...preparedInvoice,
         notes: String(preparedInvoice.notes || '').trim(),
@@ -4536,12 +4654,17 @@ export default function AdminAppointments() {
         return;
       }
 
-      if (resolvedAppointment.firebaseId) {
+      const relatedIds = getAppointmentIds(relatedAppointments);
+      if (relatedIds.length > 0) {
         try {
-          await updateDoc(doc(db, 'bookings', resolvedAppointment.firebaseId), {
-            invoiceNumber: preparedInvoice.invoiceNumber || '',
-            updatedAt: serverTimestamp(),
-          });
+          await Promise.all(
+            relatedIds.map((bookingId) =>
+              updateDoc(doc(db, 'bookings', bookingId), {
+                invoiceNumber: preparedInvoice.invoiceNumber || '',
+                updatedAt: serverTimestamp(),
+              })
+            )
+          );
         } catch (saveError) {
           console.error('Error saving invoice number after direct download:', saveError);
         }
@@ -4567,8 +4690,10 @@ export default function AdminAppointments() {
       (apt) => apt.id === appointment.id || apt.firebaseId === appointment.firebaseId
     );
     const resolvedAppointment = (fullAppointment || appointment) as Appointment;
+    const relatedAppointments = getRelatedAppointments(resolvedAppointment);
+    const relatedIds = getAppointmentIds(relatedAppointments);
 
-    if (!resolvedAppointment.firebaseId) {
+    if (relatedIds.length === 0) {
       addNotification({
         type: 'error',
         title: 'Close Failed',
@@ -4586,35 +4711,42 @@ export default function AdminAppointments() {
       return;
     }
 
-    if (!confirm(`Close booking for ${resolvedAppointment.customer || 'customer'}?`)) {
+    const closeLabel = relatedAppointments.length > 1
+      ? `Close ${relatedAppointments.length} related bookings for ${resolvedAppointment.customer || 'customer'}?`
+      : `Close booking for ${resolvedAppointment.customer || 'customer'}?`;
+    if (!confirm(closeLabel)) {
       return;
     }
 
     try {
-      await updateDoc(doc(db, 'bookings', resolvedAppointment.firebaseId), {
-        status: 'closed',
-        updatedAt: serverTimestamp(),
-      });
+      await Promise.all(
+        relatedIds.map((bookingId) =>
+          updateDoc(doc(db, 'bookings', bookingId), {
+            status: 'closed',
+            updatedAt: serverTimestamp(),
+          })
+        )
+      );
 
       setBookings((prev) => prev.map((booking) =>
-        booking.firebaseId === resolvedAppointment.firebaseId
+        relatedIds.includes(booking.firebaseId)
           ? { ...booking, status: 'closed' }
           : booking
       ));
 
-      setSelectedAppointment((prev) =>
-        prev && (prev.firebaseId === resolvedAppointment.firebaseId || prev.id === resolvedAppointment.id)
-          ? { ...prev, status: 'closed' }
-          : prev
-      );
+      setSelectedAppointment((prev) => {
+        if (!prev) return prev;
+        const prevId = prev.firebaseId || String(prev.id || '');
+        return relatedIds.includes(prevId) ? { ...prev, status: 'closed' } : prev;
+      });
 
-      setSelectedAppointmentForInvoice((prev) =>
-        prev && (prev.firebaseId === resolvedAppointment.firebaseId || prev.id === resolvedAppointment.id)
-          ? { ...prev, status: 'closed' }
-          : prev
-      );
+      setSelectedAppointmentForInvoice((prev) => {
+        if (!prev) return prev;
+        const prevId = prev.firebaseId || String(prev.id || '');
+        return relatedIds.includes(prevId) ? { ...prev, status: 'closed' } : prev;
+      });
 
-      if (selectedAppointmentForInvoice?.firebaseId === resolvedAppointment.firebaseId) {
+      if (selectedAppointmentForInvoice?.firebaseId && relatedIds.includes(selectedAppointmentForInvoice.firebaseId)) {
         setInvoiceData((prev) => (prev ? { ...prev, status: 'closed' } : prev));
       }
 
@@ -4724,7 +4856,12 @@ export default function AdminAppointments() {
       });
       
       if (success) {
-        if (selectedAppointmentForInvoice?.firebaseId) {
+        const invoiceAppointments = selectedInvoiceAppointments.length > 0
+          ? selectedInvoiceAppointments
+          : (selectedAppointmentForInvoice ? [selectedAppointmentForInvoice] : []);
+        const targetIds = getAppointmentIds(invoiceAppointments);
+
+        if (targetIds.length > 0) {
           try {
             const normalizedMethods = normalizeInvoiceSplitMethods(
               invoiceData.paymentMethods,
@@ -4732,24 +4869,28 @@ export default function AdminAppointments() {
             );
             const normalizedReferenceNumber = String(invoiceData.referenceNumber || '').trim();
 
-            await updateDoc(doc(db, 'bookings', selectedAppointmentForInvoice.firebaseId), {
-              paymentMethod: normalizedMethods.map((method) => INVOICE_SPLIT_LABELS[method]).join(', '),
-              paymentMethods: normalizedMethods,
-              paymentAmounts: invoiceData.paymentAmounts || {},
-              discount: Number(invoiceData.discount || 0),
-              discountType: invoiceData.discountType || 'fixed',
-              discountSource: invoiceData.discountSource || null,
-              discountDescription: invoiceData.discountDescription || null,
-              couponCode: String(invoiceData.couponCode || '').trim(),
-              couponDiscountAmount: Number(invoiceData.couponDiscountAmount || 0),
-              taxType: invoiceData.taxType || (invoiceValueDisplayMode === 'without-tax' ? 'exclusive' : 'inclusive'),
-              referenceNumber: normalizedReferenceNumber,
-              invoiceNumber: invoiceData.invoiceNumber || '',
-              updatedAt: serverTimestamp(),
-            });
+            await Promise.all(
+              targetIds.map((bookingId) =>
+                updateDoc(doc(db, 'bookings', bookingId), {
+                  paymentMethod: normalizedMethods.map((method) => INVOICE_SPLIT_LABELS[method]).join(', '),
+                  paymentMethods: normalizedMethods,
+                  paymentAmounts: invoiceData.paymentAmounts || {},
+                  discount: Number(invoiceData.discount || 0),
+                  discountType: invoiceData.discountType || 'fixed',
+                  discountSource: invoiceData.discountSource || null,
+                  discountDescription: invoiceData.discountDescription || null,
+                  couponCode: String(invoiceData.couponCode || '').trim(),
+                  couponDiscountAmount: Number(invoiceData.couponDiscountAmount || 0),
+                  taxType: invoiceData.taxType || (invoiceValueDisplayMode === 'without-tax' ? 'exclusive' : 'inclusive'),
+                  referenceNumber: normalizedReferenceNumber,
+                  invoiceNumber: invoiceData.invoiceNumber || '',
+                  updatedAt: serverTimestamp(),
+                })
+              )
+            );
 
             setBookings((prev) => prev.map((booking) =>
-              booking.firebaseId === selectedAppointmentForInvoice.firebaseId
+              targetIds.includes(booking.firebaseId)
                 ? {
                     ...booking,
                     paymentMethod: normalizedMethods.map((method) => INVOICE_SPLIT_LABELS[method]).join(', '),
@@ -4851,7 +4992,21 @@ export default function AdminAppointments() {
   };
 
   const handleCloseBookingFromInvoice = async () => {
-    if (!selectedAppointmentForInvoice?.firebaseId || !invoiceData) {
+    if (!invoiceData) {
+      addNotification({
+        type: 'error',
+        title: 'Close Failed',
+        message: 'Booking record not found for closing.'
+      });
+      return;
+    }
+
+    const invoiceAppointments = selectedInvoiceAppointments.length > 0
+      ? selectedInvoiceAppointments
+      : (selectedAppointmentForInvoice ? [selectedAppointmentForInvoice] : []);
+    const targetIds = getAppointmentIds(invoiceAppointments);
+
+    if (targetIds.length === 0) {
       addNotification({
         type: 'error',
         title: 'Close Failed',
@@ -4863,18 +5018,26 @@ export default function AdminAppointments() {
     setClosingInvoiceBooking(true);
 
     try {
-      await updateDoc(doc(db, 'bookings', selectedAppointmentForInvoice.firebaseId), {
-        status: 'closed',
-        updatedAt: serverTimestamp(),
-      });
+      await Promise.all(
+        targetIds.map((bookingId) =>
+          updateDoc(doc(db, 'bookings', bookingId), {
+            status: 'closed',
+            updatedAt: serverTimestamp(),
+          })
+        )
+      );
 
       setBookings((prev) => prev.map((booking) =>
-        booking.firebaseId === selectedAppointmentForInvoice.firebaseId
+        targetIds.includes(booking.firebaseId)
           ? { ...booking, status: 'closed' }
           : booking
       ));
 
-      setSelectedAppointmentForInvoice((prev) => prev ? { ...prev, status: 'closed' } : prev);
+      setSelectedAppointmentForInvoice((prev) => {
+        if (!prev) return prev;
+        const prevId = prev.firebaseId || String(prev.id || '');
+        return targetIds.includes(prevId) ? { ...prev, status: 'closed' } : prev;
+      });
       setInvoiceData((prev) => prev ? { ...prev, status: 'closed' } : prev);
 
       addNotification({
@@ -5135,33 +5298,60 @@ export default function AdminAppointments() {
 
   const handleStatusChange = async (appointmentId: string, newStatus: string) => {
     try {
-      const booking = bookings.find(b => b.firebaseId === appointmentId);
-      
-      if (booking && booking.firebaseId) {
-        const success = await updateBookingStatusInFirebase(booking.firebaseId, newStatus);
-        
-        if (success) {
-          setBookings(prev => prev.map(b => 
-            b.firebaseId === booking.firebaseId ? { ...b, status: newStatus } : b
-          ));
-          
-          addNotification({
-            type: 'success',
-            title: 'Status Updated',
-            message: `Appointment status changed to ${newStatus}`
-          });
-        } else {
-          addNotification({
-            type: 'error',
-            title: 'Update Failed',
-            message: 'Failed to update status in Firebase'
-          });
+      const appointment = allAppointments.find(
+        (apt) => apt.firebaseId === appointmentId || String(apt.id) === appointmentId
+      );
+      const relatedAppointments = appointment ? getRelatedAppointments(appointment) : [];
+      const shouldUpdateGroup =
+        relatedAppointments.length > 1 && ['completed', 'closed'].includes(newStatus);
+      const targetAppointments = shouldUpdateGroup
+        ? relatedAppointments
+        : (appointment ? [appointment] : []);
+      const targetIds = getAppointmentIds(targetAppointments);
+      const resolvedIds = targetIds.length > 0
+        ? targetIds
+        : (appointmentId ? [appointmentId] : []);
+
+      if (resolvedIds.length === 0) return;
+
+      const results = await Promise.all(
+        resolvedIds.map((bookingId) => updateBookingStatusInFirebase(bookingId, newStatus))
+      );
+      const success = results.every(Boolean);
+
+      if (success) {
+        setBookings((prev) => prev.map((booking) =>
+          resolvedIds.includes(booking.firebaseId)
+            ? { ...booking, status: newStatus }
+            : booking
+        ));
+
+        setSelectedAppointment((prev) => {
+          if (!prev) return prev;
+          const prevId = prev.firebaseId || String(prev.id || '');
+          return resolvedIds.includes(prevId) ? { ...prev, status: newStatus } : prev;
+        });
+
+        setSelectedAppointmentForInvoice((prev) => {
+          if (!prev) return prev;
+          const prevId = prev.firebaseId || String(prev.id || '');
+          return resolvedIds.includes(prevId) ? { ...prev, status: newStatus } : prev;
+        });
+
+        if (selectedAppointmentForInvoice?.firebaseId && resolvedIds.includes(selectedAppointmentForInvoice.firebaseId)) {
+          setInvoiceData((prev) => (prev ? { ...prev, status: newStatus } : prev));
         }
-      } else {
+
         addNotification({
           type: 'success',
           title: 'Status Updated',
           message: `Appointment status changed to ${newStatus}`
+        });
+      } else {
+        addNotification({
+          type: 'error',
+          title: 'Update Failed',
+          message: 'Failed to update status in Firebase'
         });
       }
     } catch (error) {
