@@ -269,6 +269,17 @@ interface FirebaseCategory {
   updatedAt: Date;
 }
 
+interface FirebaseProduct {
+  id: string;
+  firebaseId: string;
+  name: string;
+  category: string;
+  price: number;
+  branchNames?: string[];
+  branches?: string[];
+  status?: string;
+}
+
 interface FirebaseBranch {
   id: string;
   firebaseId: string;
@@ -714,6 +725,35 @@ const fetchCategories = async (): Promise<FirebaseCategory[]> => {
     return categories;
   } catch (error) {
     console.error("Error fetching categories:", error);
+    return [];
+  }
+};
+
+const fetchProducts = async (): Promise<FirebaseProduct[]> => {
+  try {
+    const productsRef = collection(db, "products");
+    const q = query(productsRef, orderBy("createdAt", "desc"));
+    const querySnapshot = await getDocs(q);
+
+    const products: FirebaseProduct[] = [];
+    querySnapshot.forEach((doc) => {
+      const data = doc.data();
+
+      products.push({
+        id: doc.id,
+        firebaseId: doc.id,
+        name: data.name || "Unnamed Product",
+        category: data.category || "Product",
+        price: Number(data.price) || 0,
+        branchNames: Array.isArray(data.branchNames) ? data.branchNames : [],
+        branches: Array.isArray(data.branches) ? data.branches : [],
+        status: data.status || "active",
+      });
+    });
+
+    return products;
+  } catch (error) {
+    console.error("Error fetching products:", error);
     return [];
   }
 };
@@ -1606,6 +1646,7 @@ export default function AdminAppointments() {
   });
   
   const [productOrders, setProductOrders] = useState<FirebaseProductOrder[]>([]);
+  const [products, setProducts] = useState<FirebaseProduct[]>([]);
   const [bookings, setBookings] = useState<FirebaseBooking[]>([]);
   const [staffMembers, setStaffMembers] = useState<FirebaseStaff[]>([]);
   const [services, setServices] = useState<FirebaseService[]>([]);
@@ -1965,18 +2006,30 @@ export default function AdminAppointments() {
       });
     };
 
+    products
+      .filter((product) => product.status !== 'inactive')
+      .forEach((product) => registerProduct(product.name, product.category, product.price));
+
     bookings.forEach((booking) => {
       (booking.products || []).forEach((product) => {
-        registerProduct(product.name, product.category, product.price);
+        registerProduct(
+          product.name || (product as any).productName || (product as any).itemName,
+          product.category,
+          product.price
+        );
       });
     });
 
     (selectedAppointmentForInvoice?.products || []).forEach((product) => {
-      registerProduct(product.name, product.category, product.price);
+      registerProduct(
+        product.name || (product as any).productName || (product as any).itemName,
+        product.category,
+        product.price
+      );
     });
 
     return Array.from(productMap.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [bookings, selectedAppointmentForInvoice]);
+  }, [bookings, products, selectedAppointmentForInvoice]);
 
   const invoiceProductSuggestions = useMemo(() => {
     const query = normalizeProductLookup(invoiceProductSearchTerm);
@@ -2024,12 +2077,13 @@ export default function AdminAppointments() {
           });
         };
 
-        const [ordersData, staffData, servicesData, categoriesData, branchesData] = await Promise.all([
+        const [ordersData, staffData, servicesData, categoriesData, branchesData, productsData] = await Promise.all([
           fetchProductOrders(notificationWrapper),
           fetchStaff(),
           fetchServices(),
           fetchCategories(),
-          fetchBranches()
+          fetchBranches(),
+          fetchProducts()
         ]);
         
         if (!isMounted) return;
@@ -2162,6 +2216,7 @@ export default function AdminAppointments() {
           setStaffMembers(staffData);
           setServices(servicesData);
           setCategories(categoriesData);
+          setProducts(productsData.filter((product) => product.status !== 'inactive'));
           setBranches(branchesData);
           setLoading({ orders: false, bookings: false, staff: false, services: false, categories: false, branches: false });
         }
@@ -4577,6 +4632,7 @@ export default function AdminAppointments() {
                     staff={staffMembers as any}
                     paymentMethodAvailability={paymentMethodAvailability}
                     calendarDisplaySettings={calendarDisplaySettings}
+                    invoiceDisclaimerTemplate={invoiceDisclaimerTemplate}
                     showFullDetails={true}
                   />
                 </TabsContent>

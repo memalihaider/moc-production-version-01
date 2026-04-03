@@ -181,6 +181,7 @@ interface AdvancedCalendarProps {
     hiddenHours?: number[];
     totalValueDisplayMode?: 'both' | 'with-tax' | 'without-tax';
   };
+  invoiceDisclaimerTemplate?: string;
 }
 
 type WeekdayKey = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
@@ -197,7 +198,8 @@ const DEFAULT_WEEKLY_TIMINGS: Record<WeekdayKey, { open: string; close: string; 
 
 const WALLET_TOPUP_TIERS = [
   { amount: 1050, discountPercent: 20 },
-  { amount: 3105, discountPercent: 25 },
+  { amount: 2100, discountPercent: 20 },
+  { amount: 3150, discountPercent: 25 },
   { amount: 5250, discountPercent: 30 },
 ];
 
@@ -2377,7 +2379,8 @@ export function AdvancedCalendar({
   formatCurrency = (amount) => `AED ${amount.toFixed(2)}`,
   lockedBranch,
   paymentMethodAvailability,
-  calendarDisplaySettings
+  calendarDisplaySettings,
+  invoiceDisclaimerTemplate,
 }: AdvancedCalendarProps) {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedBarber, setSelectedBarber] = useState<string>('all');
@@ -2415,6 +2418,11 @@ export function AdvancedCalendar({
   const selectedTopupTier = Number.isFinite(walletTopupValue)
     ? getWalletTopupTier(walletTopupValue)
     : undefined;
+
+  useEffect(() => {
+    // Ensure calendar opens on today's context and red-line logic can run immediately.
+    setSelectedDate(startOfDay(new Date()));
+  }, []);
   
   // Load staff data
   useEffect(() => {
@@ -2461,6 +2469,29 @@ export function AdvancedCalendar({
 
   const barbers = useMemo(() => branchFilteredStaff.map(staff => staff.name), [branchFilteredStaff]);
 
+  const visibleBarbers = useMemo(
+    () => (selectedBarber === 'all' ? barbers : [selectedBarber]),
+    [barbers, selectedBarber]
+  );
+
+  const employeeTopStaffColumnMinWidth = useMemo(() => {
+    const count = visibleBarbers.length;
+    if (count >= 8) return '72px';
+    if (count >= 6) return '84px';
+    if (count >= 5) return '96px';
+    return '110px';
+  }, [visibleBarbers.length]);
+
+  const employeeTopTimeColumnWidth = useMemo(
+    () => (visibleBarbers.length >= 6 ? 'clamp(84px, 13vw, 120px)' : 'clamp(96px, 15vw, 130px)'),
+    [visibleBarbers.length]
+  );
+
+  const employeeTopGridTemplateColumns = useMemo(
+    () => `${employeeTopTimeColumnWidth} repeat(${visibleBarbers.length}, minmax(${employeeTopStaffColumnMinWidth}, 1fr))`,
+    [employeeTopTimeColumnWidth, visibleBarbers.length, employeeTopStaffColumnMinWidth]
+  );
+
   // Keep current time updated so slot availability changes in real-time.
   useEffect(() => {
     const timer = setInterval(() => {
@@ -2474,7 +2505,8 @@ export function AdvancedCalendar({
     if (!calendarDisplaySettings) return;
 
     if (typeof calendarDisplaySettings.timeSlotGap === 'number') {
-      setTimeSlotGap(calendarDisplaySettings.timeSlotGap);
+      const resolvedGap = Number(calendarDisplaySettings.timeSlotGap);
+      setTimeSlotGap(Number.isFinite(resolvedGap) && resolvedGap > 0 ? resolvedGap : 30);
     }
 
     if (calendarDisplaySettings.layoutMode) {
@@ -2607,7 +2639,7 @@ export function AdvancedCalendar({
   const redLineSlotIndex = useMemo(() => {
     if (!isTodaySelected) return null;
     const firstAllowedIndex = timeSlots.findIndex((slot) => !isSlotBlockedForBooking(slot));
-    if (firstAllowedIndex <= 0) return null;
+    if (firstAllowedIndex < 0) return null;
     return firstAllowedIndex;
   }, [timeSlots, isTodaySelected, currentSystemTime, selectedDate]);
 
@@ -2657,13 +2689,13 @@ export function AdvancedCalendar({
           0,
           scrollContainer!.scrollLeft + (targetRect.left - containerRect.left) - 140
         );
-        scrollContainer!.scrollTo({ left: desiredLeft, behavior: 'smooth' });
+        scrollContainer!.scrollTo({ left: desiredLeft, behavior: 'auto' });
       } else {
         const desiredTop = Math.max(
           0,
           scrollContainer!.scrollTop + (targetRect.top - containerRect.top) - 120
         );
-        scrollContainer!.scrollTo({ top: desiredTop, behavior: 'smooth' });
+        scrollContainer!.scrollTo({ top: desiredTop, behavior: 'auto' });
       }
 
       lastAutoScrollKeyRef.current = autoScrollKey;
@@ -2686,6 +2718,9 @@ export function AdvancedCalendar({
       appointment.barber,
       appointment.staffName,
       appointment.staff,
+      ...(Array.isArray(appointment.serviceDetails)
+        ? appointment.serviceDetails.map((detail: any) => detail?.staff || detail?.staffName)
+        : []),
       ...(Array.isArray(appointment.teamMembers)
         ? appointment.teamMembers.map((member) => member?.name)
         : []),
@@ -2702,6 +2737,47 @@ export function AdvancedCalendar({
     return getAssignedStaffNames(appointment).some(
       (name) => normalizeStaffName(name) === target
     );
+  };
+
+  const getAppointmentServiceNamesForStaff = (appointment: Appointment, barber: string): string[] => {
+    const target = normalizeStaffName(barber);
+    if (!target) return [];
+
+    const details = Array.isArray(appointment.serviceDetails)
+      ? appointment.serviceDetails
+      : [];
+
+    const byDetail = details
+      .filter((detail: any) =>
+        normalizeStaffName(detail?.staff || detail?.staffName || detail?.staffMember) === target
+      )
+      .map((detail: any) => String(detail?.serviceName || detail?.name || detail?.service || ''))
+      .filter((name: string) => name.trim().length > 0);
+
+    if (byDetail.length > 0) {
+      return Array.from(new Set(byDetail));
+    }
+
+    const services = Array.isArray(appointment.services) ? appointment.services : [];
+    const teamMembers = Array.isArray(appointment.teamMembers) ? appointment.teamMembers : [];
+    if (services.length > 0 && teamMembers.length > 0) {
+      const mapped = services.filter((serviceName, index) =>
+        normalizeStaffName(teamMembers[index]?.name) === target
+      );
+      if (mapped.length > 0) {
+        return mapped;
+      }
+    }
+
+    const fallback = String(appointment.service || appointment.serviceName || '').trim();
+    return fallback ? [fallback] : [];
+  };
+
+  const formatServiceLabel = (names: string[]): string => {
+    const cleaned = names.filter((name) => name.trim().length > 0);
+    if (cleaned.length === 0) return 'Service';
+    if (cleaned.length === 1) return cleaned[0];
+    return `${cleaned[0]} +${cleaned.length - 1}`;
   };
 
   // ==================== MAIN FILTER LOGIC - EXACT BRANCH MATCH ====================
@@ -3008,6 +3084,51 @@ const filteredAppointments = useMemo(() => {
     }
   };
 
+  const getAppointmentHoverText = (appointment: Appointment, barberContext?: string): string => {
+    const customerName = String(appointment.customer || appointment.customerName || 'Customer').trim();
+    const bookingNumber = String(appointment.bookingNumber || '').trim();
+    const dateValue = String(appointment.date || appointment.bookingDate || '').trim();
+    const timeValue = String(appointment.time || appointment.bookingTime || '').trim();
+    const durationValue = String(appointment.duration || '').trim();
+    const branchValue = String(appointment.branch || 'Main Branch').trim();
+    const statusValue = String(appointment.status || '').trim();
+
+    const serviceNames = barberContext
+      ? getAppointmentServiceNamesForStaff(appointment, barberContext)
+      : (Array.isArray(appointment.services) && appointment.services.length > 0
+          ? appointment.services
+          : [String(appointment.service || appointment.serviceName || 'Service')]);
+
+    const staffNames = barberContext
+      ? [barberContext]
+      : getAssignedStaffNames(appointment);
+
+    const phoneValue = String(appointment.phone || appointment.customerPhone || '').trim();
+    const emailValue = String(appointment.email || appointment.customerEmail || '').trim();
+    const paymentMethodValue = String(appointment.paymentMethod || '').trim();
+    const totalAmountValue = Number(appointment.totalAmount ?? appointment.price ?? appointment.servicePrice ?? 0);
+    const notesValue = String(appointment.notes || '').trim();
+
+    const lines = [
+      bookingNumber ? `Booking: ${bookingNumber}` : null,
+      `Customer: ${customerName}`,
+      `Services: ${serviceNames.filter(Boolean).join(', ') || 'Service'}`,
+      `Staff: ${staffNames.filter(Boolean).join(', ') || 'Not Assigned'}`,
+      `Date: ${dateValue || '-'}`,
+      `Time: ${timeValue || '-'}`,
+      durationValue ? `Duration: ${durationValue}` : null,
+      `Branch: ${branchValue}`,
+      statusValue ? `Status: ${statusValue}` : null,
+      phoneValue ? `Phone: ${phoneValue}` : null,
+      emailValue ? `Email: ${emailValue}` : null,
+      paymentMethodValue ? `Payment: ${paymentMethodValue}` : null,
+      `Total: ${formatCurrency(totalAmountValue)}`,
+      notesValue ? `Notes: ${notesValue}` : null,
+    ].filter(Boolean) as string[];
+
+    return lines.join('\n');
+  };
+
   const navigateDate = (direction: 'prev' | 'next') => {
     const newDate = direction === 'next'
       ? addDays(selectedDate, 1)
@@ -3020,6 +3141,25 @@ const filteredAppointments = useMemo(() => {
     return staff?.avatar || "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop";
   };
 
+  const renderSlotAddIcon = (barber: string, slot: string, isBlockedSlot: boolean) => {
+    if (!onCreateBooking || isBlockedSlot) return null;
+
+    return (
+      <Button
+        type="button"
+        variant="secondary"
+        size="icon"
+        className="absolute top-1 left-1 z-10 h-6 w-6 rounded-full p-0 shadow-sm"
+        onClick={(e) => {
+          e.stopPropagation();
+          onCreateBooking(barber, format(selectedDate, 'yyyy-MM-dd'), slot);
+        }}
+      >
+        <Plus className="h-3.5 w-3.5" />
+      </Button>
+    );
+  };
+
   const handleAdvanceAppointmentClick = (appointment: Appointment) => {
     console.log("🎯 ADVANCE CALENDAR Click:", appointment);
     setSelectedAdvanceAppointment(appointment);
@@ -3027,7 +3167,7 @@ const filteredAppointments = useMemo(() => {
     setShowAdvancePopup(true);
   };
 
-  const handleAppointmentAction = (action: 'reschedule' | 'edit' | 'checkin' | 'cancel' | 'delete' | 'checkout' | 'topup-wallet' | 'download-invoice' | 'close-booking', appointment: Appointment) => {
+  const handleAppointmentAction = (action: 'reschedule' | 'edit' | 'checkin' | 'cancel' | 'delete' | 'checkout' | 'topup-wallet' | 'download-invoice' | 'close-booking' | 'add-booking', appointment: Appointment) => {
     if (action === 'reschedule') {
       setSelectedAdvanceAppointment(appointment);
       setInitialPopupAction('reschedule');
@@ -3040,6 +3180,18 @@ const filteredAppointments = useMemo(() => {
         onEditBooking(appointment);
       } else {
         onAppointmentClick(appointment);
+      }
+      return;
+    }
+
+    if (action === 'add-booking') {
+      const targetBarber = appointment.barber || appointment.staff || '';
+      const targetDate = appointment.date || appointment.bookingDate || format(selectedDate, 'yyyy-MM-dd');
+      const rawTargetTime = appointment.time || appointment.bookingTime || '';
+      const targetTime = rawTargetTime ? convertTo24Hour(rawTargetTime) : '';
+
+      if (onCreateBooking && targetBarber && targetTime) {
+        onCreateBooking(targetBarber, targetDate, targetTime);
       }
       return;
     }
@@ -3252,6 +3404,9 @@ const filteredAppointments = useMemo(() => {
       const now = new Date();
       const invoiceDate = now.toISOString().split('T')[0];
       const invoiceNumber = `WTI-${Date.now().toString().slice(-8)}`;
+      const topupDisclaimerText = String(invoiceDisclaimerTemplate || '')
+        .replace(/\{\{dateTime\}\}/gi, now.toLocaleString())
+        .trim();
 
       const topupInvoiceData: WalletTopupInvoiceData = {
         invoiceNumber,
@@ -3266,6 +3421,7 @@ const filteredAppointments = useMemo(() => {
         branchName: selectedWalletAppointment?.branch || 'Main Branch',
         discountPercent: selectedTier?.discountPercent,
         sourceNote: 'Wallet top-up completed by branch admin.',
+        disclaimerText: topupDisclaimerText || undefined,
       };
       const portalCustomerId =
         String(selectedWalletAppointment?.customerId || '').trim() || walletCustomerId;
@@ -3520,12 +3676,12 @@ const filteredAppointments = useMemo(() => {
                   variant="default"
                   size="sm"
                   onClick={() => {
-                    const defaultBarber = barbers.length > 0 ? barbers[0] : 'all';
-                    if (!firstBookableSlot) return;
+                    const defaultBarber = selectedBarber !== 'all' ? selectedBarber : (barbers[0] || '');
+                    if (!firstBookableSlot || !defaultBarber) return;
                     onCreateBooking(defaultBarber, format(selectedDate, 'yyyy-MM-dd'), firstBookableSlot);
                   }}
                   className="h-8 gap-1 bg-green-600 px-2 text-xs hover:bg-green-700"
-                  disabled={!firstBookableSlot}
+                  disabled={!firstBookableSlot || (selectedBarber === 'all' && barbers.length === 0)}
                 >
                   <PlusCircle className="h-3.5 w-3.5" />
                   Quick Book
@@ -3565,9 +3721,15 @@ const filteredAppointments = useMemo(() => {
                 </div>
               )}
 
+              {onCreateBooking && (
+                <div className="mb-2 px-3 py-2 rounded-md border border-blue-200 bg-blue-50 text-blue-800 text-xs font-medium">
+                  Multi-booking enabled: use Quick Book, Add Booking In Slot (on an appointment), or the small + icon in slots.
+                </div>
+              )}
+
               {layoutMode === 'time-top' ? (
                 <>
-                  <div className="grid gap-1 mb-2 sticky top-0 bg-background z-10 border-b pb-2" style={{ gridTemplateColumns: `clamp(120px, 15vw, 200px) repeat(${timeSlots.length}, minmax(50px, 1fr))` }}>
+                  <div className="grid gap-1 mb-2 sticky top-0 bg-background z-10 border-b pb-2" style={{ gridTemplateColumns: `clamp(110px, 18vw, 190px) repeat(${timeSlots.length}, minmax(40px, 1fr))` }}>
                     <div className="p-2 font-medium text-sm text-muted-foreground sticky left-0 bg-background">
                       Staff / Time
                     </div>
@@ -3577,7 +3739,7 @@ const filteredAppointments = useMemo(() => {
                         <div
                           key={slot}
                           ref={isRedLinePoint ? redLineTimeHeaderRef : null}
-                          className={`p-1 text-xs text-center font-medium text-muted-foreground border rounded bg-muted/50 min-w-[50px] ${isRedLinePoint ? 'relative border-l-2 border-l-red-500' : ''}`}
+                          className={`p-1 text-xs text-center font-medium text-muted-foreground border rounded bg-muted/50 min-w-10 sm:min-w-[50px] ${isRedLinePoint ? 'relative border-l-2 border-l-red-500' : ''}`}
                         >
                           {slot}
                           {isRedLinePoint && (
@@ -3604,15 +3766,17 @@ const filteredAppointments = useMemo(() => {
                         return (
                           <div
                             key={`${barber}-${currentSlot}`}
-                            className={`p-1 border rounded transition-all duration-200 min-h-[60px] border-muted-foreground/20 bg-muted/10 ${isRedLinePoint ? 'border-l-2 border-l-red-500' : ''}`}
+                            className={`relative p-1 border rounded transition-all duration-200 min-h-[60px] border-muted-foreground/20 bg-muted/10 ${isRedLinePoint ? 'border-l-2 border-l-red-500' : ''}`}
                             style={{ minHeight: `${Math.max(60, startingAppointments.length * 64)}px` }}
                           >
+                            {renderSlotAddIcon(barber, currentSlot, isBlockedSlot)}
                             <div className="flex flex-col gap-1.5">
                               {startingAppointments.map((appointment, idx) => (
                                 <div
                                   key={`${barber}-${currentSlot}-${appointment.firebaseId || appointment.id}-${idx}`}
                                   className={`relative p-1 rounded cursor-pointer hover:shadow-md transition-all duration-200 border border-white/20 ${getStatusColor(appointment.status)}`}
                                   onClick={() => handleAdvanceAppointmentClick(appointment)}
+                                  title={getAppointmentHoverText(appointment, barber)}
                                 >
                                   <div className="absolute top-1 right-1 z-10" onClick={(e) => e.stopPropagation()}>
                                     <DropdownMenu>
@@ -3629,6 +3793,10 @@ const filteredAppointments = useMemo(() => {
                                         <DropdownMenuItem onClick={() => handleAppointmentAction('edit', appointment)}>
                                           <Pencil className="w-4 h-4 mr-2" />
                                           Edit Booking
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleAppointmentAction('add-booking', appointment)}>
+                                          <PlusCircle className="w-4 h-4 mr-2" />
+                                          Add Booking In Slot
                                         </DropdownMenuItem>
                                         <DropdownMenuItem onClick={() => handleAppointmentAction('checkin', appointment)}>
                                           <CheckCircle className="w-4 h-4 mr-2" />
@@ -3670,7 +3838,7 @@ const filteredAppointments = useMemo(() => {
                                       {(appointment.customer || appointment.customerName || 'Customer').split(' ')[0]}
                                     </div>
                                     <div className="text-white/90 truncate w-full text-center text-[10px] leading-tight">
-                                      {appointment.service || appointment.serviceName || 'Service'}
+                                      {formatServiceLabel(getAppointmentServiceNamesForStaff(appointment, barber))}
                                     </div>
                                     <div className="text-white/80 text-[9px] mt-1">
                                       {appointment.time || appointment.bookingTime || currentSlot}
@@ -3687,8 +3855,9 @@ const filteredAppointments = useMemo(() => {
                         return (
                           <div
                             key={`${barber}-${currentSlot}`}
-                            className={`p-1 border rounded transition-all duration-200 min-h-[60px] flex items-center justify-center border-muted-foreground/20 bg-muted/20 ${isRedLinePoint ? 'border-l-2 border-l-red-500' : ''}`}
+                            className={`relative p-1 border rounded transition-all duration-200 min-h-[60px] flex flex-col items-center justify-center gap-1 border-muted-foreground/20 bg-muted/20 ${isRedLinePoint ? 'border-l-2 border-l-red-500' : ''}`}
                           >
+                            {renderSlotAddIcon(barber, currentSlot, isBlockedSlot)}
                             <div className="text-[10px] text-muted-foreground text-center">
                               In progress ({slotAppointments.length})
                             </div>
@@ -3699,13 +3868,14 @@ const filteredAppointments = useMemo(() => {
                       return (
                         <div
                           key={`${barber}-${currentSlot}`}
-                          className={`p-1 border rounded transition-all duration-200 min-h-[60px] flex items-center justify-center border-dashed ${isBlockedSlot ? 'cursor-not-allowed border-red-200 bg-red-50' : 'cursor-pointer border-muted-foreground/30 hover:border-muted-foreground/50 hover:bg-green-50'} ${isRedLinePoint ? 'border-l-2 border-l-red-500' : ''}`}
+                          className={`relative p-1 border rounded transition-all duration-200 min-h-[60px] flex items-center justify-center border-dashed ${isBlockedSlot ? 'cursor-not-allowed border-red-200 bg-red-50' : 'cursor-pointer border-muted-foreground/30 hover:border-muted-foreground/50 hover:bg-green-50'} ${isRedLinePoint ? 'border-l-2 border-l-red-500' : ''}`}
                           onClick={(e) => {
                             e.stopPropagation();
                             if (isBlockedSlot) return;
                             onCreateBooking && onCreateBooking(barber, format(selectedDate, 'yyyy-MM-dd'), currentSlot);
                           }}
                         >
+                          {renderSlotAddIcon(barber, currentSlot, isBlockedSlot)}
                           {isBlockedSlot ? (
                             <div className="text-red-600/80 text-[10px] text-center flex flex-col items-center gap-1">
                               <AlertCircle className="w-3 h-3" />
@@ -3724,7 +3894,7 @@ const filteredAppointments = useMemo(() => {
                     const staffAvatar = getStaffAvatar(barber);
                     
                     return (
-                      <div key={barber} className="grid gap-1 mb-1" style={{ gridTemplateColumns: `clamp(120px, 15vw, 200px) repeat(${timeSlots.length}, minmax(50px, 1fr))` }}>
+                      <div key={barber} className="grid gap-1 mb-1" style={{ gridTemplateColumns: `clamp(110px, 18vw, 190px) repeat(${timeSlots.length}, minmax(40px, 1fr))` }}>
                         <div className="p-2 sm:p-3 bg-muted rounded flex items-center gap-2 sticky left-0 border-r" style={{ minWidth: 'clamp(120px, 15vw, 200px)' }}>
                           <div className="relative w-6 h-6 sm:w-8 sm:h-8 rounded-full overflow-hidden shrink-0 border border-gray-300">
                             <img 
@@ -3750,13 +3920,13 @@ const filteredAppointments = useMemo(() => {
                 <div 
                   className="grid gap-1" 
                   style={{ 
-                    gridTemplateColumns: `clamp(120px, 15vw, 150px) repeat(${(selectedBarber === 'all' ? barbers : [selectedBarber]).length}, minmax(80px, 1fr))`,
+                    gridTemplateColumns: employeeTopGridTemplateColumns,
                   }}
                 >
                   <div className="p-2 font-medium text-sm text-muted-foreground sticky top-0 bg-background z-20 border-b">
                     Time / Staff
                   </div>
-                  {(selectedBarber === 'all' ? barbers : [selectedBarber]).map(barber => {
+                  {visibleBarbers.map(barber => {
                     const staffAvatar = getStaffAvatar(barber);
                     
                     return (
@@ -3773,7 +3943,7 @@ const filteredAppointments = useMemo(() => {
                           />
                         </div>
                         <div className="text-center w-full px-1">
-                          <div className="font-medium text-[11px] leading-tight whitespace-normal wrap-break-word">
+                          <div className="font-medium text-[10px] leading-tight whitespace-normal wrap-break-word">
                             {barber}
                           </div>
                         </div>
@@ -3791,7 +3961,7 @@ const filteredAppointments = useMemo(() => {
                         <span className="font-medium text-xs sm:text-sm">{slot}</span>
                       </div>
                       
-                      {(selectedBarber === 'all' ? barbers : [selectedBarber]).map(barber => {
+                      {visibleBarbers.map(barber => {
                         const slotAppointments = getAppointmentsForSlot(slot, barber);
                         const startingAppointments = getAppointmentsStartingAtSlot(slot, barber);
                         const hasRunningBooking = slotAppointments.length > 0;
@@ -3802,15 +3972,17 @@ const filteredAppointments = useMemo(() => {
                           return (
                             <div
                               key={`${slot}-${barber}`}
-                              className={`p-1 border rounded transition-all duration-200 min-h-20 border-muted-foreground/20 bg-muted/10 ${isRedLinePoint ? 'border-t-2 border-t-red-500' : ''}`}
+                              className={`relative p-1 border rounded transition-all duration-200 min-h-20 border-muted-foreground/20 bg-muted/10 ${isRedLinePoint ? 'border-t-2 border-t-red-500' : ''}`}
                               style={{ minHeight: `${Math.max(80, startingAppointments.length * 74)}px` }}
                             >
+                              {renderSlotAddIcon(barber, slot, isBlockedSlot)}
                               <div className="flex flex-col gap-1.5">
                                 {startingAppointments.map((appointment, idx) => (
                                   <div
                                     key={`${slot}-${barber}-${appointment.firebaseId || appointment.id}-${idx}`}
                                     className={`relative p-1 rounded cursor-pointer hover:shadow-md transition-all duration-200 border border-white/20 ${getStatusColor(appointment.status)}`}
                                     onClick={() => handleAdvanceAppointmentClick(appointment)}
+                                    title={getAppointmentHoverText(appointment, barber)}
                                   >
                                     <div className="absolute top-1 right-1 z-10" onClick={(e) => e.stopPropagation()}>
                                       <DropdownMenu>
@@ -3827,6 +3999,10 @@ const filteredAppointments = useMemo(() => {
                                           <DropdownMenuItem onClick={() => handleAppointmentAction('edit', appointment)}>
                                             <Pencil className="w-4 h-4 mr-2" />
                                             Edit Booking
+                                          </DropdownMenuItem>
+                                          <DropdownMenuItem onClick={() => handleAppointmentAction('add-booking', appointment)}>
+                                            <PlusCircle className="w-4 h-4 mr-2" />
+                                            Add Booking In Slot
                                           </DropdownMenuItem>
                                           <DropdownMenuItem onClick={() => handleAppointmentAction('checkin', appointment)}>
                                             <CheckCircle className="w-4 h-4 mr-2" />
@@ -3871,7 +4047,7 @@ const filteredAppointments = useMemo(() => {
                                         {(appointment.customer || appointment.customerName || 'Customer').split(' ')[0]}
                                       </div>
                                       <div className="text-white/90 truncate w-full text-center text-[10px] leading-tight">
-                                        {appointment.service || appointment.serviceName || 'Service'}
+                                        {formatServiceLabel(getAppointmentServiceNamesForStaff(appointment, barber))}
                                       </div>
                                       <div className="text-white/80 text-[9px] mt-1">
                                         {appointment.duration}
@@ -3888,8 +4064,9 @@ const filteredAppointments = useMemo(() => {
                           return (
                             <div
                               key={`${slot}-${barber}`}
-                              className={`p-1 border rounded transition-all duration-200 flex items-center justify-center min-h-20 border-muted-foreground/20 bg-muted/20 ${isRedLinePoint ? 'border-t-2 border-t-red-500' : ''}`}
+                              className={`relative p-1 border rounded transition-all duration-200 flex flex-col items-center justify-center gap-1 min-h-20 border-muted-foreground/20 bg-muted/20 ${isRedLinePoint ? 'border-t-2 border-t-red-500' : ''}`}
                             >
+                              {renderSlotAddIcon(barber, slot, isBlockedSlot)}
                               <div className="text-[10px] text-muted-foreground text-center">
                                 In progress ({slotAppointments.length})
                               </div>
@@ -3900,13 +4077,14 @@ const filteredAppointments = useMemo(() => {
                         return (
                           <div
                             key={`${slot}-${barber}`}
-                            className={`p-1 border rounded transition-all duration-200 flex items-center justify-center border-dashed min-h-20 ${isBlockedSlot ? 'cursor-not-allowed border-red-200 bg-red-50' : 'cursor-pointer border-muted-foreground/30 hover:border-muted-foreground/50 hover:bg-green-50'} ${isRedLinePoint ? 'border-t-2 border-t-red-500' : ''}`}
+                            className={`relative p-1 border rounded transition-all duration-200 flex items-center justify-center border-dashed min-h-20 ${isBlockedSlot ? 'cursor-not-allowed border-red-200 bg-red-50' : 'cursor-pointer border-muted-foreground/30 hover:border-muted-foreground/50 hover:bg-green-50'} ${isRedLinePoint ? 'border-t-2 border-t-red-500' : ''}`}
                             onClick={(e) => {
                               e.stopPropagation();
                               if (isBlockedSlot) return;
                               onCreateBooking && onCreateBooking(barber, format(selectedDate, 'yyyy-MM-dd'), slot);
                             }}
                           >
+                            {renderSlotAddIcon(barber, slot, isBlockedSlot)}
                             {isBlockedSlot ? (
                               <div className="text-red-600/80 text-[10px] text-center flex flex-col items-center gap-1">
                                 <AlertCircle className="w-3 h-3" />
@@ -4001,7 +4179,7 @@ const filteredAppointments = useMemo(() => {
 
             <div className="space-y-2">
               <Label>Quick Topup</Label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
                 {WALLET_TOPUP_TIERS.map((tier) => {
                   const isSelected = selectedTopupTier?.amount === tier.amount;
                   return (
@@ -4018,7 +4196,7 @@ const filteredAppointments = useMemo(() => {
                 })}
               </div>
               <p className="text-xs text-gray-500">
-                1050 AED = 20% service discount, 3105 AED = 25%, 5250 AED = 30%.
+                1050 AED = 20% service discount, 2100 AED = 20%, 3150 AED = 25%, 5250 AED = 30%.
                 Discount remains active while the customer has e-wallet balance.
               </p>
             </div>

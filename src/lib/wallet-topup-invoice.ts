@@ -1,6 +1,6 @@
 import { generateUnifiedInvoicePdf } from "@/lib/unified-invoice-pdf";
 
-export const WALLET_TOPUP_WHATSAPP_SENDER_NUMBER = "+971543230365";
+export const WALLET_TOPUP_WHATSAPP_SENDER_NUMBER = "+971 543230365";
 
 export interface WalletTopupInvoiceData {
   invoiceNumber: string;
@@ -12,6 +12,7 @@ export interface WalletTopupInvoiceData {
   branchName?: string;
   discountPercent?: number;
   sourceNote?: string;
+  disclaimerText?: string;
 }
 
 const sanitizePhone = (phone?: string): string => String(phone || "").replace(/[^0-9]/g, "");
@@ -58,6 +59,7 @@ export async function downloadWalletTopupInvoicePdf(
         amount: Number(data.amount || 0),
       },
     ],
+    disclaimerText: data.disclaimerText,
     notes: `${sourceLine}\n${discountLine}\nWhatsApp Desk: ${WALLET_TOPUP_WHATSAPP_SENDER_NUMBER}`,
     logoPath: "/manofcave.png",
     fileName: `Wallet-Topup-Invoice-${data.invoiceNumber}.pdf`,
@@ -84,6 +86,7 @@ export function buildWalletTopupWhatsAppUrl(data: WalletTopupInvoiceData): strin
     `Top-up Amount: AED ${amountText}`,
     `Branch: ${data.branchName || "Main Branch"}`,
     discountText,
+    ...(data.disclaimerText ? ["Disclaimer:", data.disclaimerText] : []),
     `For assistance, message us on ${WALLET_TOPUP_WHATSAPP_SENDER_NUMBER}.`,
   ].join("\n");
 

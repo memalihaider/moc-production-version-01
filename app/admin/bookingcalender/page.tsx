@@ -76,9 +76,14 @@ interface FirebaseBooking {
   serviceDetails?: Array<{
     id: string;
     name: string;
+    serviceName?: string;
     price: number;
     duration: number;
     category: string;
+    branch?: string;
+    staff?: string;
+    staffId?: string;
+    time?: string;
   }>;
   totalDuration: number;
   totalPrice: number;
@@ -223,6 +228,17 @@ interface FirebaseCategory {
   updatedAt: Date;
 }
 
+interface FirebaseProduct {
+  id: string;
+  firebaseId: string;
+  name: string;
+  category: string;
+  price: number;
+  branchNames?: string[];
+  branches?: string[];
+  status?: string;
+}
+
 interface FirebaseBranch {
   id: string;
   firebaseId: string;
@@ -310,9 +326,11 @@ interface Appointment {
     name?: string;
     serviceName?: string;
     price: number;
+    duration?: number;
     branch?: string;
     staff?: string;
     staffId?: string;
+    time?: string;
   }>;
   barber: string;
   date: string;
@@ -390,6 +408,13 @@ interface BookingFormData {
   category: string;
   branch: string;
 }
+
+type ServiceStaffAssignment = {
+  staffName: string;
+  staffId?: string;
+  staffRole?: string;
+  time?: string;
+};
 
 interface InvoiceItem {
   name: string;
@@ -741,6 +766,35 @@ const fetchCategories = async (): Promise<FirebaseCategory[]> => {
   }
 };
 
+const fetchProducts = async (): Promise<FirebaseProduct[]> => {
+  try {
+    const productsRef = collection(db, "products");
+    const q = query(productsRef, orderBy("createdAt", "desc"));
+    const querySnapshot = await getDocs(q);
+
+    const products: FirebaseProduct[] = [];
+    querySnapshot.forEach((doc) => {
+      const data = doc.data();
+
+      products.push({
+        id: doc.id,
+        firebaseId: doc.id,
+        name: data.name || "Unnamed Product",
+        category: data.category || "Product",
+        price: Number(data.price) || 0,
+        branchNames: Array.isArray(data.branchNames) ? data.branchNames : [],
+        branches: Array.isArray(data.branches) ? data.branches : [],
+        status: data.status || "active",
+      });
+    });
+
+    return products;
+  } catch (error) {
+    console.error("Error fetching products:", error);
+    return [];
+  }
+};
+
 const fetchBranches = async (): Promise<FirebaseBranch[]> => {
   try {
     const branchesRef = collection(db, "branches");
@@ -830,160 +884,167 @@ const deleteProductOrderInFirebase = async (orderId: string): Promise<boolean> =
 const createBookingInFirebase = async (
   bookingData: BookingFormData, 
   selectedServices: FirebaseService[],
+  serviceStaffAssignments: Record<string, ServiceStaffAssignment>,
   selectedCategory: FirebaseCategory | null,
   selectedBranch: FirebaseBranch | null,
   addNotification: (notification: { type: 'error' | 'success' | 'warning' | 'info'; title: string; message: string }) => void
-): Promise<{success: boolean, bookingId?: string, booking?: FirebaseBooking}> => {
+): Promise<{success: boolean, bookingId?: string, booking?: FirebaseBooking, bookings?: FirebaseBooking[]}> => {
   try {
-    const servicesPrice = selectedServices.reduce((sum, s) => sum + s.price, 0);
-    const totalDuration = selectedServices.reduce((sum, s) => sum + s.duration, 0);
-    const productsTotal = bookingData.products.reduce((sum, p) => sum + (p.price * p.quantity), 0);
-    
-    let subtotal = servicesPrice + productsTotal + bookingData.serviceCharges;
-    
-    let discountAmount = 0;
-    if (bookingData.discount > 0) {
-      if (bookingData.discountType === 'percentage') {
-        discountAmount = subtotal * (bookingData.discount / 100);
-        subtotal = subtotal * (1 - bookingData.discount / 100);
-      } else {
-        discountAmount = bookingData.discount;
-        subtotal = Math.max(0, subtotal - bookingData.discount);
-      }
-    }
-    
-    const taxAmount = (subtotal * bookingData.tax) / 100;
-    const totalTips = bookingData.serviceTip + bookingData.teamMembers.reduce((sum, tm) => sum + tm.tip, 0);
-    const totalAmount = subtotal + taxAmount + totalTips;
-    
-    const primaryStaff = bookingData.teamMembers.find(tm => tm.name === bookingData.barber);
-    const bookingNumber = `ADMIN-${Date.now()}`;
-    
-    const serviceDetails = selectedServices.map(service => ({
-      id: service.firebaseId,
-      name: service.name,
-      price: service.price,
-      duration: service.duration,
-      category: service.category
-    }));
-    
-    const firebaseBookingData = {
-      customerName: bookingData.customer,
-      customerEmail: bookingData.email || "",
-      customerPhone: bookingData.phone || "",
-      customerId: "",
-      serviceName: bookingData.services[0] || "Multiple Services",
-      services: bookingData.services,
-      servicesDetails: serviceDetails,
-      serviceCategory: selectedCategory?.name || selectedServices[0]?.category || "Multiple",
-      serviceDuration: totalDuration,
-      servicePrice: servicesPrice,
-      totalAmount: totalAmount,
-      totalDuration: totalDuration,
-      staff: bookingData.barber,
-      staffName: bookingData.barber,
-      staffId: primaryStaff?.name || bookingData.barber,
-      staffRole: "hairstylist",
-      date: bookingData.date,
-      time: bookingData.time,
-      timeSlot: bookingData.time,
-      bookingDate: bookingData.date,
-      bookingTime: bookingData.time,
-      status: bookingData.status || 'pending',
-      paymentMethod: bookingData.paymentMethods.length > 0 
-        ? bookingData.paymentMethods.join(', ') 
-        : 'cash',
-      paymentStatus: bookingData.status === 'completed' ? 'paid' : 'pending',
-      branch: selectedBranch?.name || selectedServices[0]?.branchNames?.[0] || "All Branches",
-      branchId: selectedBranch?.firebaseId || '',
-      branchNames: selectedBranch?.name ? [selectedBranch.name] : (selectedServices[0]?.branchNames || ["All Branches"]),
-      branches: selectedBranch?.firebaseId ? [selectedBranch.firebaseId] : [],
-      userBranchId: selectedBranch?.firebaseId || '',
-      userBranchName: selectedBranch?.name || '',
-      category: selectedCategory?.name || "",
-      categoryId: selectedCategory?.firebaseId || "",
-      cardLast4Digits: bookingData.cardLast4Digits || "",
-      trnNumber: bookingData.trnNumber || "",
-      paymentAmounts: bookingData.paymentAmounts,
-      notes: bookingData.notes || '',
-      pointsAwarded: false,
-      products: bookingData.products.map(product => ({
-        productName: product.name,
-        name: product.name,
-        category: product.category,
-        price: product.price,
-        quantity: product.quantity,
-        total: product.price * product.quantity
-      })),
-      teamMembers: bookingData.teamMembers,
-      subtotal: subtotal,
-      tax: bookingData.tax,
-      taxAmount: taxAmount,
-      discount: bookingData.discount,
-      discountType: bookingData.discountType,
-      discountAmount: discountAmount,
-      serviceTip: bookingData.serviceTip,
-      serviceCharges: bookingData.serviceCharges,
-      totalTips: totalTips,
-      productsTotal: productsTotal,
-      paymentMethods: bookingData.paymentMethods,
-      source: 'admin_panel',
-      createdBy: 'admin',
-      bookingNumber: bookingNumber,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp()
-    };
-
     const bookingsRef = collection(db, "bookings");
-    const docRef = await addDoc(bookingsRef, firebaseBookingData);
-    
-    const newBooking: FirebaseBooking = {
-      id: docRef.id,
-      firebaseId: docRef.id,
-      bookingNumber: bookingNumber,
-      customerName: bookingData.customer,
-      customerEmail: bookingData.email || "",
-      customerPhone: bookingData.phone || "",
-      services: bookingData.services,
-      serviceDetails: serviceDetails,
-      serviceDuration: totalDuration,
-      totalDuration: totalDuration,
-      servicePrice: totalAmount,
-      totalPrice: totalAmount,
-      totalAmount: totalAmount,
-      status: bookingData.status || 'pending',
-      bookingDate: bookingData.date,
-      bookingTime: bookingData.time,
-      paymentMethod: bookingData.paymentMethods.join(', ') || 'cash',
-      paymentStatus: bookingData.status === 'completed' ? 'paid' : 'pending',
-      branch: selectedBranch?.name || selectedServices[0]?.branchNames?.[0] || "All Branches",
-      staff: bookingData.barber,
-      staffId: primaryStaff?.name || bookingData.barber,
-      staffRole: "hairstylist",
-      notes: bookingData.notes || "",
-      serviceCategory: selectedCategory?.name || selectedServices[0]?.category || "Multiple",
-      serviceId: selectedServices[0]?.firebaseId || "",
-      timeSlot: bookingData.time,
-      pointsAwarded: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      customerId: "",
-      createdBy: '',
-      cardLast4Digits: bookingData.cardLast4Digits || "",
-      trnNumber: bookingData.trnNumber || "",
-      teamMembers: bookingData.teamMembers,
-      products: bookingData.products,
-      paymentMethods: bookingData.paymentMethods,
-      paymentAmounts: bookingData.paymentAmounts,
-      discount: bookingData.discount,
-      discountType: bookingData.discountType,
-      serviceTip: bookingData.serviceTip,
-      serviceCharges: bookingData.serviceCharges,
-      tax: bookingData.tax,
-      serviceName: ''
+    const selectedBranchName = selectedBranch?.name || bookingData.branch || selectedServices[0]?.branchNames?.[0] || "All Branches";
+    const selectedBranchId = selectedBranch?.firebaseId || '';
+    const paymentMethodText = bookingData.paymentMethods.length > 0
+      ? bookingData.paymentMethods.join(', ')
+      : 'cash';
+    const baseBookingNumber = `ADMIN-${Date.now()}`;
+
+    const createdBookings: FirebaseBooking[] = [];
+
+    for (let index = 0; index < selectedServices.length; index += 1) {
+      const service = selectedServices[index];
+      const serviceKey = service.firebaseId || service.id || service.name;
+      const assignment = serviceStaffAssignments[serviceKey];
+      const serviceTime = assignment?.time || bookingData.time;
+      const assignedStaffName = assignment?.staffName || bookingData.barber || '';
+      const assignedStaffId = assignment?.staffId || assignedStaffName;
+      const assignedStaffRole = assignment?.staffRole || 'hairstylist';
+      const assignedTip = bookingData.teamMembers.find((member) => member.name === assignedStaffName)?.tip || 0;
+      const servicePrice = Number(service.price || 0);
+      const taxAmount = (servicePrice * bookingData.tax) / 100;
+      const totalAmount = servicePrice + taxAmount + assignedTip;
+      const bookingNumber = `${baseBookingNumber}-${index + 1}`;
+
+      const singleServiceDetail = [{
+        id: service.firebaseId,
+        name: service.name,
+        price: servicePrice,
+        duration: Number(service.duration || 0),
+        category: service.category,
+        staff: assignedStaffName,
+        staffId: assignment?.staffId || '',
+        time: serviceTime,
+      }];
+
+      const firebaseBookingData = {
+        customerName: bookingData.customer,
+        customerEmail: bookingData.email || "",
+        customerPhone: bookingData.phone || "",
+        customerId: "",
+        serviceName: service.name,
+        services: [service.name],
+        serviceDetails: singleServiceDetail,
+        servicesDetails: singleServiceDetail,
+        serviceCategory: service.category || selectedCategory?.name || "Service",
+        serviceDuration: Number(service.duration || 0),
+        servicePrice: servicePrice,
+        totalAmount,
+        totalDuration: Number(service.duration || 0),
+        staff: assignedStaffName,
+        staffName: assignedStaffName,
+        staffId: assignedStaffId,
+        staffRole: assignedStaffRole,
+        date: bookingData.date,
+        time: serviceTime,
+        timeSlot: serviceTime,
+        bookingDate: bookingData.date,
+        bookingTime: serviceTime,
+        status: bookingData.status || 'pending',
+        paymentMethod: paymentMethodText,
+        paymentStatus: bookingData.status === 'completed' ? 'paid' : 'pending',
+        branch: selectedBranchName,
+        branchId: selectedBranchId,
+        branchNames: [selectedBranchName],
+        branches: selectedBranchId ? [selectedBranchId] : [],
+        userBranchId: selectedBranchId,
+        userBranchName: selectedBranchName,
+        category: selectedCategory?.name || service.category || "",
+        categoryId: selectedCategory?.firebaseId || service.categoryId || "",
+        cardLast4Digits: bookingData.cardLast4Digits || "",
+        trnNumber: bookingData.trnNumber || "",
+        paymentAmounts: bookingData.paymentAmounts,
+        notes: bookingData.notes || '',
+        pointsAwarded: false,
+        products: [],
+        teamMembers: assignedStaffName ? [{ name: assignedStaffName, tip: assignedTip }] : [],
+        subtotal: servicePrice,
+        tax: bookingData.tax,
+        taxAmount,
+        discount: 0,
+        discountType: bookingData.discountType,
+        discountAmount: 0,
+        serviceTip: 0,
+        serviceCharges: 0,
+        totalTips: assignedTip,
+        productsTotal: 0,
+        paymentMethods: bookingData.paymentMethods,
+        source: 'admin_panel',
+        createdBy: 'admin',
+        bookingNumber,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
+
+      const docRef = await addDoc(bookingsRef, firebaseBookingData);
+
+      createdBookings.push({
+        id: docRef.id,
+        firebaseId: docRef.id,
+        bookingNumber,
+        customerName: bookingData.customer,
+        customerEmail: bookingData.email || "",
+        customerPhone: bookingData.phone || "",
+        services: [service.name],
+        serviceDetails: singleServiceDetail,
+        serviceDuration: Number(service.duration || 0),
+        totalDuration: Number(service.duration || 0),
+        servicePrice,
+        totalPrice: totalAmount,
+        totalAmount,
+        status: bookingData.status || 'pending',
+        bookingDate: bookingData.date,
+        bookingTime: serviceTime,
+        paymentMethod: paymentMethodText,
+        paymentStatus: bookingData.status === 'completed' ? 'paid' : 'pending',
+        branch: selectedBranchName,
+        staff: assignedStaffName,
+        staffId: assignedStaffId,
+        staffRole: assignedStaffRole,
+        notes: bookingData.notes || "",
+        serviceCategory: service.category || selectedCategory?.name || "Service",
+        serviceId: service.firebaseId || "",
+        timeSlot: serviceTime,
+        pointsAwarded: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        customerId: "",
+        createdBy: 'admin',
+        cardLast4Digits: bookingData.cardLast4Digits || "",
+        trnNumber: bookingData.trnNumber || "",
+        teamMembers: assignedStaffName ? [{ name: assignedStaffName, tip: assignedTip }] : [],
+        products: [],
+        paymentMethods: bookingData.paymentMethods,
+        paymentAmounts: bookingData.paymentAmounts,
+        discount: 0,
+        discountType: bookingData.discountType,
+        serviceTip: 0,
+        serviceCharges: 0,
+        tax: bookingData.tax,
+        serviceName: service.name,
+        subtotal: servicePrice,
+        taxAmount,
+      });
+    }
+
+    if (createdBookings.length === 0) {
+      return { success: false };
+    }
+
+    return {
+      success: true,
+      bookingId: createdBookings[0].firebaseId,
+      booking: createdBookings[0],
+      bookings: createdBookings,
     };
-    
-    return {success: true, bookingId: docRef.id, booking: newBooking};
     
   } catch (error) {
     console.error("❌ Error creating booking in Firebase:", error);
@@ -1618,6 +1679,9 @@ export default function AdminAppointments() {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editBookingData, setEditBookingData] = useState<BookingFormData | null>(null);
   const [editSelectedServices, setEditSelectedServices] = useState<FirebaseService[]>([]);
+  const [editServiceStaffAssignments, setEditServiceStaffAssignments] = useState<Record<string, ServiceStaffAssignment>>({});
+  const [editServiceSearchTerm, setEditServiceSearchTerm] = useState('');
+  const [showEditServiceSuggestions, setShowEditServiceSuggestions] = useState(false);
   const [showBookingDialog, setShowBookingDialog] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
@@ -1642,6 +1706,7 @@ export default function AdminAppointments() {
   });
   
   const [productOrders, setProductOrders] = useState<FirebaseProductOrder[]>([]);
+  const [products, setProducts] = useState<FirebaseProduct[]>([]);
   const [bookings, setBookings] = useState<FirebaseBooking[]>([]);
   const [staffMembers, setStaffMembers] = useState<FirebaseStaff[]>([]);
   const [services, setServices] = useState<FirebaseService[]>([]);
@@ -1743,6 +1808,7 @@ export default function AdminAppointments() {
   }, [user?.branchId, user?.branchName]);
 
   const [selectedServices, setSelectedServices] = useState<FirebaseService[]>([]);
+  const [serviceStaffAssignments, setServiceStaffAssignments] = useState<Record<string, ServiceStaffAssignment>>({});
   const [selectedCategory, setSelectedCategory] = useState<FirebaseCategory | null>(null);
   const [selectedBranch, setSelectedBranch] = useState<FirebaseBranch | null>(null);
   const [serviceSearchTerm, setServiceSearchTerm] = useState('');
@@ -2038,12 +2104,13 @@ export default function AdminAppointments() {
 
         const userBranch = user?.role === 'admin' ? user.branchName : undefined;
         
-        const [ordersData, staffData, servicesData, categoriesData, branchesData] = await Promise.all([
+        const [ordersData, staffData, servicesData, categoriesData, branchesData, productsData] = await Promise.all([
           fetchProductOrders(notificationWrapper),
           fetchStaff(),
           fetchServices(),
           fetchCategories(),
-          fetchBranches()
+          fetchBranches(),
+          fetchProducts()
         ]);
         
         if (!isMounted) return;
@@ -2070,6 +2137,12 @@ export default function AdminAppointments() {
           const bookingsData: FirebaseBooking[] = [];
           snapshot.forEach((doc) => {
             const data = doc.data();
+            const normalizedStatus = String(data.status || '').toLowerCase().trim();
+
+            // Keep deleted bookings out of active calendar views.
+            if (normalizedStatus === 'deleted') {
+              return;
+            }
             
             const bookingDate = data.bookingDate || 
                               (data.date ? data.date.split(' ')[0] : 
@@ -2233,6 +2306,16 @@ export default function AdminAppointments() {
               (adminBranchId && c.branches?.includes(adminBranchId)) ||
               c.branchName === userBranch
             ));
+            setProducts(productsData.filter((product) => {
+              if (product.status === 'inactive') return false;
+              const hasScopedBranches =
+                (product.branches && product.branches.length > 0) ||
+                (product.branchNames && product.branchNames.length > 0);
+              if (!hasScopedBranches) return true;
+              if (product.branchNames?.includes(userBranch)) return true;
+              if (adminBranchId && product.branches?.includes(adminBranchId)) return true;
+              return false;
+            }));
             // For branch admin, show only their branch
             setBranches(adminBranch ? [adminBranch] : branchesData);
             
@@ -2248,6 +2331,7 @@ export default function AdminAppointments() {
             setStaffMembers(staffData);
             setServices(servicesData);
             setCategories(categoriesData);
+            setProducts(productsData.filter((product) => product.status !== 'inactive'));
             setBranches(branchesData);
           }
 
@@ -2323,11 +2407,13 @@ export default function AdminAppointments() {
         ? booking.serviceDetails.map((detail) => ({
             id: detail.id,
             name: detail.name,
-            serviceName: detail.name,
+            serviceName: detail.serviceName || detail.name,
             price: Number(detail.price || 0),
-            branch: booking.branch || 'All Branches',
-            staff: booking.staff || 'Not Assigned',
-            staffId: booking.staffId,
+            duration: Number((detail as any).duration || 0),
+            branch: detail.branch || booking.branch || 'All Branches',
+            staff: detail.staff || booking.staff || 'Not Assigned',
+            staffId: detail.staffId || booking.staffId,
+            time: (detail as any).time || booking.bookingTime || booking.timeSlot || '',
           }))
         : [],
       barber: booking.staff || "Not Assigned",
@@ -2564,6 +2650,67 @@ export default function AdminAppointments() {
       .slice(0, 8);
   }, [bookingData.branch, searchableServices, selectedServices, serviceSearchTerm]);
 
+  const editFilteredServices = useMemo(() => {
+    if (!editBookingData?.branch) return [];
+
+    const selectedEditBranch = branches.find((branch) => branch.name === editBookingData.branch);
+    const selectedEditCategory = editBookingData.category
+      ? categories.find((category) => category.name === editBookingData.category)
+      : null;
+
+    return services.filter((service) => {
+      if (service.status !== 'active') return false;
+
+      const isGlobalService =
+        (!service.branches || service.branches.length === 0) &&
+        (!service.branchNames || service.branchNames.length === 0);
+
+      if (!isGlobalService) {
+        const selectedBranchLower = editBookingData.branch.toLowerCase().trim();
+        const hasInBranchNames = service.branchNames?.some(
+          (branch) => branch.toLowerCase().trim() === selectedBranchLower
+        );
+        const hasInBranchIds = selectedEditBranch?.firebaseId
+          ? service.branches?.some((branchId) => branchId === selectedEditBranch.firebaseId)
+          : false;
+
+        if (!hasInBranchNames && !hasInBranchIds) return false;
+      }
+
+      if (editBookingData.category) {
+        const categoryMatch =
+          service.category === editBookingData.category ||
+          (selectedEditCategory && service.categoryId === selectedEditCategory.firebaseId);
+        if (!categoryMatch) return false;
+      }
+
+      return true;
+    });
+  }, [branches, categories, editBookingData?.branch, editBookingData?.category, services]);
+
+  const editSearchableServices = useMemo(() => {
+    const search = editServiceSearchTerm.trim().toLowerCase();
+    if (!search) return editFilteredServices;
+
+    return editFilteredServices.filter((service) => {
+      const matchesName = service.name.toLowerCase().includes(search);
+      const matchesCategory = (service.category || '').toLowerCase().includes(search);
+      const matchesDuration = String(service.duration || '').includes(search);
+      const matchesPrice = String(service.price || '').includes(search);
+
+      return matchesName || matchesCategory || matchesDuration || matchesPrice;
+    });
+  }, [editFilteredServices, editServiceSearchTerm]);
+
+  const editServiceSuggestions = useMemo(() => {
+    const query = editServiceSearchTerm.trim().toLowerCase();
+    if (!query || !editBookingData?.branch) return [];
+
+    return editSearchableServices
+      .filter((service) => !editSelectedServices.some((selected) => selected.name === service.name))
+      .slice(0, 8);
+  }, [editBookingData?.branch, editSearchableServices, editSelectedServices, editServiceSearchTerm]);
+
   const filteredStaff = useMemo(() => {
     if (!bookingData.branch) return [];
     
@@ -2574,16 +2721,101 @@ export default function AdminAppointments() {
     });
   }, [bookingData.branch, selectedBranch?.firebaseId, staffMembers]);
 
-  const mockProducts = [
-    { name: "Premium Shampoo", category: "Hair Care", price: 15 },
-    { name: "Beard Oil", category: "Grooming", price: 12 },
-    { name: "Hair Wax", category: "Styling", price: 8 },
-    { name: "Face Mask", category: "Skincare", price: 20 },
-    { name: "Hair Clippers", category: "Tools", price: 45 },
-    { name: "Styling Gel", category: "Styling", price: 10 },
-    { name: "Aftershave", category: "Grooming", price: 18 },
-    { name: "Hair Brush", category: "Tools", price: 25 }
-  ];
+    const editFilteredStaff = useMemo(() => {
+      const activeStaff = staffMembers.filter((staff) => isStaffActive(staff.status));
+      if (activeStaff.length === 0) return [];
+
+      if (!editBookingData?.branch) {
+        return activeStaff;
+      }
+
+      const resolvedEditBranchId = branches.find((branch) => branch.name === editBookingData.branch)?.firebaseId;
+      const branchMatchedStaff = activeStaff.filter((staff) =>
+        staffBelongsToBranch(staff, editBookingData.branch, resolvedEditBranchId)
+      );
+
+      if (branchMatchedStaff.length > 0) {
+        return branchMatchedStaff;
+      }
+
+      // Fallback when booking branch name does not match stored staff branch values.
+      if (user?.role === 'admin' && user?.branchName) {
+        const adminBranchStaff = activeStaff.filter((staff) =>
+          staffBelongsToBranch(staff, user.branchName, user.branchId)
+        );
+        if (adminBranchStaff.length > 0) {
+          return adminBranchStaff;
+        }
+      }
+
+      return activeStaff;
+    }, [branches, editBookingData?.branch, staffMembers, user?.branchId, user?.branchName, user?.role]);
+
+    const getServiceKey = (service: { firebaseId?: string; id?: string; name: string }): string =>
+      service.firebaseId || service.id || service.name;
+
+    const resolveStaffMetaByName = (staffName: string) =>
+      staffMembers.find((staff) => staff.name === staffName);
+
+    const buildServiceStaffAssignment = (staffName: string, defaultTime?: string): ServiceStaffAssignment => {
+      const staffMeta = resolveStaffMetaByName(staffName);
+      return {
+        staffName,
+        staffId: staffMeta?.firebaseId || staffMeta?.id || staffMeta?.staffId,
+        staffRole: staffMeta?.role,
+        time: defaultTime || '',
+      };
+    };
+
+    const buildTeamMembersFromAssignments = (
+      assignments: Record<string, ServiceStaffAssignment>,
+      existingMembers: BookingFormData['teamMembers']
+    ) => {
+      const uniqueNames = Array.from(
+        new Set(
+          Object.values(assignments)
+            .map((assignment) => assignment.staffName)
+            .filter(Boolean)
+        )
+      );
+
+      return uniqueNames.map((name) => {
+        const existing = existingMembers.find((member) => member.name === name);
+        return { name, tip: existing?.tip || 0 };
+      });
+    };
+
+    const resolveDefaultStaffName = (): string => {
+      if (bookingData.barber && filteredStaff.some((staff) => staff.name === bookingData.barber)) {
+        return bookingData.barber;
+      }
+      if (filteredStaff.length === 1) {
+        return filteredStaff[0].name;
+      }
+      return '';
+    };
+
+    const syncBookingStaffFromAssignments = (
+      assignments: Record<string, ServiceStaffAssignment>,
+      previous: BookingFormData
+    ) => {
+      const teamMembers = buildTeamMembersFromAssignments(assignments, previous.teamMembers);
+      return {
+        teamMembers,
+        barber: teamMembers[0]?.name || previous.barber || '',
+      };
+    };
+
+    const syncEditStaffFromAssignments = (
+      assignments: Record<string, ServiceStaffAssignment>,
+      previous: BookingFormData
+    ) => {
+      const teamMembers = buildTeamMembersFromAssignments(assignments, previous.teamMembers);
+      return {
+        teamMembers,
+        barber: teamMembers[0]?.name || previous.barber || '',
+      };
+    };
 
   const normalizeProductLookup = (value: string) => value.trim().toLowerCase();
 
@@ -2611,20 +2843,30 @@ export default function AdminAppointments() {
       });
     };
 
-    mockProducts.forEach((product) => registerProduct(product.name, product.category, product.price));
+    products
+      .filter((product) => product.status !== 'inactive')
+      .forEach((product) => registerProduct(product.name, product.category, product.price));
 
     bookings.forEach((booking) => {
       (booking.products || []).forEach((product) => {
-        registerProduct(product.name, product.category, product.price);
+        registerProduct(
+          product.name || (product as any).productName || (product as any).itemName,
+          product.category,
+          product.price
+        );
       });
     });
 
     (selectedAppointmentForInvoice?.products || []).forEach((product) => {
-      registerProduct(product.name, product.category, product.price);
+      registerProduct(
+        product.name || (product as any).productName || (product as any).itemName,
+        product.category,
+        product.price
+      );
     });
 
     return Array.from(productMap.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [bookings, selectedAppointmentForInvoice]);
+  }, [bookings, products, selectedAppointmentForInvoice]);
 
   const invoiceProductSuggestions = useMemo(() => {
     const query = normalizeProductLookup(invoiceProductSearchTerm);
@@ -2646,27 +2888,194 @@ export default function AdminAppointments() {
     const isAlreadySelected = selectedServices.some(s => s.name === serviceName);
     let updatedSelectedServices: FirebaseService[];
     let updatedServicesArray: string[];
+    let updatedAssignments = { ...serviceStaffAssignments };
+    const serviceKey = getServiceKey(service);
 
     if (isAlreadySelected) {
       updatedSelectedServices = selectedServices.filter(s => s.name !== serviceName);
       updatedServicesArray = bookingData.services.filter(s => s !== serviceName);
+      delete updatedAssignments[serviceKey];
     } else {
       updatedSelectedServices = [...selectedServices, service];
       updatedServicesArray = [...bookingData.services, serviceName];
+      const defaultStaff = resolveDefaultStaffName();
+      updatedAssignments = {
+        ...updatedAssignments,
+        [serviceKey]: defaultStaff
+          ? buildServiceStaffAssignment(defaultStaff, bookingData.time)
+          : { staffName: '', time: bookingData.time || '' },
+      };
     }
 
     setSelectedServices(updatedSelectedServices);
-    setBookingData(prev => ({
-      ...prev,
-      services: updatedServicesArray,
-      service: updatedServicesArray.length > 0 ? updatedServicesArray[0] : ''
-    }));
+    setServiceStaffAssignments(updatedAssignments);
+
+    setBookingData((prev) => {
+      const staffSync = syncBookingStaffFromAssignments(updatedAssignments, prev);
+      return {
+        ...prev,
+        services: updatedServicesArray,
+        service: updatedServicesArray.length > 0 ? updatedServicesArray[0] : '',
+        ...staffSync,
+      };
+    });
   };
 
   const applyServiceSuggestion = (service: FirebaseService) => {
     handleServiceSelection(service.name);
     setServiceSearchTerm('');
     setShowServiceSuggestions(false);
+  };
+
+  const handleServiceStaffChange = (service: FirebaseService, staffName: string) => {
+    const serviceKey = getServiceKey(service);
+    const previousAssignment = serviceStaffAssignments[serviceKey];
+    const updatedAssignments = {
+      ...serviceStaffAssignments,
+      [serviceKey]: staffName
+        ? buildServiceStaffAssignment(staffName, previousAssignment?.time || bookingData.time)
+        : { staffName: '', time: previousAssignment?.time || bookingData.time || '' },
+    };
+
+    setServiceStaffAssignments(updatedAssignments);
+    setBookingData((prev) => ({
+      ...prev,
+      ...syncBookingStaffFromAssignments(updatedAssignments, prev),
+    }));
+  };
+
+  const handleServiceTimeChange = (service: FirebaseService, serviceTime: string) => {
+    const serviceKey = getServiceKey(service);
+    const previousAssignment = serviceStaffAssignments[serviceKey];
+    const updatedAssignments = {
+      ...serviceStaffAssignments,
+      [serviceKey]: {
+        ...(previousAssignment || { staffName: '' }),
+        time: serviceTime,
+      },
+    };
+    setServiceStaffAssignments(updatedAssignments);
+  };
+
+  const handleEditServiceStaffChange = (service: FirebaseService, staffName: string) => {
+    if (!editBookingData) return;
+    const serviceKey = getServiceKey(service);
+    const previousAssignment = editServiceStaffAssignments[serviceKey];
+    const updatedAssignments = {
+      ...editServiceStaffAssignments,
+      [serviceKey]: staffName
+        ? buildServiceStaffAssignment(staffName, previousAssignment?.time || editBookingData.time)
+        : { staffName: '', time: previousAssignment?.time || editBookingData.time || '' },
+    };
+
+    setEditServiceStaffAssignments(updatedAssignments);
+    setEditBookingData((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        ...syncEditStaffFromAssignments(updatedAssignments, prev),
+      };
+    });
+  };
+
+  const handleEditServiceTimeChange = (service: FirebaseService, serviceTime: string) => {
+    const serviceKey = getServiceKey(service);
+    const previousAssignment = editServiceStaffAssignments[serviceKey];
+    const updatedAssignments = {
+      ...editServiceStaffAssignments,
+      [serviceKey]: {
+        ...(previousAssignment || { staffName: '' }),
+        time: serviceTime,
+      },
+    };
+    setEditServiceStaffAssignments(updatedAssignments);
+  };
+
+  const handleEditServiceTipChange = (service: FirebaseService, tip: number) => {
+    if (!editBookingData) return;
+
+    const serviceKey = getServiceKey(service);
+    const assignedStaffName = editServiceStaffAssignments[serviceKey]?.staffName;
+    if (!assignedStaffName) return;
+
+    setEditBookingData((prev) => {
+      if (!prev) return prev;
+
+      const existingIndex = prev.teamMembers.findIndex((member) => member.name === assignedStaffName);
+      if (existingIndex >= 0) {
+        const nextTeamMembers = [...prev.teamMembers];
+        nextTeamMembers[existingIndex] = {
+          ...nextTeamMembers[existingIndex],
+          tip,
+        };
+        return {
+          ...prev,
+          teamMembers: nextTeamMembers,
+        };
+      }
+
+      return {
+        ...prev,
+        teamMembers: [...prev.teamMembers, { name: assignedStaffName, tip }],
+      };
+    });
+  };
+
+  const handleEditServiceSelection = (serviceName: string) => {
+    if (!editBookingData) return;
+
+    const service =
+      editFilteredServices.find((entry) => entry.name === serviceName) ||
+      services.find((entry) => entry.name === serviceName);
+    if (!service) return;
+
+    const isAlreadySelected = editSelectedServices.some((selected) => selected.name === serviceName);
+    const serviceKey = getServiceKey(service);
+    const defaultStaffName =
+      editBookingData.barber && editFilteredStaff.some((staff) => staff.name === editBookingData.barber)
+        ? editBookingData.barber
+        : editFilteredStaff.length === 1
+          ? editFilteredStaff[0].name
+          : '';
+
+    const nextAssignments = isAlreadySelected
+      ? (() => {
+          const next = { ...editServiceStaffAssignments };
+          delete next[serviceKey];
+          return next;
+        })()
+      : {
+          ...editServiceStaffAssignments,
+          [serviceKey]: defaultStaffName
+            ? buildServiceStaffAssignment(defaultStaffName, editBookingData.time)
+            : { staffName: '', time: editBookingData.time || '' },
+        };
+
+    const nextSelectedServices = isAlreadySelected
+      ? editSelectedServices.filter((selected) => selected.name !== serviceName)
+      : [...editSelectedServices, service];
+
+    setEditSelectedServices(nextSelectedServices);
+    setEditServiceStaffAssignments(nextAssignments);
+    setEditBookingData((prev) => {
+      if (!prev) return prev;
+      const nextServices = isAlreadySelected
+        ? prev.services.filter((name) => name !== serviceName)
+        : [...prev.services, serviceName];
+      const staffSync = syncEditStaffFromAssignments(nextAssignments, prev);
+      return {
+        ...prev,
+        services: nextServices,
+        service: nextServices[0] || '',
+        ...staffSync,
+      };
+    });
+  };
+
+  const applyEditServiceSuggestion = (service: FirebaseService) => {
+    handleEditServiceSelection(service.name);
+    setEditServiceSearchTerm('');
+    setShowEditServiceSuggestions(false);
   };
 
   const handleCategoryChange = (categoryName: string) => {
@@ -2701,6 +3110,7 @@ export default function AdminAppointments() {
     }));
     
     setSelectedServices([]);
+    setServiceStaffAssignments({});
     setSelectedCategory(null);
     setServiceSearchTerm('');
     setShowServiceSuggestions(false);
@@ -3584,10 +3994,38 @@ export default function AdminAppointments() {
         matchedServices.push(foundService);
       }
     });
+
+    const appointmentServiceDetails = Array.isArray(appointment.serviceDetails)
+      ? appointment.serviceDetails
+      : [];
+
+    const nextEditAssignments = matchedServices.reduce<Record<string, ServiceStaffAssignment>>(
+      (acc, service) => {
+        const detailMatch = appointmentServiceDetails.find((detail: any) => {
+          const detailName = String(detail?.name || detail?.serviceName || '').trim().toLowerCase();
+          return detailName === service.name.trim().toLowerCase();
+        });
+        const staffName = String(detailMatch?.staff || appointment.barber || '').trim();
+        const serviceTime = String(detailMatch?.time || appointment.time || '').trim();
+        acc[getServiceKey(service)] = staffName
+          ? buildServiceStaffAssignment(staffName, serviceTime)
+          : { staffName: '', time: serviceTime };
+        return acc;
+      },
+      {}
+    );
+
+    const syncedEditData = {
+      ...editData,
+      ...syncEditStaffFromAssignments(nextEditAssignments, editData),
+    };
     
     setEditingAppointment(appointment);
-    setEditBookingData(editData);
+    setEditBookingData(syncedEditData);
     setEditSelectedServices(matchedServices);
+    setEditServiceStaffAssignments(nextEditAssignments);
+    setEditServiceSearchTerm('');
+    setShowEditServiceSuggestions(false);
     setShowEditDialog(true);
   };
 
@@ -3598,100 +4036,188 @@ export default function AdminAppointments() {
     selectedCategory: FirebaseCategory | null,
     selectedBranch: FirebaseBranch | null,
     originalAppointment: Appointment
-  ): Promise<boolean> => {
+  ): Promise<{ success: boolean; extraBookings: FirebaseBooking[] }> => {
     try {
-      const servicesPrice = selectedServices.reduce((sum, s) => sum + s.price, 0);
-      const totalDuration = selectedServices.reduce((sum, s) => sum + s.duration, 0);
-      const productsTotal = updatedData.products.reduce((sum, p) => sum + (p.price * p.quantity), 0);
-      
-      let subtotal = servicesPrice + productsTotal + updatedData.serviceCharges;
-      
-      let discountAmount = 0;
-      if (updatedData.discount > 0) {
-        if (updatedData.discountType === 'percentage') {
-          discountAmount = subtotal * (updatedData.discount / 100);
-          subtotal = subtotal * (1 - updatedData.discount / 100);
-        } else {
-          discountAmount = updatedData.discount;
-          subtotal = Math.max(0, subtotal - updatedData.discount);
+      if (selectedServices.length === 0) {
+        return { success: false, extraBookings: [] };
+      }
+
+      const selectedBranchName = selectedBranch?.name || updatedData.branch || selectedServices[0]?.branchNames?.[0] || "All Branches";
+      const selectedBranchId = selectedBranch?.firebaseId || '';
+      const paymentMethodText = updatedData.paymentMethods.length > 0
+        ? updatedData.paymentMethods.join(', ')
+        : 'cash';
+
+      const serviceEntries = selectedServices.map((service) => {
+        const serviceKey = service.firebaseId || service.id || service.name;
+        const assignment = editServiceStaffAssignments[serviceKey];
+        const serviceTime = assignment?.time || updatedData.time;
+        const staffName = assignment?.staffName || updatedData.barber || '';
+        const staffId = assignment?.staffId || staffName;
+        const staffRole = assignment?.staffRole || 'hairstylist';
+        const tip = updatedData.teamMembers.find((member) => member.name === staffName)?.tip || 0;
+        const price = Number(service.price || 0);
+        const taxAmount = (price * updatedData.tax) / 100;
+        const totalAmount = price + taxAmount + tip;
+
+        return {
+          service,
+          staffName,
+          staffId,
+          staffRole,
+          serviceTime,
+          tip,
+          price,
+          taxAmount,
+          totalAmount,
+        };
+      });
+
+      const buildPayload = (entry: (typeof serviceEntries)[number], bookingNumber: string) => {
+        const singleServiceDetail = [{
+          id: entry.service.firebaseId,
+          name: entry.service.name,
+          price: entry.price,
+          duration: Number(entry.service.duration || 0),
+          category: entry.service.category,
+          staff: entry.staffName,
+          staffId: entry.staffId,
+          time: entry.serviceTime,
+        }];
+
+        return {
+          customerName: updatedData.customer,
+          customerEmail: updatedData.email || "",
+          customerPhone: updatedData.phone || "",
+          serviceName: entry.service.name,
+          services: [entry.service.name],
+          serviceDetails: singleServiceDetail,
+          servicesDetails: singleServiceDetail,
+          serviceCategory: entry.service.category || selectedCategory?.name || "Service",
+          serviceDuration: Number(entry.service.duration || 0),
+          servicePrice: entry.price,
+          totalAmount: entry.totalAmount,
+          totalDuration: Number(entry.service.duration || 0),
+          staff: entry.staffName,
+          staffName: entry.staffName,
+          staffId: entry.staffId,
+          staffRole: entry.staffRole,
+          date: updatedData.date,
+          time: entry.serviceTime,
+          timeSlot: entry.serviceTime,
+          bookingDate: updatedData.date,
+          bookingTime: entry.serviceTime,
+          status: updatedData.status,
+          paymentMethod: paymentMethodText,
+          paymentStatus: updatedData.status === 'completed' ? 'paid' : 'pending',
+          branch: selectedBranchName,
+          branchId: selectedBranchId,
+          branchNames: [selectedBranchName],
+          branches: selectedBranchId ? [selectedBranchId] : [],
+          userBranchId: selectedBranchId,
+          userBranchName: selectedBranchName,
+          category: selectedCategory?.name || entry.service.category || "",
+          categoryId: selectedCategory?.firebaseId || entry.service.categoryId || "",
+          cardLast4Digits: updatedData.cardLast4Digits || "",
+          trnNumber: updatedData.trnNumber || "",
+          paymentAmounts: updatedData.paymentAmounts,
+          notes: updatedData.notes || '',
+          products: [],
+          teamMembers: entry.staffName ? [{ name: entry.staffName, tip: entry.tip }] : [],
+          subtotal: entry.price,
+          tax: updatedData.tax,
+          taxAmount: entry.taxAmount,
+          discount: 0,
+          discountType: updatedData.discountType,
+          discountAmount: 0,
+          serviceTip: 0,
+          serviceCharges: 0,
+          totalTips: entry.tip,
+          productsTotal: 0,
+          paymentMethods: updatedData.paymentMethods,
+          bookingNumber,
+        };
+      };
+
+      const currentBookingNumber = originalAppointment.bookingNumber || `ADMIN-${Date.now()}-1`;
+      const primaryEntry = serviceEntries[0];
+      const primaryPayload = {
+        ...buildPayload(primaryEntry, currentBookingNumber),
+        updatedAt: serverTimestamp(),
+      };
+
+      const bookingRef = doc(db, "bookings", appointmentId);
+      await updateDoc(bookingRef, primaryPayload);
+
+      const extraBookings: FirebaseBooking[] = [];
+      if (serviceEntries.length > 1) {
+        const bookingsRef = collection(db, "bookings");
+        for (let index = 1; index < serviceEntries.length; index += 1) {
+          const entry = serviceEntries[index];
+          const bookingNumber = `${currentBookingNumber}-S${index + 1}`;
+          const payload = {
+            ...buildPayload(entry, bookingNumber),
+            source: 'admin_panel',
+            createdBy: 'admin',
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          };
+
+          const docRef = await addDoc(bookingsRef, payload);
+          extraBookings.push({
+            id: docRef.id,
+            firebaseId: docRef.id,
+            bookingNumber,
+            customerName: updatedData.customer,
+            customerEmail: updatedData.email || "",
+            customerPhone: updatedData.phone || "",
+            services: [entry.service.name],
+            serviceDetails: payload.serviceDetails,
+            serviceDuration: Number(entry.service.duration || 0),
+            totalDuration: Number(entry.service.duration || 0),
+            servicePrice: entry.price,
+            totalPrice: entry.totalAmount,
+            totalAmount: entry.totalAmount,
+            status: updatedData.status,
+            bookingDate: updatedData.date,
+            bookingTime: entry.serviceTime,
+            paymentMethod: paymentMethodText,
+            paymentStatus: updatedData.status === 'completed' ? 'paid' : 'pending',
+            branch: selectedBranchName,
+            staff: entry.staffName,
+            staffId: entry.staffId,
+            staffRole: entry.staffRole,
+            notes: updatedData.notes || "",
+            serviceCategory: entry.service.category || selectedCategory?.name || "Service",
+            serviceId: entry.service.firebaseId || "",
+            timeSlot: entry.serviceTime,
+            pointsAwarded: false,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            customerId: "",
+            createdBy: 'admin',
+            cardLast4Digits: updatedData.cardLast4Digits || "",
+            trnNumber: updatedData.trnNumber || "",
+            teamMembers: entry.staffName ? [{ name: entry.staffName, tip: entry.tip }] : [],
+            products: [],
+            paymentMethods: updatedData.paymentMethods,
+            paymentAmounts: updatedData.paymentAmounts,
+            discount: 0,
+            discountType: updatedData.discountType,
+            serviceTip: 0,
+            serviceCharges: 0,
+            tax: updatedData.tax,
+            serviceName: entry.service.name,
+            subtotal: entry.price,
+            taxAmount: entry.taxAmount,
+          });
         }
       }
-      
-      const taxAmount = (subtotal * updatedData.tax) / 100;
-      const totalTips = updatedData.serviceTip + updatedData.teamMembers.reduce((sum, tm) => sum + tm.tip, 0);
-      const totalAmount = subtotal + taxAmount + totalTips;
-      
-      const serviceDetails = selectedServices.map(service => ({
-        id: service.firebaseId,
-        name: service.name,
-        price: service.price,
-        duration: service.duration,
-        category: service.category
-      }));
-      
-      const updateData = {
-        customerName: updatedData.customer,
-        customerEmail: updatedData.email || "",
-        customerPhone: updatedData.phone || "",
-        serviceName: updatedData.services[0] || "Multiple Services",
-        services: updatedData.services,
-        servicesDetails: serviceDetails,
-        serviceCategory: selectedCategory?.name || selectedServices[0]?.category || "Multiple",
-        serviceDuration: totalDuration,
-        servicePrice: servicesPrice,
-        totalAmount: totalAmount,
-        totalDuration: totalDuration,
-        staff: updatedData.barber,
-        staffName: updatedData.barber,
-        staffId: updatedData.teamMembers.find(tm => tm.name === updatedData.barber)?.name || updatedData.barber,
-        date: updatedData.date,
-        time: updatedData.time,
-        timeSlot: updatedData.time,
-        bookingDate: updatedData.date,
-        bookingTime: updatedData.time,
-        status: updatedData.status,
-        paymentMethod: updatedData.paymentMethods.length > 0 
-          ? updatedData.paymentMethods.join(', ') 
-          : 'cash',
-        paymentStatus: updatedData.status === 'completed' ? 'paid' : 'pending',
-        branch: selectedBranch?.name || selectedServices[0]?.branchNames?.[0] || "All Branches",
-        branchNames: selectedBranch?.name ? [selectedBranch.name] : (selectedServices[0]?.branchNames || ["All Branches"]),
-        category: selectedCategory?.name || "",
-        categoryId: selectedCategory?.firebaseId || "",
-        cardLast4Digits: updatedData.cardLast4Digits || "",
-        trnNumber: updatedData.trnNumber || "",
-        paymentAmounts: updatedData.paymentAmounts,
-        notes: updatedData.notes || '',
-        products: updatedData.products.map(product => ({
-          productName: product.name,
-          name: product.name,
-          category: product.category,
-          price: product.price,
-          quantity: product.quantity,
-          total: product.price * product.quantity
-        })),
-        teamMembers: updatedData.teamMembers,
-        subtotal: subtotal,
-        tax: updatedData.tax,
-        taxAmount: taxAmount,
-        discount: updatedData.discount,
-        discountType: updatedData.discountType,
-        discountAmount: discountAmount,
-        serviceTip: updatedData.serviceTip,
-        serviceCharges: updatedData.serviceCharges,
-        totalTips: totalTips,
-        productsTotal: productsTotal,
-        paymentMethods: updatedData.paymentMethods,
-        updatedAt: serverTimestamp()
-      };
-      
-      const bookingRef = doc(db, "bookings", appointmentId);
-      await updateDoc(bookingRef, updateData);
-      
-      return true;
+
+      return { success: true, extraBookings };
     } catch (error) {
       console.error("❌ Error updating appointment:", error);
-      return false;
+      return { success: false, extraBookings: [] };
     }
   };
 
@@ -3714,11 +4240,36 @@ export default function AdminAppointments() {
       return;
     }
     
-    if (!editBookingData.customer || !editBookingData.barber || !editBookingData.date || !editBookingData.time || editSelectedServices.length === 0) {
+    if (!editBookingData.customer || !editBookingData.barber || !editBookingData.date || editSelectedServices.length === 0) {
       addNotification({
         type: 'error',
         title: 'Validation Error',
         message: 'Please fill in all required fields including at least one service.',
+      });
+      return;
+    }
+
+    const missingStaff = editSelectedServices.filter((service) =>
+      !editServiceStaffAssignments[getServiceKey(service)]?.staffName
+    );
+    if (missingStaff.length > 0) {
+      addNotification({
+        type: 'error',
+        title: 'Validation Error',
+        message: 'Please assign a staff member for each selected service.',
+      });
+      return;
+    }
+
+    const missingEditTimes = editSelectedServices.filter((service) => {
+      const assignment = editServiceStaffAssignments[getServiceKey(service)];
+      return !(assignment?.time || editBookingData.time);
+    });
+    if (missingEditTimes.length > 0) {
+      addNotification({
+        type: 'error',
+        title: 'Validation Error',
+        message: 'Please assign a time for each selected service.',
       });
       return;
     }
@@ -3733,7 +4284,7 @@ export default function AdminAppointments() {
       paymentAmounts: editPaymentSelection.paymentAmounts,
     };
     
-    const success = await updateAppointmentInFirebase(
+    const updateResult = await updateAppointmentInFirebase(
       editingAppointment.firebaseId,
       sanitizedEditBookingData,
       editSelectedServices,
@@ -3742,33 +4293,68 @@ export default function AdminAppointments() {
       editingAppointment
     );
     
-    if (success) {
-      setBookings(prev => prev.map(booking => 
-        booking.firebaseId === editingAppointment.firebaseId ? {
-          ...booking,
-          customerName: sanitizedEditBookingData.customer,
-          customerEmail: sanitizedEditBookingData.email,
-          customerPhone: sanitizedEditBookingData.phone,
-          services: sanitizedEditBookingData.services,
-          totalDuration: editSelectedServices.reduce((sum, s) => sum + s.duration, 0),
-          status: sanitizedEditBookingData.status,
-          bookingDate: sanitizedEditBookingData.date,
-          bookingTime: sanitizedEditBookingData.time,
-          staff: sanitizedEditBookingData.barber,
-          notes: sanitizedEditBookingData.notes,
-          cardLast4Digits: sanitizedEditBookingData.cardLast4Digits,
-          trnNumber: sanitizedEditBookingData.trnNumber,
-          teamMembers: sanitizedEditBookingData.teamMembers,
-          products: sanitizedEditBookingData.products,
-          paymentMethods: sanitizedEditBookingData.paymentMethods,
-          paymentAmounts: sanitizedEditBookingData.paymentAmounts,
-          discount: sanitizedEditBookingData.discount,
-          discountType: sanitizedEditBookingData.discountType,
-          serviceTip: sanitizedEditBookingData.serviceTip,
-          serviceCharges: sanitizedEditBookingData.serviceCharges,
-          tax: sanitizedEditBookingData.tax
-        } : booking
-      ));
+    if (updateResult.success) {
+      const primaryService = editSelectedServices[0];
+      const primaryAssignment = editServiceStaffAssignments[getServiceKey(primaryService)] || { staffName: '' };
+      const primaryServiceTime = primaryAssignment.time || sanitizedEditBookingData.time;
+      const primaryServicePrice = Number(primaryService?.price || 0);
+      const primaryServiceDuration = Number(primaryService?.duration || 0);
+      const primaryStaffTip = sanitizedEditBookingData.teamMembers.find(
+        (member) => member.name === primaryAssignment.staffName
+      )?.tip || 0;
+      const primaryTaxAmount = (primaryServicePrice * sanitizedEditBookingData.tax) / 100;
+      const primaryTotalAmount = primaryServicePrice + primaryTaxAmount + primaryStaffTip;
+
+      setBookings(prev => {
+        const nextBookings = prev.map((booking) =>
+          booking.firebaseId === editingAppointment.firebaseId ? {
+            ...booking,
+            customerName: sanitizedEditBookingData.customer,
+            customerEmail: sanitizedEditBookingData.email,
+            customerPhone: sanitizedEditBookingData.phone,
+            services: [primaryService.name],
+            serviceDetails: [{
+              id: primaryService.firebaseId,
+              name: primaryService.name,
+              price: primaryServicePrice,
+              duration: primaryServiceDuration,
+              category: primaryService.category,
+              staff: primaryAssignment.staffName || sanitizedEditBookingData.barber,
+              staffId: primaryAssignment.staffId || sanitizedEditBookingData.barber,
+              time: primaryServiceTime,
+            }],
+            totalDuration: primaryServiceDuration,
+            serviceDuration: primaryServiceDuration,
+            servicePrice: primaryServicePrice,
+            totalAmount: primaryTotalAmount,
+            status: sanitizedEditBookingData.status,
+            bookingDate: sanitizedEditBookingData.date,
+            bookingTime: primaryServiceTime,
+            timeSlot: primaryServiceTime,
+            staff: primaryAssignment.staffName || sanitizedEditBookingData.barber,
+            notes: sanitizedEditBookingData.notes,
+            cardLast4Digits: sanitizedEditBookingData.cardLast4Digits,
+            trnNumber: sanitizedEditBookingData.trnNumber,
+            teamMembers: primaryAssignment.staffName ? [{ name: primaryAssignment.staffName, tip: primaryStaffTip }] : [],
+            products: [],
+            paymentMethods: sanitizedEditBookingData.paymentMethods,
+            paymentAmounts: sanitizedEditBookingData.paymentAmounts,
+            discount: 0,
+            discountType: sanitizedEditBookingData.discountType,
+            serviceTip: 0,
+            serviceCharges: 0,
+            tax: sanitizedEditBookingData.tax,
+            taxAmount: primaryTaxAmount,
+            subtotal: primaryServicePrice,
+            serviceCategory: primaryService.category,
+          } : booking
+        );
+
+        if (updateResult.extraBookings.length > 0) {
+          return [...updateResult.extraBookings, ...nextBookings];
+        }
+        return nextBookings;
+      });
       
       addNotification({
         type: 'success',
@@ -3781,6 +4367,8 @@ export default function AdminAppointments() {
       setEditingAppointment(null);
       setEditBookingData(null);
       setEditSelectedServices([]);
+      setEditServiceSearchTerm('');
+      setShowEditServiceSuggestions(false);
     } else {
       addNotification({
         type: 'error',
@@ -3790,13 +4378,42 @@ export default function AdminAppointments() {
     }
   };
 
-  const deleteBookingInFirebase = async (bookingId: string): Promise<boolean> => {
+  const deleteBookingInFirebase = async (bookingId: string, appointment?: Appointment): Promise<boolean> => {
     try {
       const bookingRef = doc(db, "bookings", bookingId);
+      const bookingSnap = await getDoc(bookingRef);
+
+      const bookingLogPayload = bookingSnap.exists()
+        ? bookingSnap.data()
+        : {
+            customerName: appointment?.customer || '',
+            customerEmail: appointment?.email || '',
+            customerPhone: appointment?.phone || '',
+            bookingDate: appointment?.date || '',
+            bookingTime: appointment?.time || '',
+            status: appointment?.status || '',
+            branch: appointment?.branch || '',
+            staff: appointment?.barber || '',
+            services: appointment?.services || (appointment?.service ? [appointment.service] : []),
+            source: appointment?.source || 'admin_panel',
+          };
+
+      await addDoc(collection(db, "bookingLogs"), {
+        bookingId,
+        action: "deleted",
+        deletedAt: serverTimestamp(),
+        deletedBy: {
+          uid: user?.id || '',
+          email: user?.email || '',
+          role: user?.role || '',
+        },
+        booking: bookingLogPayload,
+      });
+
       await updateDoc(bookingRef, {
         status: "deleted",
-        deletedAt: new Date(),
-        updatedAt: new Date()
+        deletedAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
       });
       return true;
     } catch (error) {
@@ -3820,7 +4437,7 @@ export default function AdminAppointments() {
     }
 
     try {
-      const success = await deleteBookingInFirebase(appointment.firebaseId);
+      const success = await deleteBookingInFirebase(appointment.firebaseId, appointment);
       
       if (success) {
         setBookings(prev => prev.filter(b => b.firebaseId !== appointment.firebaseId));
@@ -4279,7 +4896,11 @@ export default function AdminAppointments() {
 
   const buildCheckoutBookingData = (): BookingFormData => {
     const serviceNames = selectedServices.map((service) => service.name);
-    const primaryBarber = bookingData.barber || bookingData.teamMembers[0]?.name || '';
+    const derivedTeamMembers = buildTeamMembersFromAssignments(
+      serviceStaffAssignments,
+      bookingData.teamMembers
+    );
+    const primaryBarber = derivedTeamMembers[0]?.name || bookingData.barber || '';
     const paymentSelection = sanitizeBookingPaymentSelection(
       bookingData.paymentMethods,
       bookingData.paymentAmounts
@@ -4295,19 +4916,34 @@ export default function AdminAppointments() {
       services: serviceNames,
       paymentMethods: paymentSelection.paymentMethods as BookingFormData['paymentMethods'],
       paymentAmounts: paymentSelection.paymentAmounts,
-      teamMembers: bookingData.teamMembers.length > 0
-        ? bookingData.teamMembers
+      teamMembers: derivedTeamMembers.length > 0
+        ? derivedTeamMembers
         : (primaryBarber ? [{ name: primaryBarber, tip: 0 }] : []),
     };
   };
 
   const validateCheckoutBookingData = (data: BookingFormData): string | null => {
-    if (!data.customer || !data.date || !data.time) {
-      return 'Please fill customer name, date, and time.';
+    if (!data.customer || !data.date) {
+      return 'Please fill customer name and date.';
     }
 
     if (selectedServices.length === 0) {
       return 'Please add at least one service to the booking cart.';
+    }
+
+    const missingStaff = selectedServices.filter((service) =>
+      !serviceStaffAssignments[getServiceKey(service)]?.staffName
+    );
+    if (missingStaff.length > 0) {
+      return 'Please assign a staff member for each selected service.';
+    }
+
+    const missingTimes = selectedServices.filter((service) => {
+      const assignment = serviceStaffAssignments[getServiceKey(service)];
+      return !(assignment?.time || data.time);
+    });
+    if (missingTimes.length > 0) {
+      return 'Please assign a time for each selected service.';
     }
 
     if (!data.barber) {
@@ -4357,7 +4993,7 @@ export default function AdminAppointments() {
       service: '',
       services: [],
       barber: barber,
-      teamMembers: [{name: barber, tip: 0}],
+      teamMembers: [],
       date: date,
       time: time,
       notes: '',
@@ -4382,6 +5018,7 @@ export default function AdminAppointments() {
       branch: adminBranchName
     });
     setSelectedServices([]);
+    setServiceStaffAssignments({});
     setSelectedCategory(null);
     setSelectedBranch(adminBranch);
     setServiceSearchTerm('');
@@ -4404,15 +5041,22 @@ export default function AdminAppointments() {
 
     syncCheckoutToBookingStore(checkoutBookingData);
 
-    const result = await createBookingInFirebase(checkoutBookingData, selectedServices, selectedCategory, selectedBranch, addNotification);
+    const result = await createBookingInFirebase(
+      checkoutBookingData,
+      selectedServices,
+      serviceStaffAssignments,
+      selectedCategory,
+      selectedBranch,
+      addNotification
+    );
     
-    if (result.success && result.booking) {
-      setBookings(prev => [result.booking!, ...prev]);
+    if (result.success && result.bookings && result.bookings.length > 0) {
+      setBookings(prev => [...result.bookings!, ...prev]);
       
       addNotification({
         type: 'success',
         title: 'Booking Created Successfully',
-        message: `Appointment for ${checkoutBookingData.customer} has been saved with ${selectedServices.length} service(s).`,
+        message: `Appointment for ${checkoutBookingData.customer} has been saved with ${result.bookings.length} booking slot(s).`,
       });
 
       setShowBookingDialog(false);
@@ -4455,6 +5099,7 @@ export default function AdminAppointments() {
       });
       
       setSelectedServices([]);
+      setServiceStaffAssignments({});
       setSelectedCategory(null);
       setSelectedBranch(adminBranch);
       setServiceSearchTerm('');
@@ -5257,6 +5902,7 @@ export default function AdminAppointments() {
                                   lockedBranch={user?.role === 'admin' ? user.branchName : undefined}
                                   paymentMethodAvailability={paymentMethodAvailability}
                                   calendarDisplaySettings={calendarDisplaySettings}
+                                  invoiceDisclaimerTemplate={invoiceDisclaimerTemplate}
                                   showFullDetails={true}
                                 />
                               </TabsContent>
@@ -5831,17 +6477,17 @@ export default function AdminAppointments() {
       </Sheet>
 
       <Sheet open={showBookingDialog} onOpenChange={setShowBookingDialog}>
-        <SheetContent className="w-[98vw] sm:max-w-6xl z-60 overflow-y-auto">
-          <SheetHeader className="border-b pb-4 mb-6">
-            <SheetTitle className="text-xl font-semibold">Create New Booking</SheetTitle>
-            <SheetDescription className="text-base">
+        <SheetContent className="w-full sm:max-w-5xl lg:max-w-6xl z-60 overflow-y-auto px-3 sm:px-5">
+          <SheetHeader className="border-b pb-3 mb-4">
+            <SheetTitle className="text-lg sm:text-xl font-semibold">Create New Booking</SheetTitle>
+            <SheetDescription className="text-sm">
               Schedule a new appointment for a customer.
             </SheetDescription>
           </SheetHeader>
 
-          <div className="space-y-6 pb-6">
-            <div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+          <div className="space-y-4 pb-4">
+            <div className="space-y-4 p-4 sm:p-5 bg-gray-50/50 rounded-lg border">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 flex items-center gap-2">
                 <User className="w-5 h-5 text-primary" />
                 Customer Information
               </h3>
@@ -5861,7 +6507,7 @@ export default function AdminAppointments() {
                       onBlur={() => {
                         setTimeout(() => setShowCustomerSuggestions(false), 150);
                       }}
-                      className="h-11"
+                      className="h-10"
                     />
 
                     {showCustomerSuggestions && customerSuggestions.length > 0 && (
@@ -5885,14 +6531,14 @@ export default function AdminAppointments() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700">Phone</label>
                     <Input
                       placeholder="(555) 123-4567"
                       value={bookingData.phone}
                       onChange={(e) => setBookingData({...bookingData, phone: e.target.value})}
-                      className="h-11"
+                      className="h-10"
                     />
                   </div>
                   <div className="space-y-2">
@@ -5902,13 +6548,13 @@ export default function AdminAppointments() {
                       placeholder="customer@email.com"
                       value={bookingData.email}
                       onChange={(e) => setBookingData({...bookingData, email: e.target.value})}
-                      className="h-11"
+                      className="h-10"
                     />
                   </div>
                 </div>
 
                 {user?.role !== 'admin' && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
                         <CreditCard className="w-4 h-4 text-gray-500" />
@@ -5918,7 +6564,7 @@ export default function AdminAppointments() {
                         placeholder="1234"
                         value={bookingData.cardLast4Digits}
                         onChange={(e) => setBookingData({...bookingData, cardLast4Digits: e.target.value})}
-                        className="h-11"
+                        className="h-10"
                         maxLength={4}
                       />
                     </div>
@@ -5931,7 +6577,7 @@ export default function AdminAppointments() {
                         placeholder="Enter TRN number"
                         value={bookingData.trnNumber}
                         onChange={(e) => setBookingData({...bookingData, trnNumber: e.target.value})}
-                        className="h-11"
+                        className="h-10"
                       />
                     </div>
                   </div>
@@ -5939,31 +6585,14 @@ export default function AdminAppointments() {
               </div>
             </div>
 
-            {user?.role === 'admin' ? (
-              <div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
-                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                  <Building className="w-5 h-5 text-primary" />
-                  Branch
-                </h3>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Branch (Auto-selected)</label>
-                  <Input
-                    value={bookingData.branch || user?.branchName || ''}
-                    readOnly
-                    disabled
-                    className="h-11 bg-gray-100"
-                  />
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
-                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+            {user?.role !== 'admin' && (
+              <div className="space-y-4 p-4 sm:p-5 bg-gray-50/50 rounded-lg border">
+                <h3 className="text-base sm:text-lg font-semibold text-gray-900 flex items-center gap-2">
                   <Tag className="w-5 h-5 text-primary" />
                   Category & Branch
                 </h3>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
                       <Tag className="w-4 h-4" />
@@ -5974,7 +6603,7 @@ export default function AdminAppointments() {
                       onValueChange={handleCategoryChange}
                       disabled={!bookingData.branch}
                     >
-                      <SelectTrigger className="h-11 w-full [&>span]:block [&>span]:truncate">
+                      <SelectTrigger className="h-10 w-full [&>span]:block [&>span]:truncate">
                         <SelectValue placeholder={bookingData.branch ? "Select a category" : "First select a branch"} />
                       </SelectTrigger>
                       <SelectContent>
@@ -6025,7 +6654,7 @@ export default function AdminAppointments() {
                       value={bookingData.branch} 
                       onValueChange={handleBranchChange}
                     >
-                      <SelectTrigger className="h-11 w-full [&>span]:block [&>span]:truncate">
+                      <SelectTrigger className="h-10 w-full [&>span]:block [&>span]:truncate">
                         <SelectValue placeholder="Select a branch" />
                       </SelectTrigger>
                       <SelectContent>
@@ -6058,8 +6687,8 @@ export default function AdminAppointments() {
               </div>
             )}
 
-            <div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+            <div className="space-y-4 p-4 sm:p-5 bg-gray-50/50 rounded-lg border">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 flex items-center gap-2">
                 <Scissors className="w-5 h-5 text-primary" />
                 Select Services (Choose Multiple)
                 {selectedServices.length > 0 && (
@@ -6088,7 +6717,7 @@ export default function AdminAppointments() {
                       }}
                       placeholder={bookingData.branch ? "Search service by name, category, price..." : "First select a branch"}
                       disabled={!bookingData.branch || loading.services}
-                      className="pl-9 h-11"
+                      className="pl-9 h-10"
                     />
 
                     {showServiceSuggestions && bookingData.branch && serviceSuggestions.length > 0 && (
@@ -6126,62 +6755,134 @@ export default function AdminAppointments() {
                 </div>
                 
                 {selectedServices.length > 0 ? (
-                  <div className="mt-4 p-5 bg-linear-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl">
-                    <h4 className="font-bold text-green-900 mb-3 flex items-center gap-2">
-                      <CheckCircle className="w-5 h-5" />
-                      Selected Services Summary
-                      <span className="bg-green-500 text-white text-xs px-2 py-1 rounded-full">
-                        {selectedServices.length} service(s)
-                      </span>
-                    </h4>
-                    
-                    <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
-                      {selectedServices.map((service, index) => (
-                        <div 
-                          key={service.id} 
-                          className="flex items-center justify-between p-3 bg-white rounded-lg border border-green-100"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                              <span className="font-bold text-green-700">{index + 1}</span>
-                            </div>
-                            <div>
-                              <p className="font-medium text-gray-900">{service.name}</p>
-                              <p className="text-xs text-gray-500">{service.category} • {service.duration} min</p>
-                            </div>
-                          </div>
-                          
-                          <div className="flex items-center gap-3">
-                            <span className="font-bold text-gray-900">{formatCurrency(service.price)}</span>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleServiceSelection(service.name)}
-                              className="h-7 w-7 p-0 hover:bg-red-50"
-                            >
-                              <XCircle className="w-4 h-4 text-red-500" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    
-                    <div className="pt-4 mt-4 border-t border-green-200">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <p className="text-sm text-green-800 mb-1">Total Duration:</p>
-                          <p className="text-lg font-bold text-green-900">
-                            {selectedServices.reduce((sum, s) => sum + s.duration, 0)} minutes
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm text-green-800 mb-1">Total Services Price:</p>
-                          <p className="text-2xl font-bold text-green-700">
-                            {formatCurrency(selectedServices.reduce((sum, s) => sum + s.price, 0))}
-                          </p>
-                        </div>
+                  <div className="mt-4 border border-gray-200 rounded-lg overflow-hidden bg-white">
+                    <div className="flex items-center justify-between bg-gray-50 px-3 py-2">
+                      <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                        Selected Services Summary
                       </div>
+                      <Badge className="bg-green-600 text-white text-xs">
+                        {selectedServices.length} service(s)
+                      </Badge>
+                    </div>
+
+                    <div className="max-h-64 overflow-auto">
+                      <table className="w-full min-w-[680px] text-sm">
+                        <thead className="bg-gray-50 text-gray-600">
+                          <tr>
+                            <th className="px-3 py-2 text-left w-10">#</th>
+                            <th className="px-3 py-2 text-left">Service</th>
+                            <th className="px-3 py-2 text-left">Duration</th>
+                            <th className="px-3 py-2 text-left">Staff</th>
+                            <th className="px-3 py-2 text-left">Time</th>
+                            <th className="px-3 py-2 text-right">Price</th>
+                            <th className="px-3 py-2 text-right">Tip</th>
+                            <th className="px-3 py-2 text-center w-10"></th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                          {selectedServices.map((service, index) => (
+                            <tr key={service.id} className="hover:bg-gray-50">
+                              <td className="px-3 py-2 text-gray-500">{index + 1}</td>
+                              <td className="px-3 py-2">
+                                <div className="font-medium text-gray-900 truncate">{service.name}</div>
+                                <div className="text-xs text-gray-500">{service.category || 'Service'}</div>
+                              </td>
+                              <td className="px-3 py-2 text-gray-600">{service.duration} min</td>
+                              <td className="px-3 py-2">
+                                <Select
+                                  value={serviceStaffAssignments[getServiceKey(service)]?.staffName || ''}
+                                  onValueChange={(value) => handleServiceStaffChange(service, value)}
+                                  disabled={!bookingData.branch}
+                                >
+                                  <SelectTrigger className="h-8 w-32 sm:w-40">
+                                    <SelectValue placeholder="Assign staff" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {filteredStaff.map((staff) => (
+                                      <SelectItem key={staff.id} value={staff.name}>
+                                        <div className="flex flex-col">
+                                          <span className="font-medium">{staff.name}</span>
+                                          <span className="text-xs text-gray-500">{staff.role}</span>
+                                        </div>
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </td>
+                              <td className="px-3 py-2">
+                                <Input
+                                  type="time"
+                                  value={serviceStaffAssignments[getServiceKey(service)]?.time || bookingData.time || ''}
+                                  onChange={(e) => handleServiceTimeChange(service, e.target.value)}
+                                  className="h-8 w-32"
+                                />
+                              </td>
+                              <td className="px-3 py-2 text-right font-semibold text-gray-900">
+                                {formatCurrency(service.price)}
+                              </td>
+                              <td className="px-3 py-2 text-right">
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  step="0.1"
+                                  value={
+                                    bookingData.teamMembers.find(
+                                      (member) => member.name === (serviceStaffAssignments[getServiceKey(service)]?.staffName || '')
+                                    )?.tip || 0
+                                  }
+                                  onChange={(e) => {
+                                    const staffName = serviceStaffAssignments[getServiceKey(service)]?.staffName || '';
+                                    if (!staffName) return;
+                                    const nextTip = parseFloat(e.target.value) || 0;
+                                    setBookingData((prev) => {
+                                      const nextMembers = [...prev.teamMembers];
+                                      const existingIndex = nextMembers.findIndex((member) => member.name === staffName);
+                                      if (existingIndex >= 0) {
+                                        nextMembers[existingIndex] = { ...nextMembers[existingIndex], tip: nextTip };
+                                      } else {
+                                        nextMembers.push({ name: staffName, tip: nextTip });
+                                      }
+                                      return { ...prev, teamMembers: nextMembers };
+                                    });
+                                  }}
+                                  placeholder="AED 0.00"
+                                  className="h-8 w-20 sm:w-24 text-right"
+                                  disabled={!serviceStaffAssignments[getServiceKey(service)]?.staffName}
+                                />
+                              </td>
+                              <td className="px-3 py-2 text-center">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleServiceSelection(service.name)}
+                                  className="h-7 w-7 p-0 hover:bg-red-50"
+                                >
+                                  <XCircle className="w-4 h-4 text-red-500" />
+                                </Button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot className="bg-gray-50 font-medium text-gray-700">
+                          <tr>
+                            <td colSpan={2} className="px-3 py-2 text-right">Totals</td>
+                            <td className="px-3 py-2">
+                              {selectedServices.reduce((sum, s) => sum + s.duration, 0)} min
+                            </td>
+                            <td className="px-3 py-2"></td>
+                            <td className="px-3 py-2"></td>
+                            <td className="px-3 py-2 text-right">
+                              {formatCurrency(selectedServices.reduce((sum, s) => sum + s.price, 0))}
+                            </td>
+                            <td className="px-3 py-2 text-right">
+                              {formatCurrency(bookingData.teamMembers.reduce((sum, tm) => sum + tm.tip, 0))}
+                            </td>
+                            <td></td>
+                          </tr>
+                        </tfoot>
+                      </table>
                     </div>
                   </div>
                 ) : (
@@ -6194,232 +6895,8 @@ export default function AdminAppointments() {
               </div>
             </div>
 
-            <div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <User className="w-5 h-5 text-primary" />
-                Service Staff
-              </h3>
-
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Primary Team Member *</label>
-                  <Select 
-                    value={bookingData.barber} 
-                    onValueChange={(value) => {
-                      setBookingData({...bookingData, barber: value});
-                      if (!bookingData.teamMembers.some(tm => tm.name === value)) {
-                        setBookingData(prev => ({
-                          ...prev,
-                          teamMembers: [...prev.teamMembers, {name: value, tip: 0}]
-                        }));
-                      }
-                    }}
-                    disabled={!bookingData.branch}
-                  >
-                    <SelectTrigger className="h-11">
-                      <SelectValue placeholder={bookingData.branch ? "Select a team member" : "First select a branch"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {loading.staff ? (
-                        <div className="text-center py-4">
-                          <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full mx-auto mb-2"></div>
-                          <p className="text-sm text-gray-600">Loading team members...</p>
-                        </div>
-                      ) : filteredStaff.length === 0 && bookingData.branch ? (
-                        <div className="text-center py-4">
-                          <AlertCircle className="w-6 h-6 text-yellow-500 mx-auto mb-2" />
-                          <div className="space-y-1">
-                            <p className="text-sm text-gray-600">No team members found for <strong>{bookingData.branch}</strong></p>
-                            <p className="text-xs text-gray-500">
-                              Total active staff: {staffMembers.filter(s => s.status === 'active').length}
-                            </p>
-                          </div>
-                        </div>
-                      ) : (
-                        filteredStaff.map(staff => (
-                          <SelectItem key={staff.id} value={staff.name}>
-                            <div className="flex flex-col">
-                              <span className="font-medium">{staff.name}</span>
-                              <span className="text-xs text-gray-500">{staff.role} • ⭐ {staff.rating.toFixed(1)}</span>
-                            </div>
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Additional Team Members</label>
-                  <Select 
-                    onValueChange={(value) => {
-                      if (value && !bookingData.teamMembers.some(tm => tm.name === value)) {
-                        setBookingData(prev => ({
-                          ...prev,
-                          teamMembers: [...prev.teamMembers, {name: value, tip: 0}]
-                        }));
-                      }
-                    }}
-                    disabled={!bookingData.branch}
-                  >
-                    <SelectTrigger className="h-11">
-                      <SelectValue placeholder={bookingData.branch ? "Add more team members" : "First select a branch"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {filteredStaff
-                        .filter(staff => {
-                          const alreadySelected = bookingData.teamMembers.some(tm => tm.name === staff.name);
-                          return !alreadySelected;
-                        })
-                        .map(staff => (
-                          <SelectItem key={staff.id} value={staff.name}>
-                            <div className="flex flex-col">
-                              <span className="font-medium">{staff.name}</span>
-                              <span className="text-xs text-gray-500">{staff.role} • ⭐ {staff.rating.toFixed(1)}</span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {bookingData.teamMembers.length > 0 && (
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Team Members & Their Tips</label>
-                    <div className="space-y-2 max-h-48 overflow-y-auto">
-                      {bookingData.teamMembers.map((member, index) => (
-                        <div key={index} className="flex items-center gap-2 p-3 bg-white rounded border">
-                          <User className="w-4 h-4 text-gray-500" />
-                          <span className="flex-1 text-sm font-medium">{member.name}</span>
-                          <div className="flex items-center gap-2">
-                            <label className="text-xs text-gray-600">Tip:</label>
-                            <Input
-                              type="number"
-                              min="0"
-                              step="0.1"
-                              value={member.tip}
-                              onChange={(e) => {
-                                const newMembers = [...bookingData.teamMembers];
-                                newMembers[index].tip = parseFloat(e.target.value) || 0;
-                                setBookingData({...bookingData, teamMembers: newMembers});
-                              }}
-                              placeholder="AED 0.00"
-                              className="h-9 w-24 text-right"
-                            />
-                          </div>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setBookingData(prev => ({
-                                ...prev,
-                                teamMembers: prev.teamMembers.filter((_, i) => i !== index),
-                                barber: index === 0 && prev.teamMembers.length > 1 ? prev.teamMembers[1].name : prev.barber
-                              }));
-                            }}
-                          >
-                            <XCircle className="w-4 h-4 text-red-500" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <Package className="w-5 h-5 text-primary" />
-                Products
-              </h3>
-
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Product</label>
-                    <Select onValueChange={(value) => {
-                      const product = mockProducts.find(p => p.name === value);
-                      if (product) {
-                        setBookingData(prev => ({
-                          ...prev,
-                          products: [...prev.products, { ...product, quantity: 1 }]
-                        }));
-                      }
-                    }}>
-                      <SelectTrigger className="h-11">
-                        <SelectValue placeholder="Add product" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {mockProducts.map((product) => (
-                          <SelectItem key={product.name} value={product.name}>
-                            {product.name} - {product.category} - {formatCurrency(product.price)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Quantity</label>
-                    <Input
-                      type="number"
-                      min="1"
-                      placeholder="1"
-                      className="h-11"
-                    />
-                  </div>
-                  <div className="flex items-end">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="h-11 w-full"
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Add
-                    </Button>
-                  </div>
-                </div>
-
-                {bookingData.products.length > 0 && (
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Selected Products</label>
-                    <div className="space-y-2 max-h-32 overflow-y-auto">
-                      {bookingData.products.map((product, index) => (
-                        <div key={index} className="flex items-center justify-between p-3 bg-white rounded border">
-                          <div className="flex-1">
-                            <div className="font-medium text-sm">{product.name}</div>
-                            <div className="text-xs text-gray-500">{product.category}</div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium">{formatCurrency(product.price)}</span>
-                            <span className="text-sm text-gray-500">x{product.quantity}</span>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setBookingData(prev => ({
-                                  ...prev,
-                                  products: prev.products.filter((_, i) => i !== index)
-                                }));
-                              }}
-                            >
-                              <XCircle className="w-4 h-4 text-red-500" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-
-
-              <div className="mt-6 p-5 bg-white rounded-xl border-2 border-blue-200 shadow-sm">
-                <h4 className="font-bold text-gray-900 mb-4 text-lg flex items-center gap-2">
+              <div className="mt-2 p-4 bg-white rounded-lg border border-blue-200 shadow-xs">
+                <h4 className="font-semibold text-gray-900 mb-3 text-base sm:text-lg flex items-center gap-2">
                   <Calculator className="w-5 h-5 text-blue-600" />
                   Price Summary (Including {selectedServices.length} Service(s))
                 </h4>
@@ -6442,21 +6919,6 @@ export default function AdminAppointments() {
                     </div>
                   )}
                   
-                  <div className="flex justify-between items-center py-2">
-                    <span className="text-gray-700">Total Services:</span>
-                    <span className="font-medium">{formatCurrency(selectedServices.reduce((sum, s) => sum + s.price, 0))}</span>
-                  </div>
-                  
-                  <div className="flex justify-between items-center py-2">
-                    <span className="text-gray-700">Products:</span>
-                    <span className="font-medium">{formatCurrency(bookingData.products.reduce((sum, p) => sum + (p.price * p.quantity), 0))}</span>
-                  </div>
-                  
-                  <div className="flex justify-between items-center py-2">
-                    <span className="text-gray-700">Service Charges:</span>
-                    <span className="font-medium">{formatCurrency(bookingData.serviceCharges)}</span>
-                  </div>
-                  
                   {bookingData.discount > 0 && (
                     <div className="flex justify-between items-center py-2 bg-green-50 rounded px-2">
                       <span className="text-green-700">Discount ({bookingData.discountType === 'percentage' ? bookingData.discount + '%' : 'Fixed'}):</span>
@@ -6477,24 +6939,6 @@ export default function AdminAppointments() {
                     </div>
                   )}
 
-                  <div className="flex justify-between items-center py-2">
-                    <span className="text-gray-700">Tax ({bookingData.tax}%):</span>
-                    <span className="font-medium">{formatCurrency(bookingTaxAmount)}</span>
-                  </div>
-
-                  {totalValueDisplayMode === 'both' && (
-                    <>
-                      <div className="flex justify-between items-center py-2 bg-gray-50 rounded px-2">
-                        <span className="text-gray-700">Total (Excluding Tax):</span>
-                        <span className="font-semibold">{formatCurrency(bookingTotalWithoutTax)}</span>
-                      </div>
-                      <div className="flex justify-between items-center py-2 bg-green-50 rounded px-2">
-                        <span className="text-green-700">Total (With Tax):</span>
-                        <span className="font-semibold text-green-700">{formatCurrency(bookingTotalWithTax)}</span>
-                      </div>
-                    </>
-                  )}
-                  
                   <div className="border-t pt-3 mt-2">
                     <div className="flex justify-between items-center text-lg font-semibold">
                       <span className="text-gray-900">
@@ -6525,8 +6969,8 @@ export default function AdminAppointments() {
                 </div>
               </div>
 
-            <div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+            <div className="space-y-4 p-4 sm:p-5 bg-gray-50/50 rounded-lg border">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 flex items-center gap-2">
                 <CheckCircle2 className="w-5 h-5 text-primary" />
                 Booking Status
               </h3>
@@ -6538,7 +6982,7 @@ export default function AdminAppointments() {
                   status: value,
                   generateInvoice: value === 'completed' ? prev.generateInvoice : false
                 }))}>
-                  <SelectTrigger className="h-11">
+                  <SelectTrigger className="h-10">
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -6551,86 +6995,8 @@ export default function AdminAppointments() {
               </div>
             </div>
 
-            <div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-primary" />
-                Date & Time
-              </h3>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Date *</label>
-                  <Input
-                    type="date"
-                    value={bookingData.date}
-                    onChange={(e) => setBookingData({...bookingData, date: e.target.value})}
-                    className="h-11"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Time *</label>
-                  <Input
-                    type="time"
-                    value={bookingData.time}
-                    onChange={(e) => setBookingData({...bookingData, time: e.target.value})}
-                    className="h-11"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <Receipt className="w-5 h-5 text-primary" />
-                Invoice Options
-              </h3>
-
-              <div className="space-y-4">
-                {bookingData.status === 'completed' ? (
-                  <>
-                    <div className="flex items-center justify-between">
-                      <label htmlFor="generateInvoice" className="text-sm font-medium text-gray-700">
-                        Generate invoice automatically after booking
-                      </label>
-                      <Switch
-                        id="generateInvoice"
-                        checked={bookingData.generateInvoice}
-                        onCheckedChange={(checked) => setBookingData({...bookingData, generateInvoice: checked})}
-                      />
-                    </div>
-
-                    {bookingData.generateInvoice && (
-                      <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                        <div className="flex items-center gap-2 text-blue-800">
-                          <Receipt className="w-4 h-4" />
-                          <span className="text-sm font-medium">Invoice will be generated with:</span>
-                        </div>
-                        <ul className="mt-2 text-sm text-blue-700 space-y-1">
-                          <li>• Customer details and booking information</li>
-                          <li>• Itemized services and products</li>
-                          <li>• Tax calculation and total amount</li>
-                          <li>• Payment terms and due date</li>
-                          <li>• All selected services ({selectedServices.length})</li>
-                        </ul>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                    <div className="flex items-center gap-2 text-yellow-800">
-                      <AlertCircle className="w-4 h-4" />
-                      <span className="text-sm font-medium">Invoice generation is only available for completed services</span>
-                    </div>
-                    <p className="mt-2 text-sm text-yellow-700">
-                      Set the booking status to "Completed" to enable invoice generation options.
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+            <div className="space-y-4 p-4 sm:p-5 bg-gray-50/50 rounded-lg border">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 flex items-center gap-2">
                 <FileText className="w-5 h-5 text-primary" />
                 Additional Notes
               </h3>
@@ -6646,11 +7012,11 @@ export default function AdminAppointments() {
             </div>
           </div>
 
-          <div className="flex justify-end gap-4 pt-8 border-t bg-white px-6 py-4 -mx-6 -mb-6">
-            <Button variant="outline" onClick={() => setShowBookingDialog(false)} className="px-6 h-11">
+          <div className="flex flex-wrap justify-end gap-2 pt-4 border-t bg-white px-3 sm:px-5 py-3 -mx-3 sm:-mx-5 -mb-3 sm:-mb-5">
+            <Button variant="outline" onClick={() => setShowBookingDialog(false)} className="px-4 h-10">
               Cancel
             </Button>
-            <Button onClick={handleSubmitBooking} className="px-6 h-11 bg-primary hover:bg-primary/90">
+            <Button onClick={handleSubmitBooking} className="px-4 h-10 bg-primary hover:bg-primary/90">
               Create Booking
             </Button>
           </div>
@@ -6715,112 +7081,6 @@ export default function AdminAppointments() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                        <CreditCard className="w-4 h-4 text-gray-500" />
-                        Card Last 4 Digits
-                      </label>
-                      <Input
-                        placeholder="1234"
-                        value={editBookingData.cardLast4Digits}
-                        onChange={(e) => setEditBookingData({...editBookingData, cardLast4Digits: e.target.value})}
-                        className="h-11"
-                        maxLength={4}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                        <Hash className="w-4 h-4 text-gray-500" />
-                        TRN Number
-                      </label>
-                      <Input
-                        placeholder="Enter TRN number"
-                        value={editBookingData.trnNumber}
-                        onChange={(e) => setEditBookingData({...editBookingData, trnNumber: e.target.value})}
-                        className="h-11"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
-                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                  <Tag className="w-5 h-5 text-primary" />
-                  Category & Branch
-                </h3>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                      <Tag className="w-4 h-4" />
-                      Category
-                    </label>
-                    <Select 
-                      value={editBookingData.category} 
-                      onValueChange={(value) => {
-                        const category = categories.find(c => c.name === value);
-                        setSelectedCategory(category || null);
-                        setEditBookingData({...editBookingData, category: value});
-                      }}
-                    >
-                      <SelectTrigger className="h-11">
-                        <SelectValue placeholder="Select a category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categories
-                          .filter(c => c.isActive && c.type === 'service')
-                          .map((category) => (
-                            <SelectItem key={category.firebaseId} value={category.name}>
-                              <div className="flex flex-col">
-                                <span className="font-medium">{category.name}</span>
-                                <span className="text-xs text-gray-500">
-                                  {category.branchName || 'No branch'}
-                                </span>
-                              </div>
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                      <Building className="w-4 h-4" />
-                      Branch
-                    </label>
-                    {user?.role === 'admin' && user?.branchName ? (
-                      <div className="h-11 px-3 flex items-center border rounded-md bg-gray-50 text-sm font-medium text-gray-700">
-                        🏢 {user.branchName}
-                      </div>
-                    ) : (
-                    <Select 
-                      value={editBookingData.branch} 
-                      onValueChange={(value) => {
-                        const branch = branches.find(b => b.name === value);
-                        setSelectedBranch(branch || null);
-                        setEditBookingData({...editBookingData, branch: value});
-                      }}
-                    >
-                      <SelectTrigger className="h-11">
-                        <SelectValue placeholder="Select a branch" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {branches
-                          .filter(branch => branch.status === 'active')
-                          .map((branch) => (
-                            <SelectItem key={branch.firebaseId} value={branch.name}>
-                              <div className="flex flex-col">
-                                <span className="font-medium">{branch.name}</span>
-                                <span className="text-xs text-gray-500">{branch.city}</span>
-                              </div>
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
-                    )}
-                  </div>
                 </div>
               </div>
 
@@ -6834,234 +7094,156 @@ export default function AdminAppointments() {
                 </h3>
 
                 <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {services
-                      .filter(service => service.status === 'active')
-                      .map((service) => {
-                        const isSelected = editSelectedServices.some(s => s.name === service.name);
-                        return (
-                          <div
-                            key={service.firebaseId}
-                            className={`p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
-                              isSelected 
-                                ? 'bg-blue-50 border-blue-300 shadow-sm' 
-                                : 'border-gray-200 hover:border-blue-200 hover:bg-blue-50/50'
-                            }`}
-                            onClick={() => {
-                              if (isSelected) {
-                                setEditSelectedServices(prev => prev.filter(s => s.name !== service.name));
-                                setEditBookingData(prev => ({
-                                  ...prev!,
-                                  services: prev!.services.filter(s => s !== service.name),
-                                  service: prev!.services.length > 1 ? prev!.services[0] : ''
-                                }));
-                              } else {
-                                setEditSelectedServices(prev => [...prev, service]);
-                                setEditBookingData(prev => ({
-                                  ...prev!,
-                                  services: [...prev!.services, service.name],
-                                  service: prev!.services.length === 0 ? service.name : prev!.service
-                                }));
-                              }
-                            }}
-                          >
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <h4 className="font-medium text-gray-900">{service.name}</h4>
-                                  {isSelected && (
-                                    <Badge className="bg-green-500 text-white text-xs px-2 py-0.5">
-                                      ✓ Selected
-                                    </Badge>
-                                  )}
-                                </div>
-                                <div className="flex items-center justify-between text-xs text-gray-500">
-                                  <div className="flex items-center gap-3">
-                                    <span className="flex items-center gap-1">
-                                      <Clock className="w-3 h-3" />
-                                      {service.duration} min
-                                    </span>
-                                    <span className="flex items-center gap-1">
-                                      <Tag className="w-3 h-3" />
-                                      {service.category}
-                                    </span>
-                                  </div>
-                                  <div className="text-right">
-                                    <p className="font-bold text-primary text-base">
-                                      {formatCurrency(service.price)}
-                                    </p>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
-                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                  <User className="w-5 h-5 text-primary" />
-                  Service Staff
-                </h3>
-
-                <div className="space-y-4">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Primary Team Member *</label>
-                    <Select 
-                      value={editBookingData.barber} 
-                      onValueChange={(value) => {
-                        setEditBookingData({...editBookingData, barber: value});
-                        if (!editBookingData.teamMembers.some(tm => tm.name === value)) {
-                          setEditBookingData(prev => ({
-                            ...prev!,
-                            teamMembers: [...prev!.teamMembers, {name: value, tip: 0}]
-                          }));
-                        }
-                      }}
-                    >
-                      <SelectTrigger className="h-11">
-                        <SelectValue placeholder="Select a team member" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {staffMembers
-                          .filter(staff => staff.status === 'active')
-                          .map(staff => (
-                            <SelectItem key={staff.id} value={staff.name}>
-                              <div className="flex flex-col">
-                                <span className="font-medium">{staff.name}</span>
-                                <span className="text-xs text-gray-500">{staff.role}</span>
-                              </div>
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                    <label className="text-sm font-medium text-gray-700">
+                      Search & Add Services
+                    </label>
+                    <div className="relative">
+                      <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <Input
+                        value={editServiceSearchTerm}
+                        onChange={(e) => {
+                          setEditServiceSearchTerm(e.target.value);
+                          setShowEditServiceSuggestions(true);
+                        }}
+                        onFocus={() => setShowEditServiceSuggestions(true)}
+                        onBlur={() => {
+                          setTimeout(() => setShowEditServiceSuggestions(false), 150);
+                        }}
+                        placeholder={editBookingData.branch ? "Search service by name, category, price..." : "First select a branch"}
+                        disabled={!editBookingData.branch || loading.services}
+                        className="pl-9 h-10"
+                      />
 
-                  {editBookingData.teamMembers.length > 0 && (
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700">Team Members & Tips</label>
-                      <div className="space-y-2">
-                        {editBookingData.teamMembers.map((member, index) => (
-                          <div key={index} className="flex items-center gap-2 p-3 bg-white rounded border">
-                            <User className="w-4 h-4 text-gray-500" />
-                            <span className="flex-1 text-sm font-medium">{member.name}</span>
-                            <div className="flex items-center gap-2">
-                              <label className="text-xs text-gray-600">Tip:</label>
-                              <Input
-                                type="number"
-                                min="0"
-                                step="0.1"
-                                value={member.tip}
-                                onChange={(e) => {
-                                  const newMembers = [...editBookingData.teamMembers];
-                                  newMembers[index].tip = parseFloat(e.target.value) || 0;
-                                  setEditBookingData({...editBookingData, teamMembers: newMembers});
-                                }}
-                                placeholder="AED 0.00"
-                                className="h-9 w-24 text-right"
-                              />
-                            </div>
-                            <Button
+                      {showEditServiceSuggestions && editBookingData.branch && editServiceSuggestions.length > 0 && (
+                        <div className="absolute z-50 mt-1 max-h-64 w-full overflow-y-auto rounded-md border bg-white shadow-lg">
+                          {editServiceSuggestions.map((service) => (
+                            <button
+                              key={getServiceKey(service)}
                               type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                const newMembers = editBookingData.teamMembers.filter((_, i) => i !== index);
-                                setEditBookingData({
-                                  ...editBookingData,
-                                  teamMembers: newMembers,
-                                  barber: index === 0 && newMembers.length > 0 ? newMembers[0].name : editBookingData.barber
-                                });
-                              }}
+                              className="w-full border-b px-3 py-2 text-left hover:bg-gray-50"
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => applyEditServiceSuggestion(service)}
                             >
-                              <XCircle className="w-4 h-4 text-red-500" />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
-                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                  <Package className="w-5 h-5 text-primary" />
-                  Products
-                </h3>
-
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700">Product</label>
-                      <Select onValueChange={(value) => {
-                        const product = mockProducts.find(p => p.name === value);
-                        if (product) {
-                          setEditBookingData(prev => ({
-                            ...prev!,
-                            products: [...prev!.products, { ...product, quantity: 1 }]
-                          }));
-                        }
-                      }}>
-                        <SelectTrigger className="h-11">
-                          <SelectValue placeholder="Add product" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {mockProducts.map((product) => (
-                            <SelectItem key={product.name} value={product.name}>
-                              {product.name} - {formatCurrency(product.price)}
-                            </SelectItem>
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="min-w-0">
+                                  <p className="truncate text-sm font-medium text-gray-900">{service.name}</p>
+                                  <p className="text-xs text-gray-500">
+                                    {service.category || 'Service'} • {service.duration || 0} min
+                                  </p>
+                                </div>
+                                <span className="shrink-0 text-sm font-medium text-primary">
+                                  {formatCurrency(service.price)}
+                                </span>
+                              </div>
+                            </button>
                           ))}
-                        </SelectContent>
-                      </Select>
+                        </div>
+                      )}
                     </div>
+                    <p className="text-xs text-gray-500">
+                      Type service name and click a suggestion to add it. Assign staff and tip directly per selected service below.
+                    </p>
+                    {!loading.services && editBookingData.branch && editServiceSearchTerm.trim() && editServiceSuggestions.length === 0 && (
+                      <p className="text-xs text-amber-600">No matching services found for "{editServiceSearchTerm}".</p>
+                    )}
                   </div>
 
-                  {editBookingData.products.length > 0 && (
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700">Selected Products</label>
-                      <div className="space-y-2">
-                        {editBookingData.products.map((product, index) => (
-                          <div key={index} className="flex items-center justify-between p-3 bg-white rounded border">
-                            <div className="flex-1">
-                              <div className="font-medium text-sm">{product.name}</div>
-                              <div className="text-xs text-gray-500">{product.category}</div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Input
-                                type="number"
-                                min="1"
-                                value={product.quantity}
-                                onChange={(e) => {
-                                  const newProducts = [...editBookingData.products];
-                                  newProducts[index].quantity = parseInt(e.target.value) || 1;
-                                  setEditBookingData({...editBookingData, products: newProducts});
-                                }}
-                                className="h-8 w-16"
-                              />
-                              <span className="text-sm font-medium">{formatCurrency(product.price)}</span>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  setEditBookingData({
-                                    ...editBookingData,
-                                    products: editBookingData.products.filter((_, i) => i !== index)
-                                  });
-                                }}
-                              >
-                                <XCircle className="w-4 h-4 text-red-500" />
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
+                  <div className="rounded-lg border bg-white p-3">
+                    <div className="mb-2 text-sm font-medium text-gray-700">Selected Services</div>
+                    {editSelectedServices.length > 0 ? (
+                      <div className="overflow-auto">
+                        <table className="w-full min-w-[720px] text-sm">
+                          <thead className="bg-gray-50 text-gray-600">
+                            <tr>
+                              <th className="px-3 py-2 text-left w-10">#</th>
+                              <th className="px-3 py-2 text-left">Service</th>
+                              <th className="px-3 py-2 text-left">Duration</th>
+                              <th className="px-3 py-2 text-left">Staff</th>
+                              <th className="px-3 py-2 text-left">Time</th>
+                              <th className="px-3 py-2 text-right">Price</th>
+                              <th className="px-3 py-2 text-right">Tip</th>
+                              <th className="px-3 py-2 text-center w-10"></th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y">
+                            {editSelectedServices.map((service, index) => {
+                              const assignedStaffName = editServiceStaffAssignments[getServiceKey(service)]?.staffName || '';
+                              const assignedTip = assignedStaffName
+                                ? editBookingData.teamMembers.find((member) => member.name === assignedStaffName)?.tip || 0
+                                : 0;
+
+                              return (
+                                <tr key={getServiceKey(service)} className="hover:bg-gray-50">
+                                  <td className="px-3 py-2 text-gray-500">{index + 1}</td>
+                                  <td className="px-3 py-2">
+                                    <div className="font-medium text-gray-900">{service.name}</div>
+                                    <div className="text-xs text-gray-500">{service.category || 'Service'}</div>
+                                  </td>
+                                  <td className="px-3 py-2 text-gray-700">{service.duration || 0} min</td>
+                                  <td className="px-3 py-2">
+                                    <Select
+                                      value={assignedStaffName}
+                                      onValueChange={(value) => handleEditServiceStaffChange(service, value)}
+                                    >
+                                      <SelectTrigger className="h-9 w-44">
+                                        <SelectValue placeholder="Assign staff" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {editFilteredStaff.map((staff) => (
+                                          <SelectItem key={staff.id} value={staff.name}>
+                                            <div className="flex flex-col">
+                                              <span className="font-medium">{staff.name}</span>
+                                              <span className="text-xs text-gray-500">{staff.role}</span>
+                                            </div>
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </td>
+                                  <td className="px-3 py-2">
+                                    <Input
+                                      type="time"
+                                      value={editServiceStaffAssignments[getServiceKey(service)]?.time || editBookingData.time || ''}
+                                      onChange={(e) => handleEditServiceTimeChange(service, e.target.value)}
+                                      className="h-9 w-32"
+                                    />
+                                  </td>
+                                  <td className="px-3 py-2 text-right font-medium text-gray-900">
+                                    {formatCurrency(service.price)}
+                                  </td>
+                                  <td className="px-3 py-2">
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      step="0.1"
+                                      value={assignedTip}
+                                      onChange={(e) => handleEditServiceTipChange(service, parseFloat(e.target.value) || 0)}
+                                      placeholder="0.00"
+                                      disabled={!assignedStaffName}
+                                      className="h-9 w-24 ml-auto text-right"
+                                    />
+                                  </td>
+                                  <td className="px-3 py-2 text-center">
+                                    <button
+                                      type="button"
+                                      className="text-red-500 hover:text-red-700"
+                                      onClick={() => handleEditServiceSelection(service.name)}
+                                      aria-label={`Remove ${service.name}`}
+                                    >
+                                      <XCircle className="h-4 w-4" />
+                                    </button>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
                       </div>
-                    </div>
-                  )}
+                    ) : (
+                      <p className="text-sm text-gray-500">No services selected yet.</p>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -7202,34 +7384,6 @@ export default function AdminAppointments() {
                 </div>
               </div>
               )}
-
-              <div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
-                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                  <Calendar className="w-5 h-5 text-primary" />
-                  Date & Time
-                </h3>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Date *</label>
-                    <Input
-                      type="date"
-                      value={editBookingData.date}
-                      onChange={(e) => setEditBookingData({...editBookingData, date: e.target.value})}
-                      className="h-11"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Time *</label>
-                    <Input
-                      type="time"
-                      value={editBookingData.time}
-                      onChange={(e) => setEditBookingData({...editBookingData, time: e.target.value})}
-                      className="h-11"
-                    />
-                  </div>
-                </div>
-              </div>
 
               <div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
                 <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
