@@ -462,7 +462,7 @@ export default function SuperAdminServices() {
         updatedAt: serverTimestamp()
       });
       
-      alert(`Service AED{newStatus === 'active' ? 'activated' : 'deactivated'} successfully!`);
+      alert(`Service ${newStatus === 'active' ? 'activated' : 'deactivated'} successfully!`);
     } catch (error) {
       console.error("Error updating service status: ", error);
       alert('Error updating service status. Please try again.');
@@ -1133,7 +1133,7 @@ export default function SuperAdminServices() {
                             <p className="font-medium text-gray-900">{selectedService?.name}</p>
                             <p className="text-sm text-gray-600">{selectedService?.description}</p>
                             <div className="flex items-center gap-2 mt-1">
-                              <span className={`px-2 py-1 rounded-md text-xs AED{getStatusColor(selectedService?.status || '')}`}>
+                              <span className={`px-2 py-1 rounded-md text-xs ${getStatusColor(selectedService?.status || '')}`}>
                                 {selectedService?.status}
                               </span>
                               <span className="px-2 py-1 rounded-md text-xs border border-gray-300">

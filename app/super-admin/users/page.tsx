@@ -773,7 +773,7 @@ export default function SuperAdminUsers() {
       resetForm();
 
       alert(
-        `✅ AED{formData.role === "super_admin" ? "Super Admin" : formData.role} user "AED{formData.name}" added successfully!`,
+        `✅ ${formData.role === "super_admin" ? "Super Admin" : formData.role} user "${formData.name}" added successfully!`,
       );
     } catch (error: any) {
       console.error("Error adding user: ", error);
@@ -785,7 +785,7 @@ export default function SuperAdminUsers() {
       } else if (error.code === "auth/weak-password") {
         alert("Password is too weak. Use at least 6 characters");
       } else {
-        alert(`Error adding user: AED{error.message}`);
+        alert(`Error adding user: ${error.message}`);
       }
     } finally {
       setIsAdding(false);
@@ -847,7 +847,7 @@ export default function SuperAdminUsers() {
       alert(`✅ User updated successfully!`);
     } catch (error: any) {
       console.error("Error updating user: ", error);
-      alert(`Error updating user: AED{error.message}`);
+      alert(`Error updating user: ${error.message}`);
     } finally {
       setIsEditing(false);
     }
@@ -899,10 +899,10 @@ export default function SuperAdminUsers() {
         status: newStatus,
         updatedAt: serverTimestamp(),
       });
-      alert(`User status changed to AED{newStatus}`);
+      alert(`User status changed to ${newStatus}`);
     } catch (error: any) {
       console.error("Error toggling user status: ", error);
-      alert(`Error updating user status: AED{error.message}`);
+      alert(`Error updating user status: ${error.message}`);
     }
   };
 
@@ -986,7 +986,7 @@ export default function SuperAdminUsers() {
   const getBranchInfo = (user?: User) => {
     if (!user) return "No Branch";
     if (!user.branchId) return "Global User";
-    return user.branchName || `Branch (AED{user.branchId?.substring(0, 8)}...)`;
+    return user.branchName || `Branch (${user.branchId?.substring(0, 8)}...)`;
   };
 
   const getRoleColor = (role: string) => {
@@ -1191,7 +1191,7 @@ export default function SuperAdminUsers() {
                 <div className="flex overflow-x-auto">
                   <button
                     onClick={() => setActiveTab("all")}
-                    className={`flex items-center gap-2 px-6 py-4 text-sm font-medium border-b-2 transition-all AED{
+                    className={`flex items-center gap-2 px-6 py-4 text-sm font-medium border-b-2 transition-all ${
                       activeTab === "all"
                         ? "border-blue-600 text-blue-600 bg-blue-50"
                         : "border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50"
@@ -1200,7 +1200,7 @@ export default function SuperAdminUsers() {
                     <Users className="w-4 h-4" />
                     All Users
                     <Badge
-                      className={`ml-2 AED{
+                      className={`ml-2 ${
                         activeTab === "all"
                           ? "bg-blue-100 text-blue-800"
                           : "bg-gray-100 text-gray-800"
@@ -1212,7 +1212,7 @@ export default function SuperAdminUsers() {
 
                   <button
                     onClick={() => setActiveTab("super_admin")}
-                    className={`flex items-center gap-2 px-6 py-4 text-sm font-medium border-b-2 transition-all AED{
+                    className={`flex items-center gap-2 px-6 py-4 text-sm font-medium border-b-2 transition-all ${
                       activeTab === "super_admin"
                         ? "border-purple-600 text-purple-600 bg-purple-50"
                         : "border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50"
@@ -1221,7 +1221,7 @@ export default function SuperAdminUsers() {
                     <Shield className="w-4 h-4" />
                     Super Admins
                     <Badge
-                      className={`ml-2 AED{
+                      className={`ml-2 ${
                         activeTab === "super_admin"
                           ? "bg-purple-100 text-purple-800"
                           : "bg-gray-100 text-gray-800"
@@ -1233,7 +1233,7 @@ export default function SuperAdminUsers() {
 
                   <button
                     onClick={() => setActiveTab("admin")}
-                    className={`flex items-center gap-2 px-6 py-4 text-sm font-medium border-b-2 transition-all AED{
+                    className={`flex items-center gap-2 px-6 py-4 text-sm font-medium border-b-2 transition-all ${
                       activeTab === "admin"
                         ? "border-red-600 text-red-600 bg-red-50"
                         : "border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50"
@@ -1242,7 +1242,7 @@ export default function SuperAdminUsers() {
                     <Users className="w-4 h-4" />
                     Admins
                     <Badge
-                      className={`ml-2 AED{
+                      className={`ml-2 ${
                         activeTab === "admin"
                           ? "bg-red-100 text-red-800"
                           : "bg-gray-100 text-gray-800"
@@ -1494,7 +1494,7 @@ export default function SuperAdminUsers() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div
-                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all AED{
+                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
                         formData.role === "super_admin"
                           ? "border-purple-500 bg-purple-50"
                           : "border-gray-200 hover:border-gray-300"
@@ -1509,14 +1509,14 @@ export default function SuperAdminUsers() {
                     >
                       <div className="flex items-center gap-3">
                         <div
-                          className={`w-10 h-10 rounded-lg flex items-center justify-center AED{
+                          className={`w-10 h-10 rounded-lg flex items-center justify-center ${
                             formData.role === "super_admin"
                               ? "bg-purple-100"
                               : "bg-gray-100"
                           }`}
                         >
                           <Shield
-                            className={`w-5 h-5 AED{
+                            className={`w-5 h-5 ${
                               formData.role === "super_admin"
                                 ? "text-purple-600"
                                 : "text-gray-500"
@@ -1535,7 +1535,7 @@ export default function SuperAdminUsers() {
                     </div>
 
                     <div
-                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all AED{
+                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
                         formData.role === "admin"
                           ? "border-red-500 bg-red-50"
                           : "border-gray-200 hover:border-gray-300"
@@ -1550,14 +1550,14 @@ export default function SuperAdminUsers() {
                     >
                       <div className="flex items-center gap-3">
                         <div
-                          className={`w-10 h-10 rounded-lg flex items-center justify-center AED{
+                          className={`w-10 h-10 rounded-lg flex items-center justify-center ${
                             formData.role === "admin"
                               ? "bg-red-100"
                               : "bg-gray-100"
                           }`}
                         >
                           <Users
-                            className={`w-5 h-5 AED{
+                            className={`w-5 h-5 ${
                               formData.role === "admin"
                                 ? "text-red-600"
                                 : "text-gray-500"
@@ -1630,7 +1630,7 @@ export default function SuperAdminUsers() {
                         {getPagesByCategory("dashboard").map((page) => (
                           <div
                             key={page.id}
-                            className={`flex items-center gap-3 p-2 rounded-lg border AED{
+                            className={`flex items-center gap-3 p-2 rounded-lg border ${
                               page.id === "dashboard"
                                 ? "bg-gray-50"
                                 : "hover:bg-gray-50 cursor-pointer"
@@ -1640,7 +1640,7 @@ export default function SuperAdminUsers() {
                             }
                           >
                             <div
-                              className={`p-1.5 rounded AED{
+                              className={`p-1.5 rounded ${
                                 formData.allowedPages.includes(page.id)
                                   ? "bg-blue-100 text-blue-600"
                                   : "bg-gray-100 text-gray-600"
@@ -1693,7 +1693,7 @@ export default function SuperAdminUsers() {
                             onClick={() => togglePage(page.id)}
                           >
                             <div
-                              className={`p-1.5 rounded AED{
+                              className={`p-1.5 rounded ${
                                 formData.allowedPages.includes(page.id)
                                   ? "bg-purple-100 text-purple-600"
                                   : "bg-gray-100 text-gray-600"
@@ -2006,7 +2006,7 @@ export default function SuperAdminUsers() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div
-                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all AED{
+                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
                         formData.role === "super_admin"
                           ? "border-purple-500 bg-purple-50"
                           : "border-gray-200 hover:border-gray-300"
@@ -2021,14 +2021,14 @@ export default function SuperAdminUsers() {
                     >
                       <div className="flex items-center gap-3">
                         <div
-                          className={`w-10 h-10 rounded-lg flex items-center justify-center AED{
+                          className={`w-10 h-10 rounded-lg flex items-center justify-center ${
                             formData.role === "super_admin"
                               ? "bg-purple-100"
                               : "bg-gray-100"
                           }`}
                         >
                           <Shield
-                            className={`w-5 h-5 AED{
+                            className={`w-5 h-5 ${
                               formData.role === "super_admin"
                                 ? "text-purple-600"
                                 : "text-gray-500"
@@ -2047,7 +2047,7 @@ export default function SuperAdminUsers() {
                     </div>
 
                     <div
-                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all AED{
+                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
                         formData.role === "admin"
                           ? "border-red-500 bg-red-50"
                           : "border-gray-200 hover:border-gray-300"
@@ -2064,14 +2064,14 @@ export default function SuperAdminUsers() {
                     >
                       <div className="flex items-center gap-3">
                         <div
-                          className={`w-10 h-10 rounded-lg flex items-center justify-center AED{
+                          className={`w-10 h-10 rounded-lg flex items-center justify-center ${
                             formData.role === "admin"
                               ? "bg-red-100"
                               : "bg-gray-100"
                           }`}
                         >
                           <Users
-                            className={`w-5 h-5 AED{
+                            className={`w-5 h-5 ${
                               formData.role === "admin"
                                 ? "text-red-600"
                                 : "text-gray-500"
@@ -2136,17 +2136,17 @@ export default function SuperAdminUsers() {
                         {getPagesByCategory("dashboard").map((page) => (
                           <div
                             key={page.id}
-                            className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all AED{
+                            className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
                               formData.allowedPages.includes(page.id)
                                 ? "bg-blue-50 border-blue-200"
                                 : "bg-gray-50 border-gray-200 hover:bg-gray-100"
-                            } AED{page.id === "dashboard" ? "cursor-not-allowed opacity-75" : ""}`}
+                            } ${page.id === "dashboard" ? "cursor-not-allowed opacity-75" : ""}`}
                             onClick={() =>
                               page.id !== "dashboard" && togglePage(page.id)
                             }
                           >
                             <div
-                              className={`p-2 rounded AED{
+                              className={`p-2 rounded ${
                                 formData.allowedPages.includes(page.id)
                                   ? "bg-blue-100 text-blue-600"
                                   : "bg-gray-200 text-gray-600"
@@ -2192,7 +2192,7 @@ export default function SuperAdminUsers() {
                         {getPagesByCategory("management").map((page) => (
                           <div
                             key={page.id}
-                            className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all AED{
+                            className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
                               formData.allowedPages.includes(page.id)
                                 ? "bg-purple-50 border-purple-200"
                                 : "bg-gray-50 border-gray-200 hover:bg-gray-100"
@@ -2200,7 +2200,7 @@ export default function SuperAdminUsers() {
                             onClick={() => togglePage(page.id)}
                           >
                             <div
-                              className={`p-2 rounded AED{
+                              className={`p-2 rounded ${
                                 formData.allowedPages.includes(page.id)
                                   ? "bg-purple-100 text-purple-600"
                                   : "bg-gray-200 text-gray-600"
@@ -2235,7 +2235,7 @@ export default function SuperAdminUsers() {
                         {getPagesByCategory("operations").map((page) => (
                           <div
                             key={page.id}
-                            className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all AED{
+                            className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
                               formData.allowedPages.includes(page.id)
                                 ? "bg-amber-50 border-amber-200"
                                 : "bg-gray-50 border-gray-200 hover:bg-gray-100"
@@ -2243,7 +2243,7 @@ export default function SuperAdminUsers() {
                             onClick={() => togglePage(page.id)}
                           >
                             <div
-                              className={`p-2 rounded AED{
+                              className={`p-2 rounded ${
                                 formData.allowedPages.includes(page.id)
                                   ? "bg-amber-100 text-amber-600"
                                   : "bg-gray-200 text-gray-600"
@@ -2278,7 +2278,7 @@ export default function SuperAdminUsers() {
                         {getPagesByCategory("reports").map((page) => (
                           <div
                             key={page.id}
-                            className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all AED{
+                            className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
                               formData.allowedPages.includes(page.id)
                                 ? "bg-green-50 border-green-200"
                                 : "bg-gray-50 border-gray-200 hover:bg-gray-100"
@@ -2286,7 +2286,7 @@ export default function SuperAdminUsers() {
                             onClick={() => togglePage(page.id)}
                           >
                             <div
-                              className={`p-2 rounded AED{
+                              className={`p-2 rounded ${
                                 formData.allowedPages.includes(page.id)
                                   ? "bg-green-100 text-green-600"
                                   : "bg-gray-200 text-gray-600"

@@ -102,6 +102,11 @@ interface StaffMember {
   role: string;
   specialization: string[];
   branch: string;
+  branchId?: string;
+  userBranchId?: string;
+  userBranchName?: string;
+  branchNames?: string[];
+  branches?: string[];
   avatar: string;
   status: string;
   rating: number;
@@ -2332,6 +2337,19 @@ const fetchStaffFromFirebase = async (): Promise<StaffMember[]> => {
   }
 };
 
+const normalizeBranchKey = (value?: string | null): string =>
+  (value || '')
+    .toLowerCase()
+    .replace(/[-_]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const splitBranchTokens = (value?: string | null): string[] =>
+  (value || '')
+    .split(/[,|/]/)
+    .map((part) => normalizeBranchKey(part))
+    .filter(Boolean);
+
 // NEW FUNCTION: Fetch branches from Firebase (sirf naam fetch karna hai)
 const fetchBranchesFromFirebase = async (): Promise<Branch[]> => {
   try {
@@ -2457,9 +2475,27 @@ export function AdvancedCalendar({
     // When locked to a branch, always show only that branch's staff
     const activeBranch = lockedBranch || (selectedBranch !== 'all' ? selectedBranch : null);
     if (!activeBranch) return staffMembers;
-    return staffMembers.filter(s =>
-      (s.branch || '').toLowerCase().trim() === activeBranch.toLowerCase().trim()
+
+    const normalizedActiveBranch = normalizeBranchKey(activeBranch);
+    const selectedBranchDoc = branches.find(
+      (branch) => normalizeBranchKey(branch.name) === normalizedActiveBranch
     );
+
+    return staffMembers.filter((staff) => {
+      const nameCandidates = [
+        normalizeBranchKey(staff.branch),
+        normalizeBranchKey(staff.userBranchName),
+        ...(staff.branchNames || []).map((name) => normalizeBranchKey(name)),
+        ...splitBranchTokens(staff.branch),
+      ].filter(Boolean);
+
+      if (nameCandidates.includes(normalizedActiveBranch)) return true;
+
+      if (!selectedBranchDoc) return false;
+
+      const idCandidates = [staff.branchId, staff.userBranchId, ...(staff.branches || [])].filter(Boolean);
+      return idCandidates.includes(selectedBranchDoc.id);
+    });
   }, [staffMembers, selectedBranch, lockedBranch]);
 
   // Reset barber filter when branch changes
@@ -2780,18 +2816,7 @@ export function AdvancedCalendar({
     return `${cleaned[0]} +${cleaned.length - 1}`;
   };
 
-  // ==================== MAIN FILTER LOGIC - EXACT BRANCH MATCH ====================
- // ==================== MAIN FILTER LOGIC - FIXED BRANCH MATCH ====================
 const filteredAppointments = useMemo(() => {
-  console.log("========== BRANCH FILTER DEBUG ==========");
-  console.log("1️⃣ Selected Branch from Dropdown:", selectedBranch);
-  console.log("2️⃣ Total Appointments Received:", appointments.length);
-  
-  // List all unique branches in appointments
-  const uniqueBranches = [...new Set(appointments.map(apt => apt.branch))];
-  console.log("3️⃣ Unique Branches in Appointments:", uniqueBranches);
-  
-  // First filter by date and barber
   const dateAndBarberFiltered = appointments.filter(apt => {
     const aptDate = typeof apt.date === 'string' ? parseISO(apt.date) : new Date(apt.date);
     const isSameDate = isSameDay(aptDate, selectedDate);
@@ -2799,38 +2824,16 @@ const filteredAppointments = useMemo(() => {
     
     return isSameDate && isSameBarber;
   });
-  
-  console.log(`4️⃣ After Date/Barber filter: ${dateAndBarberFiltered.length} bookings`);
-  
-  // AGAR "ALL BRANCHES" SELECT HAI TO SAB DIKHAO
+
   if (selectedBranch === 'all') {
-    console.log("5️⃣ Showing ALL branches - NO branch filter applied");
     return dateAndBarberFiltered;
   }
-  
-  // SPECIFIC BRANCH SELECT HAI - SIRF EXACT MATCH WALI BOOKINGS DIKHAO
-  console.log(`5️⃣ Filtering for branch: "${selectedBranch}"`);
-  
-  const filtered = dateAndBarberFiltered.filter(apt => {
-    // EXACT MATCH - Booking mein branch "Mubaraka" hai aur selected branch "Mubaraka" hai
-    const aptBranch = apt.branch || '';
-    
-    // Convert both to strings and trim for exact comparison
-    const aptBranchStr = String(aptBranch).trim();
-    const selectedBranchStr = String(selectedBranch).trim();
-    
-    // Exact match comparison
-    const isSameBranch = aptBranchStr === selectedBranchStr;
-    
-    console.log(`   🔸 ${apt.customerName || apt.customer}: branch="${aptBranchStr}" | match=${isSameBranch}`);
-    
-    return isSameBranch;
+
+  const normalizedSelectedBranch = normalizeBranchKey(selectedBranch);
+  return dateAndBarberFiltered.filter((appointment) => {
+    const normalizedAppointmentBranch = normalizeBranchKey(appointment.branch);
+    return normalizedAppointmentBranch === normalizedSelectedBranch;
   });
-  
-  console.log(`6️⃣ Final Filtered Count: ${filtered.length} bookings for branch "${selectedBranch}"`);
-  console.log("==========================================");
-  
-  return filtered;
 }, [appointments, selectedDate, selectedBarber, selectedBranch]);
 
   const topBarBookingStats = useMemo(() => {

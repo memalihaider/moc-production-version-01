@@ -966,11 +966,11 @@ export default function SuperAdminMembership() {
       setShowAddDialog(false);
       setSelectedItem(null);
       resetForms();
-      alert(`AED{dialogType.charAt(0).toUpperCase() + dialogType.slice(1)} updated successfully!`);
+      alert(`${dialogType.charAt(0).toUpperCase() + dialogType.slice(1)} updated successfully!`);
       
     } catch (error) {
-      console.error(`Error updating AED{dialogType}: `, error);
-      alert(`Error updating AED{dialogType}. Please try again.`);
+      console.error(`Error updating ${dialogType}: `, error);
+      alert(`Error updating ${dialogType}. Please try again.`);
     } finally {
       setIsEditing(false);
     }
@@ -996,10 +996,10 @@ export default function SuperAdminMembership() {
       
       setDeleteDialogOpen(false);
       setSelectedItem(null);
-      alert(`AED{dialogType.charAt(0).toUpperCase() + dialogType.slice(1)} deleted successfully!`);
+      alert(`${dialogType.charAt(0).toUpperCase() + dialogType.slice(1)} deleted successfully!`);
     } catch (error) {
-      console.error(`Error deleting AED{dialogType}: `, error);
-      alert(`Error deleting AED{dialogType}. Please try again.`);
+      console.error(`Error deleting ${dialogType}: `, error);
+      alert(`Error deleting ${dialogType}. Please try again.`);
     } finally {
       setIsDeleting(null);
     }
@@ -1025,10 +1025,10 @@ export default function SuperAdminMembership() {
         updatedAt: serverTimestamp()
       });
       
-      alert(`AED{type.charAt(0).toUpperCase() + type.slice(1)} AED{newStatus === 'active' ? 'activated' : 'deactivated'} successfully!`);
+      alert(`${type.charAt(0).toUpperCase() + type.slice(1)} ${newStatus === 'active' ? 'activated' : 'deactivated'} successfully!`);
     } catch (error) {
-      console.error(`Error updating AED{type} status: `, error);
-      alert(`Error updating AED{type} status. Please try again.`);
+      console.error(`Error updating ${type} status: `, error);
+      alert(`Error updating ${type} status. Please try again.`);
     }
   };
 
@@ -1591,8 +1591,8 @@ export default function SuperAdminMembership() {
                                   <Percent className="w-4 h-4 text-green-600" />
                                   <span className="font-semibold">
                                     {offer.discountType === 'percentage' 
-                                      ? `AED{offer.discountValue}% off` 
-                                      : `AEDAED{offer.discountValue} off`}
+                                      ? `${offer.discountValue}% off` 
+                                      : `AED${offer.discountValue} off`}
                                   </span>
                                 </div>
                               </div>
@@ -1701,8 +1701,8 @@ export default function SuperAdminMembership() {
                                   <Percent className="w-4 h-4 text-green-600" />
                                   <span className="font-semibold">
                                     {promo.discountType === 'percentage' 
-                                      ? `AED{promo.discountValue}% off` 
-                                      : `AEDAED{promo.discountValue} off`}
+                                      ? `${promo.discountValue}% off` 
+                                      : `AED${promo.discountValue} off`}
                                   </span>
                                 </div>
                               </div>
@@ -1816,8 +1816,8 @@ export default function SuperAdminMembership() {
                                   
                                   <span className="font-semibold">
                                     {cashback.cashbackType === 'percentage' 
-                                      ? `AED{cashback.cashbackValue}% cashback` 
-                                      : `AEDAED{cashback.cashbackValue} cashback`}
+                                      ? `${cashback.cashbackValue}% cashback` 
+                                      : `AED${cashback.cashbackValue} cashback`}
                                   </span>
                                 </div>
                               </div>
@@ -1982,10 +1982,10 @@ export default function SuperAdminMembership() {
         <SheetContent className="overflow-y-auto sm:max-w-xl h-[700px] m-auto rounded-3xl p-5">
           <SheetHeader>
             <SheetTitle className="font-bold text-4xl text-center text-slate-700">
-              {selectedItem ? `Edit AED{dialogType.charAt(0).toUpperCase() + dialogType.slice(1)}` : `Add New AED{dialogType.charAt(0).toUpperCase() + dialogType.slice(1)}`}
+              {selectedItem ? `Edit ${dialogType.charAt(0).toUpperCase() + dialogType.slice(1)}` : `Add New ${dialogType.charAt(0).toUpperCase() + dialogType.slice(1)}`}
             </SheetTitle>
             <SheetDescription className="font-bold text-md text-center text-slate-800">
-              {selectedItem ? `Update AED{dialogType} details` : `Create a new AED{dialogType} record`}
+              {selectedItem ? `Update ${dialogType} details` : `Create a new ${dialogType} record`}
             </SheetDescription>
           </SheetHeader>
           
@@ -2085,7 +2085,7 @@ export default function SuperAdminMembership() {
                             newBenefits[index] = e.target.value;
                             setMembershipForm({...membershipForm, benefits: newBenefits});
                           }}
-                          placeholder={`Benefit AED{index + 1}`}
+                          placeholder={`Benefit ${index + 1}`}
                           className="flex-1"
                         />
                         {index > 0 && (
@@ -2273,7 +2273,7 @@ export default function SuperAdminMembership() {
                           <div key={service.id} className="flex items-center space-x-2">
                             <input
                               type="checkbox"
-                              id={`service-AED{service.id}`}
+                              id={`service-${service.id}`}
                               checked={offerForm.applicableServices.includes(service.id)}
                               onChange={(e) => {
                                 const serviceId = service.id;
@@ -2286,7 +2286,7 @@ export default function SuperAdminMembership() {
                               }}
                               className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                             />
-                            <Label htmlFor={`service-AED{service.id}`} className="text-sm cursor-pointer">
+                            <Label htmlFor={`service-${service.id}`} className="text-sm cursor-pointer">
                               {service.name} (AED{service.price})
                             </Label>
                           </div>
@@ -2308,7 +2308,7 @@ export default function SuperAdminMembership() {
                           <div key={product.id} className="flex items-center space-x-2">
                             <input
                               type="checkbox"
-                              id={`product-AED{product.id}`}
+                              id={`product-${product.id}`}
                               checked={offerForm.applicableProducts.includes(product.id)}
                               onChange={(e) => {
                                 const productId = product.id;
@@ -2321,7 +2321,7 @@ export default function SuperAdminMembership() {
                               }}
                               className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                             />
-                            <Label htmlFor={`product-AED{product.id}`} className="text-sm cursor-pointer">
+                            <Label htmlFor={`product-${product.id}`} className="text-sm cursor-pointer">
                               {product.name} (AED{product.price})
                             </Label>
                           </div>
@@ -2728,7 +2728,7 @@ export default function SuperAdminMembership() {
                   branches.map((branch) => (
                     <option key={branch.id} value={branch.id}>
                       {branch.name}
-                      {branch.city && ` (AED{branch.city})`}
+                      {branch.city && ` (${branch.city})`}
                     </option>
                   ))
                 )}
@@ -2849,15 +2849,15 @@ export default function SuperAdminMembership() {
                             {selectedItem?.description?.substring(0, 100)}...
                           </p>
                           <div className="flex items-center gap-2 mt-1">
-                            <span className={`px-2 py-1 rounded-md text-xs AED{getStatusColor(selectedItem?.status || '')}`}>
+                            <span className={`px-2 py-1 rounded-md text-xs ${getStatusColor(selectedItem?.status || '')}`}>
                               {selectedItem?.status}
                             </span>
                             <span className="px-2 py-1 rounded-md text-xs border border-gray-300">
-                              {dialogType === 'membership' && `AEDAED{selectedItem?.price}`}
-                              {dialogType === 'offer' && (selectedItem?.discountType === 'percentage' ? `AED{selectedItem?.discountValue}%` : `AEDAED{selectedItem?.discountValue}`)}
-                              {dialogType === 'promo' && (selectedItem?.discountType === 'percentage' ? `AED{selectedItem?.discountValue}%` : `AEDAED{selectedItem?.discountValue}`)}
-                              {dialogType === 'cashback' && (selectedItem?.cashbackType === 'percentage' ? `AED{selectedItem?.cashbackValue}%` : `AEDAED{selectedItem?.cashbackValue}`)}
-                              {dialogType === 'loyalty' && `AED{selectedItem?.pointsPerDollar} pts/AED`}
+                              {dialogType === 'membership' && `AED${selectedItem?.price}`}
+                              {dialogType === 'offer' && (selectedItem?.discountType === 'percentage' ? `${selectedItem?.discountValue}%` : `AED${selectedItem?.discountValue}`)}
+                              {dialogType === 'promo' && (selectedItem?.discountType === 'percentage' ? `${selectedItem?.discountValue}%` : `AED${selectedItem?.discountValue}`)}
+                              {dialogType === 'cashback' && (selectedItem?.cashbackType === 'percentage' ? `${selectedItem?.cashbackValue}%` : `AED${selectedItem?.cashbackValue}`)}
+                              {dialogType === 'loyalty' && `${selectedItem?.pointsPerDollar} pts/AED`}
                             </span>
                           </div>
                         </div>

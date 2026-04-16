@@ -281,7 +281,7 @@ const NotificationBell = () => {
 
   const handleNotificationClick = (notification: Notification) => {
     if (notification.feedbackId) {
-      const element = document.getElementById(`feedback-AED{notification.feedbackId}`);
+      const element = document.getElementById(`feedback-${notification.feedbackId}`);
       if (element) {
         element.scrollIntoView({ behavior: 'smooth' });
         element.classList.add('bg-yellow-50', 'ring-2', 'ring-yellow-400');
@@ -358,7 +358,7 @@ const NotificationBell = () => {
               notifications.map((notification) => (
                 <div
                   key={notification.id}
-                  className={`p-4 border-b hover:bg-gray-50 cursor-pointer transition-colors AED{
+                  className={`p-4 border-b hover:bg-gray-50 cursor-pointer transition-colors ${
                     !notification.read ? 'bg-blue-50' : ''
                   }`}
                   onClick={() => handleNotificationClick(notification)}
@@ -460,7 +460,7 @@ const FeedbackListener = () => {
           // Send notification for EVERY feedback (first time load pe)
           addNotification({
             title: '📥 Feedback Loaded',
-            message: `AED{data.customerName}'s feedback loaded from database`,
+            message: `${data.customerName}'s feedback loaded from database`,
             type: 'new_feedback',
             feedbackId: feedbackId,
             rating: data.rating
@@ -516,7 +516,7 @@ const FeedbackListener = () => {
             
             addNotification({
               title: '🌟 New Feedback Received!',
-              message: `AED{data.customerName} gave AED{data.rating} ⭐ for "AED{data.serviceOrProduct}"`,
+              message: `${data.customerName} gave ${data.rating} ⭐ for "${data.serviceOrProduct}"`,
               type: 'new_feedback',
               feedbackId: feedbackId,
               rating: data.rating
@@ -752,9 +752,9 @@ export default function AdminFeedbackPage() {
       const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
       const diffMinutes = Math.floor(diffMs / (1000 * 60));
       
-      if (diffDays > 0) return `AED{diffDays}d ago`;
-      if (diffHours > 0) return `AED{diffHours}h ago`;
-      if (diffMinutes > 0) return `AED{diffMinutes}m ago`;
+      if (diffDays > 0) return `${diffDays}d ago`;
+      if (diffHours > 0) return `${diffHours}h ago`;
+      if (diffMinutes > 0) return `${diffMinutes}m ago`;
       return 'Just now';
     } catch {
       return 'Some time ago';
@@ -824,14 +824,14 @@ export default function AdminFeedbackPage() {
     
     filteredFeedbacks.forEach(feedback => {
       const branchNames = feedback.productBranchNames?.join(', ') || '';
-      csv += `"AED{feedback.id}","AED{feedback.customerName}","AED{feedback.customerEmail}",AED{feedback.rating},AED{feedback.type},"AED{feedback.serviceOrProduct}","AED{feedback.productName || ''}","AED{feedback.productSku || ''}","AED{feedback.productCategory || ''}",AED{feedback.productPrice || 0},AED{feedback.productTotalStock || 0},AED{feedback.productTotalSold || 0},"AED{feedback.productStatus || ''}","AED{branchNames}","AED{feedback.comment.replace(/"/g, '""')}",AED{feedback.status},"AED{formatDate(feedback.createdAt)}","AED{feedback.adminReply || ''}","AED{feedback.pointsAwarded ? 'Yes' : 'No'}"\n`;
+      csv += `"${feedback.id}","${feedback.customerName}","${feedback.customerEmail}",${feedback.rating},${feedback.type},"${feedback.serviceOrProduct}","${feedback.productName || ''}","${feedback.productSku || ''}","${feedback.productCategory || ''}",${feedback.productPrice || 0},${feedback.productTotalStock || 0},${feedback.productTotalSold || 0},"${feedback.productStatus || ''}","${branchNames}","${feedback.comment.replace(/"/g, '""')}",${feedback.status},"${formatDate(feedback.createdAt)}","${feedback.adminReply || ''}","${feedback.pointsAwarded ? 'Yes' : 'No'}"\n`;
     });
     
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `feedbacks-AED{new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `feedbacks-${new Date().toISOString().split('T')[0]}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -1105,7 +1105,7 @@ export default function AdminFeedbackPage() {
                                   <div className="w-full bg-gray-200 rounded-full h-2">
                                     <div 
                                       className="bg-yellow-500 h-2 rounded-full" 
-                                      style={{ width: `AED{percentage}%` }}
+                                      style={{ width: `${percentage}%` }}
                                     ></div>
                                   </div>
                                 </div>
@@ -1209,7 +1209,7 @@ export default function AdminFeedbackPage() {
                         {filteredFeedbacks.map((feedback) => (
                           <Card 
                             key={feedback.id} 
-                            id={`feedback-AED{feedback.id}`}
+                            id={`feedback-${feedback.id}`}
                             className="border-none shadow-sm rounded-xl overflow-hidden transition-all hover:shadow-md"
                           >
                             <CardContent className="p-6">
@@ -1326,7 +1326,7 @@ export default function AdminFeedbackPage() {
                                           <div className="flex items-center gap-2">
                                             <div>
                                               <span className="font-semibold text-gray-600">Status:</span>
-                                              <Badge className={`ml-2 AED{
+                                              <Badge className={`ml-2 ${
                                                 feedback.productStatus === 'active' 
                                                   ? 'bg-green-100 text-green-700' 
                                                   : feedback.productStatus === 'inactive'

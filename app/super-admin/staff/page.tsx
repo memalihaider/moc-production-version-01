@@ -633,7 +633,7 @@
 //                                   {member.name.split(' ').map(n => n[0]).join('')}
 //                                 </div>
 //                               )}
-//                               <Badge className={`absolute -bottom-1 -right-1 AED{getStatusColor(member.status)}`}>
+//                               <Badge className={`absolute -bottom-1 -right-1 ${getStatusColor(member.status)}`}>
 //                                 {member.status.replace('_', ' ')}
 //                               </Badge>
 //                             </div>
@@ -726,9 +726,9 @@
 //                                     <span>Visa:</span>
 //                                     <Badge 
 //                                       className={`
-//                                         AED{visaStatus === 'expired' ? 'bg-red-100 text-red-800' : ''}
-//                                         AED{visaStatus === 'expiring_soon' ? 'bg-yellow-100 text-yellow-800' : ''}
-//                                         AED{visaStatus === 'valid' ? 'bg-green-100 text-green-800' : ''}
+//                                         ${visaStatus === 'expired' ? 'bg-red-100 text-red-800' : ''}
+//                                         ${visaStatus === 'expiring_soon' ? 'bg-yellow-100 text-yellow-800' : ''}
+//                                         ${visaStatus === 'valid' ? 'bg-green-100 text-green-800' : ''}
 //                                       `}
 //                                     >
 //                                       {new Date(member.visaExpiry).toLocaleDateString()}
@@ -2595,7 +2595,7 @@ export default function SuperAdminStaff() {
                                   {member.name.split(' ').map(n => n[0]).join('')}
                                 </div>
                               )}
-                              <Badge className={`absolute -bottom-1 -right-1 AED{getStatusColor(member.status)}`}>
+                              <Badge className={`absolute -bottom-1 -right-1 ${getStatusColor(member.status)}`}>
                                 {member.status.replace('_', ' ')}
                               </Badge>
                             </div>
@@ -2688,9 +2688,9 @@ export default function SuperAdminStaff() {
                                     <span>Visa:</span>
                                     <Badge 
                                       className={`
-                                        AED{visaStatus === 'expired' ? 'bg-red-100 text-red-800' : ''}
-                                        AED{visaStatus === 'expiring_soon' ? 'bg-yellow-100 text-yellow-800' : ''}
-                                        AED{visaStatus === 'valid' ? 'bg-green-100 text-green-800' : ''}
+                                        ${visaStatus === 'expired' ? 'bg-red-100 text-red-800' : ''}
+                                        ${visaStatus === 'expiring_soon' ? 'bg-yellow-100 text-yellow-800' : ''}
+                                        ${visaStatus === 'valid' ? 'bg-green-100 text-green-800' : ''}
                                       `}
                                     >
                                       {new Date(member.visaExpiry).toLocaleDateString()}

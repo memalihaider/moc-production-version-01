@@ -8,7 +8,7 @@ import {
   onAuthStateChanged,
   User as FirebaseUser
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, setDoc, onSnapshot } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 
 // UPDATED: User interface with allowedPages
@@ -49,6 +49,57 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
+  const normalizeBranchText = (value?: string) => (value || '').trim().toLowerCase();
+
+  const enrichAdminUser = async (
+    firebaseUser: FirebaseUser,
+    rawUserData: Record<string, any>
+  ): Promise<User> => {
+    let branchId = rawUserData.branchId;
+    let branchName = rawUserData.branchName;
+
+    // If branchId is missing, attempt to resolve it from branchName.
+    if (!branchId && branchName) {
+      try {
+        const branchesSnap = await getDocs(collection(db, 'branches'));
+        const matched = branchesSnap.docs.find((branchDoc) => {
+          const data = branchDoc.data();
+          return normalizeBranchText(data.name) === normalizeBranchText(branchName);
+        });
+
+        if (matched) {
+          branchId = matched.id;
+          branchName = matched.data().name || branchName;
+        }
+      } catch (error) {
+        console.warn('Could not resolve branchId from branchName:', error);
+      }
+    }
+
+    // If branchName is missing but branchId exists, resolve canonical branchName.
+    if (branchId && !branchName) {
+      try {
+        const branchSnap = await getDoc(doc(db, 'branches', branchId));
+        if (branchSnap.exists()) {
+          const branchData = branchSnap.data();
+          branchName = branchData.name || branchName;
+        }
+      } catch (error) {
+        console.warn('Could not resolve branchName from branchId:', error);
+      }
+    }
+
+    return {
+      id: firebaseUser.uid,
+      email: firebaseUser.email!,
+      role: rawUserData.role || 'admin',
+      branchId,
+      branchName,
+      name: rawUserData.name,
+      allowedPages: rawUserData.allowedPages || []
+    };
+  };
+
   useEffect(() => {
     let userDocUnsubscribe: (() => void) | null = null;
 
@@ -67,38 +118,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           if (userDocSnap.exists()) {
             // User is ADMIN — set up real-time listener for permission changes
             const userData = userDocSnap.data();
-            const allowedPages = userData.allowedPages || [];
-            
-            const userObj: User = {
-              id: firebaseUser.uid,
-              email: firebaseUser.email!,
-              role: userData.role || 'admin',
-              branchId: userData.branchId,
-              branchName: userData.branchName,
-              name: userData.name,
-              allowedPages: allowedPages
-            };
+            const userObj = await enrichAdminUser(firebaseUser, userData);
             
             setUser(userObj);
             localStorage.setItem('user', JSON.stringify(userObj));
-            console.log('✅ Admin auth state updated with allowedPages:', allowedPages);
+            console.log('✅ Admin auth state updated with allowedPages:', userObj.allowedPages || []);
 
             // Real-time listener for user document changes (permissions, role, etc.)
             userDocUnsubscribe = onSnapshot(doc(db, 'users', firebaseUser.uid), (snapshot) => {
               if (snapshot.exists()) {
                 const updatedData = snapshot.data();
-                const updatedUser: User = {
-                  id: firebaseUser.uid,
-                  email: firebaseUser.email!,
-                  role: updatedData.role || 'admin',
-                  branchId: updatedData.branchId,
-                  branchName: updatedData.branchName,
-                  name: updatedData.name,
-                  allowedPages: updatedData.allowedPages || []
-                };
-                setUser(updatedUser);
-                localStorage.setItem('user', JSON.stringify(updatedUser));
-                console.log('🔄 Real-time user update — allowedPages:', updatedData.allowedPages);
+                enrichAdminUser(firebaseUser, updatedData)
+                  .then((updatedUser) => {
+                    setUser(updatedUser);
+                    localStorage.setItem('user', JSON.stringify(updatedUser));
+                    console.log('🔄 Real-time user update — allowedPages:', updatedUser.allowedPages || []);
+                  })
+                  .catch((error) => {
+                    console.error('❌ Failed to enrich updated user data:', error);
+                  });
               }
             });
             
@@ -234,24 +272,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         
         const userData = userDoc.data();
         console.log('📋 User role from Firestore:', userData.role);
-        
-        // 👇 Fetch allowedPages for admin
-        const allowedPages = userData.allowedPages || [];
-        console.log('📋 Allowed pages for admin:', allowedPages);
-        
-        const userObj: User = {
-          id: userCredential.user.uid,
-          email: userCredential.user.email!,
-          role: userData.role || 'admin',
-          branchId: userData.branchId,
-          branchName: userData.branchName,
-          name: userData.name,
-          allowedPages: allowedPages // 👈 Include allowedPages
-        };
+        const userObj = await enrichAdminUser(userCredential.user, userData);
+        console.log('📋 Allowed pages for admin:', userObj.allowedPages || []);
         
         setUser(userObj);
         localStorage.setItem('user', JSON.stringify(userObj));
-        console.log('✅ User state updated with allowedPages:', allowedPages);
+        console.log('✅ User state updated with allowedPages:', userObj.allowedPages || []);
         
         if (userData.role === 'super_admin') {
           console.log('🚀 SUPER ADMIN → Redirecting to /super-admin');

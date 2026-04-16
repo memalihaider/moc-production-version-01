@@ -139,7 +139,7 @@
 //         bookingsData.push({
 //           id: doc.id,
 //           bookingDate: data.bookingDate || '',
-//           bookingNumber: data.bookingNumber || `BOOK-AED{doc.id.substring(0, 8)}`,
+//           bookingNumber: data.bookingNumber || `BOOK-${doc.id.substring(0, 8)}`,
 //           bookingTime: data.bookingTime || '',
 //           timeSlot: data.timeSlot || '',
 //           branch: data.branch || data.userBranchName || 'Unknown Branch',
@@ -818,8 +818,8 @@
 //                   <div className="text-sm text-gray-600">
 //                     Showing {filteredBookings.length} bookings 
 //                     {dateFilter !== 'all' && ` for selected date range`}
-//                     {statusFilter !== 'all' && ` with status: AED{statusFilter}`}
-//                     {branchFilter !== 'all' && ` at branch: AED{branchFilter}`}
+//                     {statusFilter !== 'all' && ` with status: ${statusFilter}`}
+//                     {branchFilter !== 'all' && ` at branch: ${branchFilter}`}
 //                   </div>
 //                 </div>
 //               </CardContent>
@@ -964,7 +964,7 @@
 //               <div className="flex items-center justify-between">
 //                 <div>
 //                   Showing {filteredBookings.length} of {stats.totalAppointments} filtered bookings
-//                   {dateFilter !== 'all' && ` (AED{stats.totalAppointments} total in date range)`}
+//                   {dateFilter !== 'all' && ` (${stats.totalAppointments} total in date range)`}
 //                 </div>
 //                 <div className="text-xs text-gray-400">
 //                   Last updated: {new Date().toLocaleTimeString()}
@@ -1129,7 +1129,7 @@ const useBookingsStore = create<BookingsStore>((set, get) => ({
         bookingsData.push({
           id: doc.id,
           bookingDate: data.bookingDate || '',
-          bookingNumber: data.bookingNumber || `BOOK-AED{doc.id.substring(0, 8)}`,
+          bookingNumber: data.bookingNumber || `BOOK-${doc.id.substring(0, 8)}`,
           bookingTime: data.bookingTime || '',
           timeSlot: data.timeSlot || '',
           branch: data.branch || data.userBranchName || 'Unknown Branch',
@@ -1804,8 +1804,8 @@ export default function SuperAdminAppointments() {
                   <div className="text-sm text-gray-600">
                     Showing {filteredBookings.length} bookings 
                     {dateFilter !== 'all' && ` for selected date range`}
-                    {statusFilter !== 'all' && ` with status: AED{statusFilter}`}
-                    {branchFilter !== 'all' && ` at branch: AED{branchFilter}`}
+                    {statusFilter !== 'all' && ` with status: ${statusFilter}`}
+                    {branchFilter !== 'all' && ` at branch: ${branchFilter}`}
                   </div>
                 </div>
               </CardContent>
@@ -1954,7 +1954,7 @@ export default function SuperAdminAppointments() {
               <div className="flex items-center justify-between">
                 <div>
                   Showing {filteredBookings.length} of {stats.totalAppointments} filtered bookings
-                  {dateFilter !== 'all' && ` (AED{stats.totalAppointments} total in date range)`}
+                  {dateFilter !== 'all' && ` (${stats.totalAppointments} total in date range)`}
                 </div>
                 <div className="text-xs text-gray-400">
                   Last updated: {new Date().toLocaleTimeString()}

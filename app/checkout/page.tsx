@@ -105,6 +105,22 @@ interface BranchData {
   managerEmail: string;
   status: string;
   image?: string;
+  acceptCash?: boolean;
+  acceptCard?: boolean;
+  paymentGateway?: {
+    provider?: 'none' | 'totalpay';
+    totalPay?: {
+      enabled?: boolean;
+      baseUrl?: string;
+      createInvoiceEndpoint?: string;
+      merchantId?: string;
+      apiKey?: string;
+      apiSecret?: string;
+      successUrl?: string;
+      cancelUrl?: string;
+      webhookUrl?: string;
+    };
+  };
 }
 
 const useOrderStore = () => {
@@ -309,7 +325,10 @@ export default function ProductsOrderCheckout() {
             managerPhone: data.managerPhone || '',
             managerEmail: data.managerEmail || '',
             status: data.status || 'active',
-            image: data.image || ''
+            image: data.image || '',
+            acceptCash: data.acceptCash ?? true,
+            acceptCard: data.acceptCard ?? true,
+            paymentGateway: data.paymentGateway || undefined,
           });
         });
         
@@ -472,6 +491,7 @@ export default function ProductsOrderCheckout() {
   const cartTotal = getCartTotal();
   const totalItems = getTotalItems();
   const finalTotal = cartTotal;
+  const cardEnabledForBranch = selectedBranchData?.acceptCard !== false;
 
   const generateTransactionId = () => {
     return `TXN_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
@@ -559,6 +579,84 @@ export default function ProductsOrderCheckout() {
           console.error('Error parsing auth:', error);
         }
       }
+
+      const generatedOrderRef = generateTransactionId();
+
+      if (paymentMethod === 'card') {
+        if (!selectedBranchData?.id) {
+          setValidationError('Please select a valid branch for card payment.');
+          return;
+        }
+
+        const paymentResponse = await fetch('/api/payments/totalpay/create-session', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            branchId: selectedBranchData.id,
+            amount: finalTotal,
+            currency: 'AED',
+            customer: {
+              name: customerName,
+              email: customerEmail,
+              phone: customerPhone,
+            },
+            orderRef: generatedOrderRef,
+            returnUrl: `${window.location.origin}/checkout?payment=success&orderRef=${generatedOrderRef}`,
+            cancelUrl: `${window.location.origin}/checkout?payment=cancel&orderRef=${generatedOrderRef}`,
+            notes: notes || specialRequests || 'Product checkout payment',
+          }),
+        });
+
+        const paymentResult = await paymentResponse.json();
+
+        if (!paymentResponse.ok || !paymentResult?.paymentUrl) {
+          setValidationError(paymentResult?.error || 'Unable to start card payment. Please try again.');
+          return;
+        }
+
+        const pendingCardOrder: OrderData = {
+          branchNames: [selectedBranch],
+          createdAt: serverTimestamp(),
+          customerEmail: customerEmail,
+          customerId: customerId,
+          customerName: customerName,
+          customerPhone: customerPhone,
+          expectedDeliveryDate: expectedDeliveryDate,
+          orderDate: selectedDate,
+          paymentMethod: paymentMethod,
+          paymentStatus: 'processing',
+          pointsAwarded: false,
+          products: cartItems.map(item => ({
+            price: item.price,
+            productBranchNames: item.branchNames || [selectedBranch],
+            productBranches: item.branches || [selectedBranchData.id],
+            productCategory: item.category || 'Product Category',
+            productCategoryId: item.productCategoryId || 'default_category_id',
+            productCost: item.cost || 0,
+            productId: item.id,
+            productImage: item.image || item.productImage || 'https://images.unsplash.com/photo-1512690196222-7c7d3f993c1b?q=80&w=2070&auto=format&fit=crop',
+            productName: item.name,
+            productSku: item.sku || item.productSku || 'N/A',
+            quantity: item.quantity
+          })),
+          pickupBranch: selectedBranch,
+          pickupBranchAddress: selectedBranchData.address,
+          pickupBranchPhone: selectedBranchData.phone,
+          pickupBranchTiming: `${selectedBranchData.openingTime} - ${selectedBranchData.closingTime}`,
+          status: 'pending',
+          totalAmount: finalTotal,
+          transactionId: paymentResult?.gatewayReference || generatedOrderRef,
+          updatedAt: serverTimestamp()
+        };
+
+        const ordersRef = collection(db, 'orders');
+        await addDoc(ordersRef, pendingCardOrder);
+
+        window.location.href = paymentResult.paymentUrl;
+        return;
+      }
       
       const orderData: OrderData = {
         branchNames: [selectedBranch],
@@ -591,7 +689,7 @@ export default function ProductsOrderCheckout() {
         pickupBranchTiming: `${selectedBranchData.openingTime} - ${selectedBranchData.closingTime}`,
         status: "upcoming",
         totalAmount: finalTotal,
-        transactionId: generateTransactionId(),
+        transactionId: generatedOrderRef,
         updatedAt: serverTimestamp()
       };
 
@@ -704,13 +802,13 @@ export default function ProductsOrderCheckout() {
                   <CardContent className="p-6">
                     <div className="space-y-4">
                       <div className="flex items-start gap-4">
-                        <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center shrink-0">
                           <AlertCircle className="w-6 h-6 text-red-600" />
                         </div>
                         <div className="flex-1">
                           <p className="font-bold text-red-900 text-lg">Account Login Required</p>
                           <p className="text-sm text-red-700 mt-1">
-                           Create account to show all history of your account
+                           Account is optional for card checkout. Sign in only if you want wallet, rewards, and order history.
                           </p>
                         </div>
                       </div>
@@ -865,7 +963,7 @@ export default function ProductsOrderCheckout() {
                     <div className="space-y-4">
                       <div className="p-4 bg-secondary/5 border border-secondary/20 rounded-lg">
                         <div className="flex items-start gap-3">
-                          <div className="w-10 h-10 bg-secondary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <div className="w-10 h-10 bg-secondary/10 rounded-lg flex items-center justify-center shrink-0">
                             <Building className="w-5 h-5 text-secondary" />
                           </div>
                           <div className="flex-1">
@@ -968,7 +1066,7 @@ export default function ProductsOrderCheckout() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-6 space-y-4">
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <button
                       onClick={() => setPaymentMethod('cod')}
                       className={cn(
@@ -982,13 +1080,38 @@ export default function ProductsOrderCheckout() {
                       <span className="text-xs font-bold">Cash on Delivery</span>
                       <span className="text-xs text-gray-500">Pay on Pickup</span>
                     </button>
+
+                    {selectedBranchData && cardEnabledForBranch && (
+                      <button
+                        onClick={() => setPaymentMethod('card')}
+                        className={cn(
+                          'p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2',
+                          paymentMethod === 'card'
+                            ? 'border-secondary bg-secondary/10'
+                            : 'border-gray-200 hover:border-gray-300 cursor-pointer'
+                        )}
+                      >
+                        <CreditCard className={cn('w-6 h-6', paymentMethod === 'card' ? 'text-secondary' : 'text-gray-500')} />
+                        <span className="text-xs font-bold">Card Payment</span>
+                        <span className="text-xs text-gray-500">Secure Hosted Checkout</span>
+                      </button>
+                    )}
                   </div>
+
+                  {selectedBranchData && !cardEnabledForBranch && (
+                    <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-xl">
+                      <p className="text-xs text-yellow-700">
+                        <Info className="w-4 h-4 inline mr-1" />
+                        <span className="font-bold">Card unavailable:</span> this branch has not enabled card gateway yet.
+                      </p>
+                    </div>
+                  )}
 
                   {!isLoggedIn && (
                     <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-xl">
                       <p className="text-xs text-yellow-700">
                         <Info className="w-4 h-4 inline mr-1" />
-                        <span className="font-bold">Note:</span> Create an account for Mixed Payment and Digital Wallet options. COD is always available.
+                        <span className="font-bold">Guest checkout:</span> card and COD are available without account login.
                       </p>
                     </div>
                   )}
@@ -999,7 +1122,7 @@ export default function ProductsOrderCheckout() {
             {/* Right Column: Order Summary */}
             <div className="space-y-6">
               <Card className="border-none shadow-lg rounded-none bg-primary text-white sticky top-24">
-                <div className="h-40 w-full bg-gradient-to-b from-secondary/20 to-primary flex items-center justify-center overflow-hidden">
+                <div className="h-40 w-full bg-linear-to-b from-secondary/20 to-primary flex items-center justify-center overflow-hidden">
                   <div className="text-center text-white p-4">
                     <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-3">
                       <Building className="w-8 h-8 text-white" />

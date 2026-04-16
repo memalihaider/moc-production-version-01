@@ -1046,7 +1046,7 @@ export default function SuperAdminOrders() {
                         {statusOptions.map(option => (
                           <SelectItem key={option.value} value={option.value}>
                             <div className="flex items-center gap-2">
-                              <div className={`w-2 h-2 rounded-full AED{statusConfig[option.value as keyof typeof statusConfig].badgeColor}`}></div>
+                              <div className={`w-2 h-2 rounded-full ${statusConfig[option.value as keyof typeof statusConfig].badgeColor}`}></div>
                               {option.label}
                             </div>
                           </SelectItem>
@@ -1356,7 +1356,7 @@ export default function SuperAdminOrders() {
                                 <div className="space-y-4">
                                   {order.products.map((product, index) => (
                                     <div 
-                                      key={`AED{product.productId}-AED{index}`}
+                                      key={`${product.productId}-${index}`}
                                       className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg"
                                     >
                                       {/* Product Image */}
@@ -1471,7 +1471,7 @@ export default function SuperAdminOrders() {
                                 >
                                   <SelectTrigger className="w-full">
                                     <div className="flex items-center gap-2">
-                                      <div className={`w-2 h-2 rounded-full AED{status?.badgeColor}`}></div>
+                                      <div className={`w-2 h-2 rounded-full ${status?.badgeColor}`}></div>
                                       <span>Change Status</span>
                                     </div>
                                   </SelectTrigger>

@@ -334,7 +334,7 @@ export default function SuperAdminProducts() {
         category: categoryName,
         categoryId: productForm.categoryId,
         description: productForm.description.trim(),
-        sku: productForm.sku.trim() || `PROD-AED{Date.now()}`,
+        sku: productForm.sku.trim() || `PROD-${Date.now()}`,
         price: parseFloat(productForm.price),
         cost: parseFloat(productForm.cost),
         totalStock: productForm.totalStock ? parseInt(productForm.totalStock) : 0,
@@ -484,7 +484,7 @@ export default function SuperAdminProducts() {
         updatedAt: serverTimestamp()
       });
       
-      alert(`Product AED{newStatus === 'active' ? 'activated' : 'deactivated'} successfully!`);
+      alert(`Product ${newStatus === 'active' ? 'activated' : 'deactivated'} successfully!`);
     } catch (error) {
       console.error("Error updating product status: ", error);
       alert('Error updating product status. Please try again.');
@@ -515,7 +515,7 @@ export default function SuperAdminProducts() {
         updatedAt: serverTimestamp()
       });
       
-      alert(`Stock updated to AED{newStock} successfully!`);
+      alert(`Stock updated to ${newStock} successfully!`);
     } catch (error) {
       console.error("Error updating stock: ", error);
       alert('Error updating stock. Please try again.');
@@ -1139,7 +1139,7 @@ export default function SuperAdminProducts() {
                     branches.map((branch) => (
                       <option key={branch.id} value={branch.id}>
                         {branch.name}
-                        {branch.city && ` (AED{branch.city})`}
+                        {branch.city && ` (${branch.city})`}
                       </option>
                     ))
                   )}
@@ -1246,7 +1246,7 @@ export default function SuperAdminProducts() {
                             <p className="font-medium text-gray-900">{selectedProduct?.name}</p>
                             <p className="text-sm text-gray-600">{selectedProduct?.sku}</p>
                             <div className="flex items-center gap-2 mt-1">
-                              <span className={`px-2 py-1 rounded-md text-xs AED{getStatusColor(selectedProduct?.status || '')}`}>
+                              <span className={`px-2 py-1 rounded-md text-xs ${getStatusColor(selectedProduct?.status || '')}`}>
                                 {selectedProduct?.status?.replace('-', ' ')}
                               </span>
                               <span className="px-2 py-1 rounded-md text-xs border border-gray-300">

@@ -523,7 +523,7 @@ export default function BookingReportPage() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `booking-report-AED{format(new Date(), 'yyyy-MM-dd')}.csv`;
+    a.download = `booking-report-${format(new Date(), 'yyyy-MM-dd')}.csv`;
     a.click();
   };
 
@@ -553,7 +553,7 @@ export default function BookingReportPage() {
   const formatDuration = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
-    return hours > 0 ? `AED{hours}h AED{mins}m` : `AED{mins}m`;
+    return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
   };
 
   return (
@@ -1176,7 +1176,7 @@ export default function BookingReportPage() {
                           filteredBookings.forEach(booking => {
                             // Main staff
                             if (booking.staffName) {
-                              const key = `AED{booking.staffName}|AED{booking.staffRole}`;
+                              const key = `${booking.staffName}|${booking.staffRole}`;
                               const existing = staffMap.get(key) || {
                                 staffName: booking.staffName,
                                 role: booking.staffRole,
@@ -1207,7 +1207,7 @@ export default function BookingReportPage() {
                             
                             // Team members
                             booking.teamMembers?.forEach(member => {
-                              const memberKey = `AED{member.name}|AED{member.role}`;
+                              const memberKey = `${member.name}|${member.role}`;
                               const memberExisting = staffMap.get(memberKey) || {
                                 staffName: member.name,
                                 role: member.role,

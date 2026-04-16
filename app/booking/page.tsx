@@ -3,6 +3,7 @@
 
 import { useState, useEffect, SetStateAction } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { Header } from '@/components/shared/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -181,7 +182,31 @@ interface BranchData {
   closingTime?: string;
   status?: string;
   weeklyTimings?: any;
+  acceptCard?: boolean;
+  paymentGateway?: {
+    provider?: 'none' | 'totalpay';
+    totalPay?: {
+      enabled?: boolean;
+    };
+  };
 }
+
+type ConfirmBookingOptions = {
+  forcePaymentMethod?: string;
+  cardPaymentAlreadyCompleted?: boolean;
+  cardGatewayReference?: string;
+  formOverrides?: {
+    customerName?: string;
+    customerEmail?: string;
+    customerPhone?: string;
+    selectedDate?: string;
+    selectedTime?: string;
+    selectedStaff?: string;
+    branch?: string;
+    notes?: string;
+    specialRequests?: string;
+  };
+};
 
 const useBookingStore = () => {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
@@ -285,12 +310,14 @@ function cn(...inputs: any[]) {
 
 export default function BookingCheckout() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [customer, setCustomer] = useState<CustomerData | null>(null);
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
   const [confirmedBookingId, setConfirmedBookingId] = useState('');
   const [validationError, setValidationError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [handledCardReturn, setHandledCardReturn] = useState('');
   const [tempPassword, setTempPassword] = useState(''); // Store temp password for auto-created accounts
   
   // Branch states
@@ -672,6 +699,8 @@ export default function BookingCheckout() {
     ? (cartTotal * serviceDiscountPercent) / 100
     : 0;
   const finalTotal = Math.max(0, cartTotal - serviceDiscountAmount);
+  const selectedBranchMeta = branchesList.find((b) => b.id === branch || b.name === branch);
+  const cardEnabledForBranch = selectedBranchMeta?.acceptCard !== false;
 
   // Get wallet balance in AED
   const getWalletBalanceInAED = () => {
@@ -808,39 +837,50 @@ export default function BookingCheckout() {
   const getNumericCashAmount = () => parseFloat(cashAmount) || 0;
 
   // Handle confirm booking
-  const handleConfirmBooking = async () => {
+  const handleConfirmBooking = async (options: ConfirmBookingOptions = {}) => {
+    const effectivePaymentMethod = options.forcePaymentMethod || paymentMethod;
+    const effectiveCustomerName = options.formOverrides?.customerName ?? customerName;
+    const effectiveCustomerEmail = options.formOverrides?.customerEmail ?? customerEmail;
+    const effectiveCustomerPhone = options.formOverrides?.customerPhone ?? customerPhone;
+    const effectiveSelectedDate = options.formOverrides?.selectedDate ?? selectedDate;
+    const effectiveSelectedTime = options.formOverrides?.selectedTime ?? selectedTime;
+    const effectiveSelectedStaff = options.formOverrides?.selectedStaff ?? selectedStaff;
+    const effectiveBranch = options.formOverrides?.branch ?? branch;
+    const effectiveNotes = options.formOverrides?.notes ?? notes;
+    const effectiveSpecialRequests = options.formOverrides?.specialRequests ?? specialRequests;
+
     // Validation
     if (cartItems.length === 0) {
       setValidationError('Please add services to your cart first.');
       return;
     }
     
-    if (!customerName || !customerEmail || !customerPhone) {
+    if (!effectiveCustomerName || !effectiveCustomerEmail || !effectiveCustomerPhone) {
       setValidationError('Please fill in all customer information.');
       return;
     }
     
-    if (!selectedDate || !selectedTime) {
+    if (!effectiveSelectedDate || !effectiveSelectedTime) {
       setValidationError('Please select date and time.');
       return;
     }
 
-    if (!selectedStaff) {
+    if (!effectiveSelectedStaff) {
       setValidationError('Please select a staff member.');
       return;
     }
 
-    if (!branch) {
+    if (!effectiveBranch) {
       setValidationError('Please select a branch.');
       return;
     }
 
-    if (!paymentMethod) {
+    if (!effectivePaymentMethod) {
       setValidationError('Please select a payment method.');
       return;
     }
     
-    if ((paymentMethod === 'wallet' || paymentMethod === 'mixed') && !isLoggedIn) {
+    if ((effectivePaymentMethod === 'wallet' || effectivePaymentMethod === 'mixed') && !isLoggedIn) {
       setValidationError('Wallet and Mixed Payment require account. Please sign in or use Pay at Saloon.');
       return;
     }
@@ -853,14 +893,14 @@ export default function BookingCheckout() {
     const discountAmount = discountPercent > 0 ? (servicesTotal * discountPercent) / 100 : 0;
     const finalAmount = Math.max(0, servicesTotal - discountAmount);
 
-    if (paymentMethod === 'wallet' && customer) {
+    if (effectivePaymentMethod === 'wallet' && customer) {
       if (walletBalanceAED < finalAmount) {
         setValidationError(`Insufficient wallet balance. Your balance is AED ${walletBalanceAED.toFixed(2)} but total is AED ${finalAmount.toFixed(2)}. Please choose another payment method.`);
         return;
       }
     }
 
-    if (paymentMethod === 'mixed') {
+    if (effectivePaymentMethod === 'mixed') {
       const numWalletAmount = getNumericWalletAmount();
       const numCashAmount = getNumericCashAmount();
       const totalPaid = numWalletAmount + numCashAmount;
@@ -878,6 +918,83 @@ export default function BookingCheckout() {
 
     setValidationError('');
     setIsSubmitting(true);
+
+    const selectedBranchDataForPayment = branchesList.find((b) => b.id === effectiveBranch || b.name === effectiveBranch);
+
+    if (effectivePaymentMethod === 'card' && !options.cardPaymentAlreadyCompleted) {
+      try {
+        if (!selectedBranchDataForPayment?.id) {
+          setValidationError('Please select a valid branch for card payment.');
+          return;
+        }
+
+        const generatedOrderRef = `BOOKPAY-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+        const pendingCardBooking = {
+          orderRef: generatedOrderRef,
+          customerName: effectiveCustomerName,
+          customerEmail: effectiveCustomerEmail,
+          customerPhone: effectiveCustomerPhone,
+          selectedDate: effectiveSelectedDate,
+          selectedTime: effectiveSelectedTime,
+          selectedStaff: effectiveSelectedStaff,
+          branch: effectiveBranch,
+          notes: effectiveNotes,
+          specialRequests: effectiveSpecialRequests,
+          createdAt: Date.now(),
+        };
+
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('pendingBookingCardPayment', JSON.stringify(pendingCardBooking));
+        }
+
+        const paymentResponse = await fetch('/api/payments/totalpay/create-session', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            branchId: selectedBranchDataForPayment.id,
+            amount: finalAmount,
+            currency: 'AED',
+            customer: {
+              name: effectiveCustomerName,
+              email: effectiveCustomerEmail,
+              phone: effectiveCustomerPhone,
+            },
+            orderRef: generatedOrderRef,
+            returnUrl: `${window.location.origin}/booking?payment=success&orderRef=${generatedOrderRef}`,
+            cancelUrl: `${window.location.origin}/booking?payment=cancel&orderRef=${generatedOrderRef}`,
+            notes: effectiveNotes || effectiveSpecialRequests || 'Service booking card payment',
+          }),
+        });
+
+        const paymentResult = await paymentResponse.json();
+
+        if (!paymentResponse.ok || !paymentResult?.paymentUrl) {
+          setValidationError(paymentResult?.error || 'Unable to start card payment. Please try again.');
+          return;
+        }
+
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem(
+            'pendingBookingCardPayment',
+            JSON.stringify({
+              ...pendingCardBooking,
+              gatewayReference: paymentResult?.gatewayReference || generatedOrderRef,
+            })
+          );
+        }
+
+        window.location.href = paymentResult.paymentUrl;
+        return;
+      } catch (cardInitError) {
+        console.error('Error initializing card payment for booking:', cardInitError);
+        setValidationError('Could not start card payment. Please try again.');
+        return;
+      } finally {
+        setIsSubmitting(false);
+      }
+    }
 
     try {
       const authData = localStorage.getItem('customerAuth');
@@ -903,16 +1020,16 @@ export default function BookingCheckout() {
           console.log('🔐 Generated temporary password');
           
           // Create Firebase Auth user
-          const userCredential = await createUserWithEmailAndPassword(auth, customerEmail, generatedPassword);
+          const userCredential = await createUserWithEmailAndPassword(auth, effectiveCustomerEmail, generatedPassword);
           const uid = userCredential.user.uid;
           customerId = uid;
           
           // Create Firestore customer document linked to Auth user
           const newCustomer = {
             uid: uid,
-            name: customerName,
-            email: customerEmail,
-            phone: customerPhone,
+            name: effectiveCustomerName,
+            email: effectiveCustomerEmail,
+            phone: effectiveCustomerPhone,
             status: 'active',
             role: 'customer',
             createdAt: serverTimestamp(),
@@ -929,8 +1046,8 @@ export default function BookingCheckout() {
           // Create wallet for new customer
           const newWallet = {
             customerId: uid,
-            customerName: customerName,
-            customerEmail: customerEmail,
+            customerName: effectiveCustomerName,
+            customerEmail: effectiveCustomerEmail,
             balance: 0,
             loyaltyPoints: 0,
             createdAt: serverTimestamp(),
@@ -945,9 +1062,9 @@ export default function BookingCheckout() {
             customer: {
               id: uid,
               uid: uid,
-              name: customerName,
-              email: customerEmail,
-              phone: customerPhone,
+              name: effectiveCustomerName,
+              email: effectiveCustomerEmail,
+              phone: effectiveCustomerPhone,
               status: 'active',
               role: 'customer',
               loyaltyPoints: 0,
@@ -959,9 +1076,9 @@ export default function BookingCheckout() {
           setIsLoggedIn(true);
           setCustomer({
             id: uid,
-            name: customerName,
-            email: customerEmail,
-            phone: customerPhone,
+            name: effectiveCustomerName,
+            email: effectiveCustomerEmail,
+            phone: effectiveCustomerPhone,
             walletBalance: 0,
             loyaltyPoints: 0
           });
@@ -979,12 +1096,12 @@ export default function BookingCheckout() {
         }
       }
 
-      const staffMember = staffMembers.find(s => s.name === selectedStaff);
+      const staffMember = staffMembers.find(s => s.name === effectiveSelectedStaff);
       
       // Find selected branch details
-      const selectedBranchData = branchesList.find(b => b.id === branch || b.name === branch);
-      const branchName = selectedBranchData?.name || branch;
-      const branchId = selectedBranchData?.id || branch;
+      const selectedBranchData = branchesList.find(b => b.id === effectiveBranch || b.name === effectiveBranch);
+      const branchName = selectedBranchData?.name || effectiveBranch;
+      const branchId = selectedBranchData?.id || effectiveBranch;
       
       const servicesTotal = cartItems.reduce((sum, item) => sum + item.price, 0);
       const walletBalanceAED = getWalletBalanceInAED();
@@ -1000,21 +1117,21 @@ export default function BookingCheckout() {
       let walletPayment = 0;
       let cashPayment = 0;
       
-      if (paymentMethod === 'wallet') {
+      if (effectivePaymentMethod === 'wallet') {
         walletPayment = finalAmount;
         cashPayment = 0;
-      } else if (paymentMethod === 'mixed') {
+      } else if (effectivePaymentMethod === 'mixed') {
         walletPayment = numWalletAmount;
         cashPayment = numCashAmount;
-      } else if (paymentMethod === 'cod') {
+      } else if (effectivePaymentMethod === 'pay_at_salon') {
         walletPayment = 0;
         cashPayment = finalAmount;
       }
       
       const bookingData: BookingData = {
-        bookingDate: selectedDate,
+        bookingDate: effectiveSelectedDate,
         bookingNumber: generateBookingNumber(),
-        bookingTime: selectedTime,
+        bookingTime: effectiveSelectedTime,
         branch: branchName,
         branchId: branchId,
         branchNames: [branchName],
@@ -1022,20 +1139,22 @@ export default function BookingCheckout() {
         cardLast4Digits: "",
         createdAt: serverTimestamp(),
         createdBy: "customer_booking",
-        customerEmail: customerEmail,
+        customerEmail: effectiveCustomerEmail,
         customerId: customerId,
-        customerName: customerName,
-        customerPhone: customerPhone,
+        customerName: effectiveCustomerName,
+        customerPhone: effectiveCustomerPhone,
         date: formatFirebaseDate(),
-        notes: notes || specialRequests || (paymentMethod === 'mixed' 
+        notes: effectiveNotes || effectiveSpecialRequests || (effectivePaymentMethod === 'mixed' 
           ? `Payment Method: Mixed Payment. Wallet: AED ${walletPayment.toFixed(2)}, Pay at Saloon: AED ${cashPayment.toFixed(2)}` 
-          : `Payment Method: ${paymentMethod === 'pay_at_salon' ? 'Pay at Saloon' : paymentMethod}. Wallet: AED ${walletPayment.toFixed(2)}, Pay at Saloon: AED ${cashPayment.toFixed(2)}`),
+          : effectivePaymentMethod === 'card'
+            ? `Payment Method: Card. Gateway Ref: ${options.cardGatewayReference || 'N/A'}`
+            : `Payment Method: ${effectivePaymentMethod === 'pay_at_salon' ? 'Pay at Saloon' : effectivePaymentMethod}. Wallet: AED ${walletPayment.toFixed(2)}, Pay at Saloon: AED ${cashPayment.toFixed(2)}`),
         paymentAmounts: {
           wallet: walletPayment,
           cash: cashPayment
         },
-        paymentMethod: paymentMethod,
-        paymentStatus: paymentMethod === 'pay_at_salon' || paymentMethod === 'mixed' ? 'pending' : "paid",
+        paymentMethod: effectivePaymentMethod,
+        paymentStatus: effectivePaymentMethod === 'pay_at_salon' || effectivePaymentMethod === 'mixed' ? 'pending' : "paid",
         pointsAwarded: false,
         products: [],
         productsTotal: 0,
@@ -1056,7 +1175,7 @@ export default function BookingCheckout() {
         services: cartItems.map(item => item.name),
         source: "customer_app",
         staffId: staffMember?.id || "",
-        staffName: selectedStaff,
+        staffName: effectiveSelectedStaff,
         staffRole: staffMember?.role || "makeup",
         status: "confirmed",
         confirmedAt: serverTimestamp(),
@@ -1064,19 +1183,19 @@ export default function BookingCheckout() {
         tax: 0,
         taxAmount: 0,
         teamMembers: cartItems.map(item => ({
-          name: item.staffMember || selectedStaff,
+          name: item.staffMember || effectiveSelectedStaff,
           role: staffMember?.role || "makeup",
           staffId: staffMember?.id || "",
-          time: selectedTime,
-          timeSlot: selectedTime
+          time: effectiveSelectedTime,
+          timeSlot: effectiveSelectedTime
         })),
-        time: selectedTime,
-        timeSlot: selectedTime,
+        time: effectiveSelectedTime,
+        timeSlot: effectiveSelectedTime,
         tip: 0,
         totalAmount: finalAmount,
         totalDuration: getTotalDuration(),
         totalTips: 0,
-        trnNumber: "",
+        trnNumber: options.cardGatewayReference || "",
         updatedAt: serverTimestamp(),
         userBranchId: branchId,
         userBranchName: branchName,
@@ -1086,7 +1205,7 @@ export default function BookingCheckout() {
       const bookingsRef = collection(db, 'bookings');
       const docRef = await addDoc(bookingsRef, bookingData);
       
-      if ((paymentMethod === 'wallet' || (paymentMethod === 'mixed' && walletPayment > 0)) && customer && customer.id) {
+      if ((effectivePaymentMethod === 'wallet' || (effectivePaymentMethod === 'mixed' && walletPayment > 0)) && customer && customer.id) {
         try {
           let walletDocRef: any = null;
           let walletData: any = null;
@@ -1135,7 +1254,7 @@ export default function BookingCheckout() {
               amount: walletPayment,
               amountInPoints: pointsToDeduct,
               type: 'debit',
-              description: `Booking payment: ${bookingData.bookingNumber}${paymentMethod === 'mixed' ? ' (Mixed Payment - Wallet Portion)' : ''}`,
+              description: `Booking payment: ${bookingData.bookingNumber}${effectivePaymentMethod === 'mixed' ? ' (Mixed Payment - Wallet Portion)' : ''}`,
               bookingId: docRef.id,
               bookingNumber: bookingData.bookingNumber,
               previousBalance: walletData.balance || 0,
@@ -1159,6 +1278,10 @@ export default function BookingCheckout() {
           console.error('Error updating wallet balance:', walletError);
         }
       }
+
+      if (options.cardPaymentAlreadyCompleted && typeof window !== 'undefined') {
+        sessionStorage.removeItem('pendingBookingCardPayment');
+      }
       
       setConfirmedBookingId(bookingData.bookingNumber);
       clearCart();
@@ -1171,6 +1294,59 @@ export default function BookingCheckout() {
       setIsSubmitting(false);
     }
   };
+
+  useEffect(() => {
+    const payment = searchParams.get('payment');
+    const orderRef = searchParams.get('orderRef') || '';
+
+    if (!payment) return;
+
+    if (payment === 'cancel') {
+      setValidationError('Card payment was canceled. You can try again or choose another payment method.');
+      return;
+    }
+
+    if (payment !== 'success') return;
+    if (handledCardReturn && handledCardReturn === orderRef) return;
+
+    const rawPending = typeof window !== 'undefined'
+      ? sessionStorage.getItem('pendingBookingCardPayment')
+      : null;
+
+    if (!rawPending) {
+      setValidationError('Payment succeeded but pending booking details were not found. Please review and confirm again.');
+      return;
+    }
+
+    try {
+      const pending = JSON.parse(rawPending);
+      if (orderRef && pending?.orderRef && pending.orderRef !== orderRef) {
+        setValidationError('Payment reference mismatch. Please contact support if charged.');
+        return;
+      }
+
+      setHandledCardReturn(orderRef || 'success');
+      void handleConfirmBooking({
+        forcePaymentMethod: 'card',
+        cardPaymentAlreadyCompleted: true,
+        cardGatewayReference: pending?.gatewayReference || orderRef || '',
+        formOverrides: {
+          customerName: pending?.customerName,
+          customerEmail: pending?.customerEmail,
+          customerPhone: pending?.customerPhone,
+          selectedDate: pending?.selectedDate,
+          selectedTime: pending?.selectedTime,
+          selectedStaff: pending?.selectedStaff,
+          branch: pending?.branch,
+          notes: pending?.notes,
+          specialRequests: pending?.specialRequests,
+        },
+      });
+    } catch (parseError) {
+      console.error('Error reading pending card payment booking:', parseError);
+      setValidationError('Unable to process successful payment return. Please confirm booking again.');
+    }
+  }, [searchParams, handledCardReturn]);
 
   if (bookingConfirmed) {
     return (
@@ -1577,7 +1753,7 @@ export default function BookingCheckout() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-6 space-y-4">
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                     {/* Mixed Payment */}
                     <button
                       onClick={() => isLoggedIn && setPaymentMethod('mixed')}
@@ -1643,22 +1819,40 @@ export default function BookingCheckout() {
                       <span className="text-xs text-gray-500">Pay on Visit</span>
                     </button>
                     
-                    {/* Card Online Pay - Coming Soon */}
+                    {/* Card Online Pay */}
                     <button
-                      onClick={() => alert('Card payment will be available soon once payment gateway is connected')}
-                      disabled={true}
-                      className="p-4 rounded-xl border-2 border-gray-100 transition-all flex flex-col items-center gap-2 relative cursor-not-allowed opacity-60"
+                      onClick={() => setPaymentMethod('card')}
+                      disabled={!cardEnabledForBranch}
+                      className={cn(
+                        'p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 relative',
+                        paymentMethod === 'card'
+                          ? 'border-secondary bg-secondary/10'
+                          : cardEnabledForBranch
+                            ? 'border-gray-200 hover:border-gray-300 cursor-pointer'
+                            : 'border-gray-100 cursor-not-allowed opacity-60'
+                      )}
                     >
-                      <div className="absolute -top-2 -right-2">
-                        <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
-                          <span className="text-xs text-white font-bold">!</span>
+                      {!cardEnabledForBranch && (
+                        <div className="absolute -top-2 -right-2">
+                          <div className="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
+                            <X className="w-3 h-3 text-white" />
+                          </div>
                         </div>
-                      </div>
-                      <CreditCard className="w-6 h-6 text-gray-500" />
+                      )}
+                      <CreditCard className={cn('w-6 h-6', paymentMethod === 'card' ? 'text-secondary' : 'text-gray-500')} />
                       <span className="text-xs font-bold">Card Payment</span>
-                      <span className="text-xs text-blue-600 font-semibold">Coming Soon</span>
+                      <span className="text-xs text-gray-500">Secure Hosted Checkout</span>
                     </button>
                   </div>
+
+                  {!cardEnabledForBranch && branch && (
+                    <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-xl">
+                      <p className="text-xs text-yellow-700">
+                        <Info className="w-4 h-4 inline mr-1" />
+                        <span className="font-bold">Card unavailable:</span> this branch has not enabled card gateway yet.
+                      </p>
+                    </div>
+                  )}
 
                   {/* Mixed Payment Fields */}
                   {paymentMethod === 'mixed' && customer && (
@@ -2004,8 +2198,10 @@ export default function BookingCheckout() {
                           <div className="flex justify-center">
                             <Badge variant="outline" className="border-white/20 text-white/80 text-[10px]">
                               {paymentMethod === 'cod' && 'Cash on Delivery'}
+                              {paymentMethod === 'pay_at_salon' && 'Pay at Saloon'}
                               {paymentMethod === 'wallet' && 'Digital Wallet'}
                               {paymentMethod === 'mixed' && 'Mixed Payment'}
+                              {paymentMethod === 'card' && 'Card Payment'}
                             </Badge>
                           </div>
                         )}
@@ -2015,7 +2211,8 @@ export default function BookingCheckout() {
                         className="w-full bg-secondary hover:bg-secondary/90 text-primary font-bold py-6 rounded-lg tracking-[0.2em] text-xs shadow-lg shadow-secondary/20 transition-all duration-300 hover:scale-[1.02] active:scale-95"
                         disabled={isSubmitting || !customerName || !customerEmail || !customerPhone || !selectedDate || !selectedTime || !branch || cartItems.length === 0 || !paymentMethod || !selectedStaff ||
                           (paymentMethod === 'wallet' && getWalletBalanceInAED() < finalTotal) ||
-                          (paymentMethod === 'mixed' && (Math.abs((getNumericWalletAmount() + getNumericCashAmount()) - finalTotal) > 0.01 || (getNumericWalletAmount() > getWalletBalanceInAED())))}
+                          (paymentMethod === 'mixed' && (Math.abs((getNumericWalletAmount() + getNumericCashAmount()) - finalTotal) > 0.01 || (getNumericWalletAmount() > getWalletBalanceInAED()))) ||
+                          (paymentMethod === 'card' && !cardEnabledForBranch)}
                         onClick={handleConfirmBooking}
                       >
                         {isSubmitting ? 'PROCESSING...' : 'CONFIRM BOOKING'}

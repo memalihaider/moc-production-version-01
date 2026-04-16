@@ -250,7 +250,7 @@ const useAttendanceStore = create<AttendanceStore>((set, get) => ({
       
       // Cache in localStorage
       if (typeof window !== 'undefined') {
-        const cacheKey = `attendance_AED{date}`;
+        const cacheKey = `attendance_${date}`;
         localStorage.setItem(cacheKey, JSON.stringify(attendanceData));
       }
       
@@ -259,7 +259,7 @@ const useAttendanceStore = create<AttendanceStore>((set, get) => ({
       
       // Try cached data
       if (typeof window !== 'undefined') {
-        const cacheKey = `attendance_AED{date}`;
+        const cacheKey = `attendance_${date}`;
         const cachedAttendance = localStorage.getItem(cacheKey);
         if (cachedAttendance) {
           const attendanceData = JSON.parse(cachedAttendance);
@@ -271,7 +271,7 @@ const useAttendanceStore = create<AttendanceStore>((set, get) => ({
       // Create default records with 'select' status
       const { staffMembers } = get();
       const defaultAttendance: AttendanceRecord[] = staffMembers.map(staff => ({
-        id: `AED{staff.id}_AED{date}`,
+        id: `${staff.id}_${date}`,
         staffId: staff.id,
         staffName: staff.name,
         staffRole: staff.role,
@@ -301,7 +301,7 @@ const useAttendanceStore = create<AttendanceStore>((set, get) => ({
       const staff = staffMembers.find(s => s.id === staffId);
       if (!staff) return false;
 
-      const attendanceId = `AED{staffId}_AED{selectedDate}`;
+      const attendanceId = `${staffId}_${selectedDate}`;
       const attendanceRef = doc(db, 'attendance', attendanceId);
       
       // Check if document exists
@@ -360,7 +360,7 @@ const useAttendanceStore = create<AttendanceStore>((set, get) => ({
         
         // Update cache
         if (typeof window !== 'undefined') {
-          localStorage.setItem(`attendance_AED{selectedDate}`, JSON.stringify(updatedRecords));
+          localStorage.setItem(`attendance_${selectedDate}`, JSON.stringify(updatedRecords));
         }
         
         return { attendanceRecords: updatedRecords };
@@ -376,7 +376,7 @@ const useAttendanceStore = create<AttendanceStore>((set, get) => ({
       const staff = staffMembers.find(s => s.id === staffId);
       if (!staff) return false;
 
-      const attendanceId = `AED{staffId}_AED{selectedDate}`;
+      const attendanceId = `${staffId}_${selectedDate}`;
 
       set(state => {
         const existingIndex = state.attendanceRecords.findIndex(r => r.id === attendanceId);
@@ -417,7 +417,7 @@ const useAttendanceStore = create<AttendanceStore>((set, get) => ({
         
         // Update cache
         if (typeof window !== 'undefined') {
-          localStorage.setItem(`attendance_AED{selectedDate}`, JSON.stringify(updatedRecords));
+          localStorage.setItem(`attendance_${selectedDate}`, JSON.stringify(updatedRecords));
         }
         
         return { attendanceRecords: updatedRecords };
@@ -739,7 +739,7 @@ export default function StaffAttendancePage() {
     try {
       const success = await updateAttendanceStatus(staffId, newStatus);
       if (success) {
-        setActionSuccess(`Status updated to AED{newStatus}!`);
+        setActionSuccess(`Status updated to ${newStatus}!`);
         setTimeout(() => setActionSuccess(null), 3000);
       } else {
         alert('Failed to update status');
@@ -1251,7 +1251,7 @@ export default function StaffAttendancePage() {
             <div className="mt-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 text-sm text-gray-500">
               <div>
                 Showing {filteredStaff.length} of {stats.totalStaff} staff members
-                {selectedDate !== new Date().toISOString().split('T')[0] && ` for AED{selectedDate}`}
+                {selectedDate !== new Date().toISOString().split('T')[0] && ` for ${selectedDate}`}
               </div>
               <div className="text-xs text-gray-400">
                 Last updated: {new Date().toLocaleTimeString()}

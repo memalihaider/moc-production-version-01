@@ -78,6 +78,20 @@ export default function AdminSettings() {
     acceptDigital: true,
     acceptEwallet: true,
     taxRate: 5,
+    paymentGateway: {
+      provider: 'totalpay' as 'none' | 'totalpay',
+      totalPay: {
+        enabled: true,
+        baseUrl: 'https://dashboard.totalpay.global',
+        createInvoiceEndpoint: '/api/customer-invoices/create',
+        merchantId: '0627f618-340b-11ff-acee-daf501054ef1',
+        apiKey: '0625df36-340b-11ff-86e2-daf501054ef1',
+        apiSecret: '',
+        successUrl: '',
+        cancelUrl: '',
+        webhookUrl: '',
+      },
+    },
 
     // Calendar Display Settings
     calendarDisplaySettings: {
@@ -180,6 +194,13 @@ export default function AdminSettings() {
           acceptDigital: data.acceptDigital ?? prev.acceptDigital,
           acceptEwallet: data.acceptEwallet ?? prev.acceptEwallet,
           taxRate: Number.isFinite(Number(data.taxRate)) ? Number(data.taxRate) : prev.taxRate,
+          paymentGateway: {
+            provider: data.paymentGateway?.provider ?? prev.paymentGateway.provider,
+            totalPay: {
+              ...prev.paymentGateway.totalPay,
+              ...(data.paymentGateway?.totalPay || {}),
+            },
+          },
           monday: normalizeDayTiming(weekly.monday, prev.monday),
           tuesday: normalizeDayTiming(weekly.tuesday, prev.tuesday),
           wednesday: normalizeDayTiming(weekly.wednesday, prev.wednesday),
@@ -230,6 +251,19 @@ export default function AdminSettings() {
         ...prev[day as keyof typeof prev] as any,
         [field]: value
       }
+    }));
+  };
+
+  const handlePaymentGatewayChange = (key: string, value: any) => {
+    setSettings((prev) => ({
+      ...prev,
+      paymentGateway: {
+        ...prev.paymentGateway,
+        totalPay: {
+          ...prev.paymentGateway.totalPay,
+          [key]: value,
+        },
+      },
     }));
   };
 
@@ -297,6 +331,7 @@ export default function AdminSettings() {
           acceptDigital: settings.acceptDigital,
           acceptEwallet: settings.acceptEwallet,
           taxRate: settings.taxRate,
+          paymentGateway: settings.paymentGateway,
           invoiceDisclaimerTemplate: settings.invoiceDisclaimerTemplate,
           updatedAt: serverTimestamp(),
         },
@@ -888,6 +923,129 @@ export default function AdminSettings() {
                           value={settings.taxRate}
                           onChange={(e) => handleSettingChange('taxRate', parseFloat(e.target.value))}
                         />
+                      </div>
+
+                      <div className="pt-4 border-t space-y-4">
+                        <h3 className="text-lg font-medium">Card Gateway Integration</h3>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="gatewayProvider">Gateway Provider</Label>
+                          <Select
+                            value={settings.paymentGateway.provider}
+                            onValueChange={(value: 'none' | 'totalpay') =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                paymentGateway: {
+                                  ...prev.paymentGateway,
+                                  provider: value,
+                                },
+                              }))
+                            }
+                          >
+                            <SelectTrigger id="gatewayProvider">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">No Card Gateway</SelectItem>
+                              <SelectItem value="totalpay">TotalPay</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {settings.paymentGateway.provider === 'totalpay' && (
+                          <>
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <Label className="text-sm font-medium">Enable TotalPay</Label>
+                                <p className="text-sm text-gray-600">Allow card payments through TotalPay hosted checkout.</p>
+                              </div>
+                              <Switch
+                                checked={settings.paymentGateway.totalPay.enabled}
+                                onCheckedChange={(checked) => handlePaymentGatewayChange('enabled', checked)}
+                              />
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <Label htmlFor="totalPayBaseUrl">TotalPay Base URL</Label>
+                                <Input
+                                  id="totalPayBaseUrl"
+                                  placeholder="https://api.totalpay.example"
+                                  value={settings.paymentGateway.totalPay.baseUrl}
+                                  onChange={(e) => handlePaymentGatewayChange('baseUrl', e.target.value)}
+                                />
+                              </div>
+
+                              <div className="space-y-2">
+                                <Label htmlFor="totalPayCreateInvoiceEndpoint">Create Invoice Endpoint</Label>
+                                <Input
+                                  id="totalPayCreateInvoiceEndpoint"
+                                  placeholder="/invoices"
+                                  value={settings.paymentGateway.totalPay.createInvoiceEndpoint}
+                                  onChange={(e) => handlePaymentGatewayChange('createInvoiceEndpoint', e.target.value)}
+                                />
+                              </div>
+
+                              <div className="space-y-2">
+                                <Label htmlFor="totalPayMerchantId">Merchant ID</Label>
+                                <Input
+                                  id="totalPayMerchantId"
+                                  value={settings.paymentGateway.totalPay.merchantId}
+                                  onChange={(e) => handlePaymentGatewayChange('merchantId', e.target.value)}
+                                />
+                              </div>
+
+                              <div className="space-y-2">
+                                <Label htmlFor="totalPayApiKey">API Key</Label>
+                                <Input
+                                  id="totalPayApiKey"
+                                  value={settings.paymentGateway.totalPay.apiKey}
+                                  onChange={(e) => handlePaymentGatewayChange('apiKey', e.target.value)}
+                                />
+                              </div>
+
+                              <div className="space-y-2">
+                                <Label htmlFor="totalPayApiSecret">API Secret</Label>
+                                <Input
+                                  id="totalPayApiSecret"
+                                  type="password"
+                                  value={settings.paymentGateway.totalPay.apiSecret}
+                                  onChange={(e) => handlePaymentGatewayChange('apiSecret', e.target.value)}
+                                />
+                              </div>
+
+                              <div className="space-y-2">
+                                <Label htmlFor="totalPaySuccessUrl">Success Return URL (Optional)</Label>
+                                <Input
+                                  id="totalPaySuccessUrl"
+                                  placeholder="https://your-domain.com/checkout?payment=success"
+                                  value={settings.paymentGateway.totalPay.successUrl}
+                                  onChange={(e) => handlePaymentGatewayChange('successUrl', e.target.value)}
+                                />
+                              </div>
+
+                              <div className="space-y-2">
+                                <Label htmlFor="totalPayCancelUrl">Cancel Return URL (Optional)</Label>
+                                <Input
+                                  id="totalPayCancelUrl"
+                                  placeholder="https://your-domain.com/checkout?payment=cancel"
+                                  value={settings.paymentGateway.totalPay.cancelUrl}
+                                  onChange={(e) => handlePaymentGatewayChange('cancelUrl', e.target.value)}
+                                />
+                              </div>
+
+                              <div className="space-y-2">
+                                <Label htmlFor="totalPayWebhookUrl">Webhook URL (Optional)</Label>
+                                <Input
+                                  id="totalPayWebhookUrl"
+                                  placeholder="https://your-domain.com/api/payments/webhook"
+                                  value={settings.paymentGateway.totalPay.webhookUrl}
+                                  onChange={(e) => handlePaymentGatewayChange('webhookUrl', e.target.value)}
+                                />
+                              </div>
+                            </div>
+                          </>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
