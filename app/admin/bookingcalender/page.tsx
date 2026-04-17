@@ -3752,9 +3752,15 @@ export default function AdminAppointments() {
     return combined;
   };
 
-  const handleGenerateInvoiceClick = (appointment: Appointment, options?: { openModal?: boolean }) => {
-    const relatedAppointments = getRelatedAppointments(appointment);
-    const invalidAppointment = relatedAppointments.find((entry) => {
+  const handleGenerateInvoiceClick = (
+    appointment: Appointment,
+    options?: { openModal?: boolean; includeRelatedAppointments?: boolean }
+  ) => {
+    const targetAppointments = options?.includeRelatedAppointments === false
+      ? [appointment]
+      : getRelatedAppointments(appointment);
+
+    const invalidAppointment = targetAppointments.find((entry) => {
       const normalizedStatus = String(entry.status || '').toLowerCase();
       return normalizedStatus !== 'completed' && normalizedStatus !== 'closed';
     });
@@ -3768,11 +3774,11 @@ export default function AdminAppointments() {
       return null;
     }
 
-    const initialInvoiceData = buildInvoiceDataFromAppointments(relatedAppointments);
+    const initialInvoiceData = buildInvoiceDataFromAppointments(targetAppointments);
 
     setInvoiceNumber(initialInvoiceData.invoiceNumber || generateInvoiceNumber());
     setSelectedAppointmentForInvoice(appointment);
-    setSelectedInvoiceAppointments(relatedAppointments);
+    setSelectedInvoiceAppointments(targetAppointments);
     setIsEditingInvoice(true);
     
     setInvoiceData(initialInvoiceData);
@@ -4696,7 +4702,7 @@ export default function AdminAppointments() {
     );
     const resolvedAppointment = (fullAppointment || appointment) as Appointment;
     setSelectedAppointment(resolvedAppointment);
-    handleGenerateInvoiceClick(resolvedAppointment);
+    handleGenerateInvoiceClick(resolvedAppointment, { includeRelatedAppointments: false });
   };
 
   const handleDownloadInvoiceDirectFromCalendar = async (appointment: any) => {

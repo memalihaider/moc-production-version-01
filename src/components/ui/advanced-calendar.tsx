@@ -2812,8 +2812,7 @@ export function AdvancedCalendar({
   const formatServiceLabel = (names: string[]): string => {
     const cleaned = names.filter((name) => name.trim().length > 0);
     if (cleaned.length === 0) return 'Service';
-    if (cleaned.length === 1) return cleaned[0];
-    return `${cleaned[0]} +${cleaned.length - 1}`;
+    return cleaned.join(', ');
   };
 
 const filteredAppointments = useMemo(() => {
@@ -3840,7 +3839,7 @@ const filteredAppointments = useMemo(() => {
                                     <div className="font-medium truncate w-full text-center leading-tight">
                                       {(appointment.customer || appointment.customerName || 'Customer').split(' ')[0]}
                                     </div>
-                                    <div className="text-white/90 truncate w-full text-center text-[10px] leading-tight">
+                                    <div className="text-white/90 w-full text-center text-[10px] leading-tight whitespace-normal wrap-break-word">
                                       {formatServiceLabel(getAppointmentServiceNamesForStaff(appointment, barber))}
                                     </div>
                                     <div className="text-white/80 text-[9px] mt-1">
@@ -4049,7 +4048,7 @@ const filteredAppointments = useMemo(() => {
                                       <div className="font-medium truncate w-full text-center leading-tight">
                                         {(appointment.customer || appointment.customerName || 'Customer').split(' ')[0]}
                                       </div>
-                                      <div className="text-white/90 truncate w-full text-center text-[10px] leading-tight">
+                                      <div className="text-white/90 w-full text-center text-[10px] leading-tight whitespace-normal wrap-break-word">
                                         {formatServiceLabel(getAppointmentServiceNamesForStaff(appointment, barber))}
                                       </div>
                                       <div className="text-white/80 text-[9px] mt-1">
