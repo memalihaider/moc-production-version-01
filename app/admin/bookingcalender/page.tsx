@@ -902,7 +902,7 @@ const createBookingInFirebase = async (
 
     for (let index = 0; index < selectedServices.length; index += 1) {
       const service = selectedServices[index];
-      const serviceKey = service.firebaseId || service.id || service.name;
+      const serviceKey = (service as any).selectionKey || service.id || service.firebaseId || service.name;
       const assignment = serviceStaffAssignments[serviceKey];
       const serviceTime = assignment?.time || bookingData.time;
       const assignedStaffName = assignment?.staffName || bookingData.barber || '';
@@ -2672,9 +2672,7 @@ export default function AdminAppointments() {
     const query = serviceSearchTerm.trim().toLowerCase();
     if (!query || !bookingData.branch) return [];
 
-    return searchableServices
-      .filter((service) => !selectedServices.some((selected) => selected.name === service.name))
-      .slice(0, 8);
+    return searchableServices.slice(0, 8);
   }, [bookingData.branch, searchableServices, selectedServices, serviceSearchTerm]);
 
   const editFilteredServices = useMemo(() => {
@@ -2733,9 +2731,7 @@ export default function AdminAppointments() {
     const query = editServiceSearchTerm.trim().toLowerCase();
     if (!query || !editBookingData?.branch) return [];
 
-    return editSearchableServices
-      .filter((service) => !editSelectedServices.some((selected) => selected.name === service.name))
-      .slice(0, 8);
+    return editSearchableServices.slice(0, 8);
   }, [editBookingData?.branch, editSearchableServices, editSelectedServices, editServiceSearchTerm]);
 
   const filteredStaff = useMemo(() => {
@@ -2779,7 +2775,16 @@ export default function AdminAppointments() {
     }, [branches, editBookingData?.branch, staffMembers, user?.branchId, user?.branchName, user?.role]);
 
     const getServiceKey = (service: { firebaseId?: string; id?: string; name: string }): string =>
-      service.firebaseId || service.id || service.name;
+      (service as any).selectionKey || service.id || service.firebaseId || service.name;
+
+    const cloneServiceForSelection = (service: FirebaseService): FirebaseService => {
+      const uid = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      return {
+        ...service,
+        id: `${service.id || service.firebaseId || service.name}-${uid}`,
+        selectionKey: `${service.firebaseId || service.id || service.name}-${uid}`,
+      } as FirebaseService;
+    };
 
     const resolveStaffMetaByName = (staffName: string) =>
       staffMembers.find((staff) => staff.name === staffName);
@@ -2909,30 +2914,21 @@ export default function AdminAppointments() {
   }, [invoiceProductCatalog, invoiceProductSearchTerm]);
 
   const handleServiceSelection = (serviceName: string) => {
-    const service = filteredServices.find((s) => s.name === serviceName) || services.find((s) => s.name === serviceName);
-    if (!service) return;
+    const sourceService = filteredServices.find((s) => s.name === serviceName) || services.find((s) => s.name === serviceName);
+    if (!sourceService) return;
 
-    const isAlreadySelected = selectedServices.some(s => s.name === serviceName);
-    let updatedSelectedServices: FirebaseService[];
-    let updatedServicesArray: string[];
-    let updatedAssignments = { ...serviceStaffAssignments };
+    const service = cloneServiceForSelection(sourceService);
     const serviceKey = getServiceKey(service);
+    const defaultStaff = resolveDefaultStaffName();
+    const updatedAssignments = {
+      ...serviceStaffAssignments,
+      [serviceKey]: defaultStaff
+        ? buildServiceStaffAssignment(defaultStaff, bookingData.time)
+        : { staffName: '', time: bookingData.time || '' },
+    };
 
-    if (isAlreadySelected) {
-      updatedSelectedServices = selectedServices.filter(s => s.name !== serviceName);
-      updatedServicesArray = bookingData.services.filter(s => s !== serviceName);
-      delete updatedAssignments[serviceKey];
-    } else {
-      updatedSelectedServices = [...selectedServices, service];
-      updatedServicesArray = [...bookingData.services, serviceName];
-      const defaultStaff = resolveDefaultStaffName();
-      updatedAssignments = {
-        ...updatedAssignments,
-        [serviceKey]: defaultStaff
-          ? buildServiceStaffAssignment(defaultStaff, bookingData.time)
-          : { staffName: '', time: bookingData.time || '' },
-      };
-    }
+    const updatedSelectedServices = [...selectedServices, service];
+    const updatedServicesArray = [...bookingData.services, serviceName];
 
     setSelectedServices(updatedSelectedServices);
     setServiceStaffAssignments(updatedAssignments);
@@ -2943,6 +2939,33 @@ export default function AdminAppointments() {
         ...prev,
         services: updatedServicesArray,
         service: updatedServicesArray.length > 0 ? updatedServicesArray[0] : '',
+        ...staffSync,
+      };
+    });
+  };
+
+  const handleRemoveSelectedService = (serviceKey: string) => {
+    const serviceToRemove = selectedServices.find((service) => getServiceKey(service) === serviceKey);
+    if (!serviceToRemove) return;
+
+    const updatedSelectedServices = selectedServices.filter((service) => getServiceKey(service) !== serviceKey);
+    const updatedAssignments = { ...serviceStaffAssignments };
+    delete updatedAssignments[serviceKey];
+
+    setSelectedServices(updatedSelectedServices);
+    setServiceStaffAssignments(updatedAssignments);
+
+    setBookingData((prev) => {
+      const nextServices = [...prev.services];
+      const removeIndex = nextServices.findIndex((name) => name === serviceToRemove.name);
+      if (removeIndex >= 0) {
+        nextServices.splice(removeIndex, 1);
+      }
+      const staffSync = syncBookingStaffFromAssignments(updatedAssignments, prev);
+      return {
+        ...prev,
+        services: nextServices,
+        service: nextServices[0] || '',
         ...staffSync,
       };
     });
@@ -3051,12 +3074,12 @@ export default function AdminAppointments() {
   const handleEditServiceSelection = (serviceName: string) => {
     if (!editBookingData) return;
 
-    const service =
+    const sourceService =
       editFilteredServices.find((entry) => entry.name === serviceName) ||
       services.find((entry) => entry.name === serviceName);
-    if (!service) return;
+    if (!sourceService) return;
 
-    const isAlreadySelected = editSelectedServices.some((selected) => selected.name === serviceName);
+    const service = cloneServiceForSelection(sourceService);
     const serviceKey = getServiceKey(service);
     const defaultStaffName =
       editBookingData.barber && editFilteredStaff.some((staff) => staff.name === editBookingData.barber)
@@ -3065,30 +3088,50 @@ export default function AdminAppointments() {
           ? editFilteredStaff[0].name
           : '';
 
-    const nextAssignments = isAlreadySelected
-      ? (() => {
-          const next = { ...editServiceStaffAssignments };
-          delete next[serviceKey];
-          return next;
-        })()
-      : {
-          ...editServiceStaffAssignments,
-          [serviceKey]: defaultStaffName
-            ? buildServiceStaffAssignment(defaultStaffName, editBookingData.time)
-            : { staffName: '', time: editBookingData.time || '' },
-        };
+    const nextAssignments = {
+      ...editServiceStaffAssignments,
+      [serviceKey]: defaultStaffName
+        ? buildServiceStaffAssignment(defaultStaffName, editBookingData.time)
+        : { staffName: '', time: editBookingData.time || '' },
+    };
 
-    const nextSelectedServices = isAlreadySelected
-      ? editSelectedServices.filter((selected) => selected.name !== serviceName)
-      : [...editSelectedServices, service];
+    const nextSelectedServices = [...editSelectedServices, service];
 
     setEditSelectedServices(nextSelectedServices);
     setEditServiceStaffAssignments(nextAssignments);
     setEditBookingData((prev) => {
       if (!prev) return prev;
-      const nextServices = isAlreadySelected
-        ? prev.services.filter((name) => name !== serviceName)
-        : [...prev.services, serviceName];
+      const nextServices = [...prev.services, serviceName];
+      const staffSync = syncEditStaffFromAssignments(nextAssignments, prev);
+      return {
+        ...prev,
+        services: nextServices,
+        service: nextServices[0] || '',
+        ...staffSync,
+      };
+    });
+  };
+
+  const handleRemoveEditSelectedService = (serviceKey: string) => {
+    if (!editBookingData) return;
+
+    const serviceToRemove = editSelectedServices.find((service) => getServiceKey(service) === serviceKey);
+    if (!serviceToRemove) return;
+
+    const nextSelectedServices = editSelectedServices.filter((service) => getServiceKey(service) !== serviceKey);
+    const nextAssignments = { ...editServiceStaffAssignments };
+    delete nextAssignments[serviceKey];
+
+    setEditSelectedServices(nextSelectedServices);
+    setEditServiceStaffAssignments(nextAssignments);
+
+    setEditBookingData((prev) => {
+      if (!prev) return prev;
+      const nextServices = [...prev.services];
+      const removeIndex = nextServices.findIndex((name) => name === serviceToRemove.name);
+      if (removeIndex >= 0) {
+        nextServices.splice(removeIndex, 1);
+      }
       const staffSync = syncEditStaffFromAssignments(nextAssignments, prev);
       return {
         ...prev,
@@ -3254,24 +3297,67 @@ export default function AdminAppointments() {
 
   const sanitizeBookingPaymentSelection = (
     methods: Array<string>,
-    amounts: BookingFormData['paymentAmounts']
+    amounts: BookingFormData['paymentAmounts'],
+    paymentMethodText?: string
   ) => {
     const allowed = new Set(availableBookingPaymentMethods);
     const normalizedMethods = methods.filter((method): method is BookingPaymentMethod =>
       allowed.has(method as BookingPaymentMethod)
     );
+
+    const inferredFromAmounts = (Object.entries(amounts || {}) as Array<[string, number]> )
+      .filter(([method, amount]) => allowed.has(method as BookingPaymentMethod) && Number(amount || 0) > 0)
+      .map(([method]) => method as BookingPaymentMethod);
+
+    const inferredFromText = String(paymentMethodText || '')
+      .split(',')
+      .map((part) => part.trim().toLowerCase())
+      .map((part) => {
+        if (part.includes('card')) return 'card';
+        if (part.includes('cash')) return 'cash';
+        if (part.includes('check') || part.includes('bank')) return 'check';
+        if (part.includes('digital')) return 'digital';
+        return null;
+      })
+      .filter((method): method is BookingPaymentMethod => Boolean(method) && allowed.has(method as BookingPaymentMethod));
+
     const fallbackMethod = availableBookingPaymentMethods[0] || 'cash';
-    const selectedMethods = normalizedMethods.length > 0 ? normalizedMethods : [fallbackMethod];
+    const selectedMethods = normalizedMethods.length > 0
+      ? normalizedMethods
+      : (inferredFromAmounts.length > 0
+        ? inferredFromAmounts
+        : (inferredFromText.length > 0 ? inferredFromText : [fallbackMethod]));
+
+    const normalizedAmounts = {
+      ...amounts,
+      cash: selectedMethods.includes('cash') ? Number(amounts.cash || 0) : 0,
+      card: selectedMethods.includes('card') ? Number(amounts.card || 0) : 0,
+      check: selectedMethods.includes('check') ? Number(amounts.check || 0) : 0,
+      digital: selectedMethods.includes('digital') ? Number(amounts.digital || 0) : 0,
+    };
+
+    if (selectedMethods.length === 1) {
+      const chosen = selectedMethods[0];
+      const chosenAmount = Number(normalizedAmounts[chosen] || 0);
+      const remainder =
+        Number(normalizedAmounts.cash || 0) +
+        Number(normalizedAmounts.card || 0) +
+        Number(normalizedAmounts.check || 0) +
+        Number(normalizedAmounts.digital || 0) -
+        chosenAmount;
+
+      if (chosenAmount === 0 && remainder > 0) {
+        normalizedAmounts.cash = 0;
+        normalizedAmounts.card = 0;
+        normalizedAmounts.check = 0;
+        normalizedAmounts.digital = 0;
+        normalizedAmounts[chosen] = Number(remainder);
+      }
+    }
 
     return {
       paymentMethods: selectedMethods,
-      paymentAmounts: {
-        ...amounts,
-        cash: selectedMethods.includes('cash') ? Number(amounts.cash || 0) : 0,
-        card: selectedMethods.includes('card') ? Number(amounts.card || 0) : 0,
-        check: selectedMethods.includes('check') ? Number(amounts.check || 0) : 0,
-        digital: selectedMethods.includes('digital') ? Number(amounts.digital || 0) : 0,
-      },
+      paymentAmounts: normalizedAmounts,
     };
   };
 
@@ -4390,7 +4476,8 @@ export default function AdminAppointments() {
 
     const editPaymentSelection = sanitizeBookingPaymentSelection(
       editBookingData.paymentMethods,
-      editBookingData.paymentAmounts
+      editBookingData.paymentAmounts,
+      editingAppointment.paymentMethod
     );
     const sanitizedEditBookingData: BookingFormData = {
       ...editBookingData,
@@ -6420,7 +6507,43 @@ export default function AdminAppointments() {
                     <div className="p-4 bg-linear-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl">
                       <h4 className="font-bold text-gray-900 mb-3">Payment Distribution</h4>
                       <div className="space-y-3">
-                        {Object.entries(selectedAppointment.paymentAmounts).map(([method, amount]) => {
+                        {(() => {
+                          const nonZeroEntries = Object.entries(selectedAppointment.paymentAmounts || {}).filter(
+                            ([, amount]) => Number(amount || 0) > 0
+                          );
+
+                          const methodText = String(selectedAppointment.paymentMethod || '').toLowerCase();
+                          const methodHint = methodText.includes('card')
+                            ? 'card'
+                            : methodText.includes('check') || methodText.includes('bank')
+                              ? 'check'
+                              : methodText.includes('digital')
+                                ? 'digital'
+                                : methodText.includes('cash')
+                                  ? 'cash'
+                                  : null;
+
+                          if (!methodHint) return nonZeroEntries;
+
+                          const hintedAmount = Number((selectedAppointment.paymentAmounts as any)?.[methodHint] || 0);
+                          if (hintedAmount > 0) return nonZeroEntries;
+
+                          const fallbackAmount = nonZeroEntries.reduce(
+                            (sum, [, amount]) => sum + Number(amount || 0),
+                            0
+                          );
+
+                          if (fallbackAmount > 0) {
+                            return [[methodHint, fallbackAmount] as [string, number]];
+                          }
+
+                          const totalAmount = Number(
+                            selectedAppointment.totalAmount || selectedAppointment.servicePrice || 0
+                          );
+                          return totalAmount > 0
+                            ? [[methodHint, totalAmount] as [string, number]]
+                            : nonZeroEntries;
+                        })().map(([method, amount]) => {
                           if (amount > 0) {
                             return (
                               <div key={method} className="flex justify-between items-center p-3 bg-white rounded-lg border">
@@ -6972,7 +7095,7 @@ export default function AdminAppointments() {
                         </thead>
                         <tbody className="divide-y">
                           {selectedServices.map((service, index) => (
-                            <tr key={service.id} className="hover:bg-gray-50">
+                            <tr key={getServiceKey(service)} className="hover:bg-gray-50">
                               <td className="px-3 py-2 text-gray-500">{index + 1}</td>
                               <td className="px-3 py-2">
                                 <div className="font-medium text-gray-900 truncate">{service.name}</div>
@@ -7046,7 +7169,7 @@ export default function AdminAppointments() {
                                   type="button"
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => handleServiceSelection(service.name)}
+                                  onClick={() => handleRemoveSelectedService(getServiceKey(service))}
                                   className="h-7 w-7 p-0 hover:bg-red-50"
                                 >
                                   <XCircle className="w-4 h-4 text-red-500" />
@@ -7418,7 +7541,7 @@ export default function AdminAppointments() {
                                     <button
                                       type="button"
                                       className="text-red-500 hover:text-red-700"
-                                      onClick={() => handleEditServiceSelection(service.name)}
+                                      onClick={() => handleRemoveEditSelectedService(getServiceKey(service))}
                                       aria-label={`Remove ${service.name}`}
                                     >
                                       <XCircle className="h-4 w-4" />
@@ -7687,18 +7810,22 @@ export default function AdminAppointments() {
                           <div className="w-32">
                             <Input
                               type="number"
-                              value={
-                                invoiceData.services && invoiceData.services.length > 0
-                                  ? invoiceData.price / invoiceData.services.length
-                                  : invoiceData.price
-                              }
+                              value={Number(invoiceData.items?.[index]?.price || 0)}
                               onChange={(e) => {
                                 const newItems = [...(invoiceData.items || [])];
+                                const parsedPrice = parseFloat(e.target.value) || 0;
                                 if (newItems[index]) {
-                                  newItems[index].price = parseFloat(e.target.value) || 0;
-                                  newItems[index].total = newItems[index].quantity * newItems[index].price;
-                                  handleInvoiceDataChange('items', newItems);
+                                  newItems[index].price = parsedPrice;
+                                  newItems[index].total = Number(newItems[index].quantity || 1) * parsedPrice;
+                                } else {
+                                  newItems[index] = {
+                                    name: service,
+                                    quantity: 1,
+                                    price: parsedPrice,
+                                    total: parsedPrice,
+                                  };
                                 }
+                                handleInvoiceDataChange('items', newItems);
                               }}
                               className="h-9 text-right"
                             />

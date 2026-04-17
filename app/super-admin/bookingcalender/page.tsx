@@ -2668,7 +2668,8 @@ export default function AdminAppointments() {
     const primaryBarber = bookingData.barber || selectedServices[0]?.staff || '';
     const paymentSelection = sanitizeBookingPaymentSelection(
       bookingData.paymentMethods,
-      bookingData.paymentAmounts
+      bookingData.paymentAmounts,
+      bookingData.paymentMethods.join(', ')
     );
 
     return {
@@ -3345,24 +3346,67 @@ export default function AdminAppointments() {
 
   const sanitizeBookingPaymentSelection = (
     methods: Array<string>,
-    amounts: BookingFormData['paymentAmounts']
+    amounts: BookingFormData['paymentAmounts'],
+    paymentMethodText?: string
   ) => {
     const allowed = new Set(availableBookingPaymentMethods);
     const normalizedMethods = methods.filter((method): method is BookingPaymentMethod =>
       allowed.has(method as BookingPaymentMethod)
     );
+
+    const inferredFromAmounts = (Object.entries(amounts || {}) as Array<[string, number]>)
+      .filter(([method, amount]) => allowed.has(method as BookingPaymentMethod) && Number(amount || 0) > 0)
+      .map(([method]) => method as BookingPaymentMethod);
+
+    const inferredFromText = String(paymentMethodText || '')
+      .split(',')
+      .map((part) => part.trim().toLowerCase())
+      .map((part) => {
+        if (part.includes('card')) return 'card';
+        if (part.includes('cash')) return 'cash';
+        if (part.includes('check') || part.includes('bank')) return 'check';
+        if (part.includes('digital')) return 'digital';
+        return null;
+      })
+      .filter((method): method is BookingPaymentMethod => Boolean(method) && allowed.has(method as BookingPaymentMethod));
+
     const fallbackMethod = availableBookingPaymentMethods[0] || 'cash';
-    const selectedMethods = normalizedMethods.length > 0 ? normalizedMethods : [fallbackMethod];
+    const selectedMethods = normalizedMethods.length > 0
+      ? normalizedMethods
+      : (inferredFromAmounts.length > 0
+        ? inferredFromAmounts
+        : (inferredFromText.length > 0 ? inferredFromText : [fallbackMethod]));
+
+    const normalizedAmounts = {
+      ...amounts,
+      cash: selectedMethods.includes('cash') ? Number(amounts.cash || 0) : 0,
+      card: selectedMethods.includes('card') ? Number(amounts.card || 0) : 0,
+      check: selectedMethods.includes('check') ? Number(amounts.check || 0) : 0,
+      digital: selectedMethods.includes('digital') ? Number(amounts.digital || 0) : 0,
+    };
+
+    if (selectedMethods.length === 1) {
+      const chosen = selectedMethods[0];
+      const chosenAmount = Number(normalizedAmounts[chosen] || 0);
+      const remainder =
+        Number(normalizedAmounts.cash || 0) +
+        Number(normalizedAmounts.card || 0) +
+        Number(normalizedAmounts.check || 0) +
+        Number(normalizedAmounts.digital || 0) -
+        chosenAmount;
+
+      if (chosenAmount === 0 && remainder > 0) {
+        normalizedAmounts.cash = 0;
+        normalizedAmounts.card = 0;
+        normalizedAmounts.check = 0;
+        normalizedAmounts.digital = 0;
+        normalizedAmounts[chosen] = Number(remainder);
+      }
+    }
 
     return {
       paymentMethods: selectedMethods,
-      paymentAmounts: {
-        ...amounts,
-        cash: selectedMethods.includes('cash') ? Number(amounts.cash || 0) : 0,
-        card: selectedMethods.includes('card') ? Number(amounts.card || 0) : 0,
-        check: selectedMethods.includes('check') ? Number(amounts.check || 0) : 0,
-        digital: selectedMethods.includes('digital') ? Number(amounts.digital || 0) : 0,
-      },
+      paymentAmounts: normalizedAmounts,
     };
   };
 
@@ -5325,7 +5369,41 @@ export default function AdminAppointments() {
               <div className="mt-4 pt-4 border-t">
                 <p className="text-xs font-medium text-gray-500 mb-2">Payment Breakdown</p>
                 <div className="space-y-1.5">
-                  {Object.entries(selectedAppointment.paymentAmounts).map(([method, amount]) => 
+                  {(() => {
+                    const nonZeroEntries = Object.entries(selectedAppointment.paymentAmounts || {}).filter(
+                      ([, amount]) => Number(amount || 0) > 0
+                    );
+
+                    const methodText = String(selectedAppointment.paymentMethod || '').toLowerCase();
+                    const methodHint = methodText.includes('card')
+                      ? 'card'
+                      : methodText.includes('check') || methodText.includes('bank')
+                        ? 'check'
+                        : methodText.includes('digital')
+                          ? 'digital'
+                          : methodText.includes('cash')
+                            ? 'cash'
+                            : null;
+
+                    if (!methodHint) return nonZeroEntries;
+
+                    const hintedAmount = Number((selectedAppointment.paymentAmounts as any)?.[methodHint] || 0);
+                    if (hintedAmount > 0) return nonZeroEntries;
+
+                    const fallbackAmount = nonZeroEntries.reduce(
+                      (sum, [, amount]) => sum + Number(amount || 0),
+                      0
+                    );
+
+                    if (fallbackAmount > 0) {
+                      return [[methodHint, fallbackAmount] as [string, number]];
+                    }
+
+                    const totalAmount = Number(selectedAppointment.totalAmount || selectedAppointment.servicePrice || 0);
+                    return totalAmount > 0
+                      ? [[methodHint, totalAmount] as [string, number]]
+                      : nonZeroEntries;
+                  })().map(([method, amount]) => 
                     amount > 0 ? (
                       <div key={method} className="flex justify-between text-sm">
                         <span className="text-gray-600 capitalize">{method}:</span>

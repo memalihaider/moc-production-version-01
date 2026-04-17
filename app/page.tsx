@@ -678,6 +678,13 @@ export default function Home() {
     ? 'All Branches' 
     : allBranches.find(b => b.name === selectedBranch)?.name || selectedBranch;
 
+  const contactPhone = activeBranch?.phone || cmsSettings.phoneNumber;
+  const sanitizedPhone = (contactPhone || '').replace(/[^+\d]/g, '');
+  const contactAddress = [activeBranch?.address, activeBranch?.city, activeBranch?.country]
+    .filter(Boolean)
+    .join(', ');
+  const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(contactAddress || 'Man of Cave Abu Dhabi UAE')}`;
+
   // ==================== FILTER FUNCTIONS ====================
   
   // Filter services by branch
@@ -2000,20 +2007,37 @@ export default function Home() {
               )}
               <ul className="space-y-8 text-gray-400 text-sm font-medium">
                 <li className="flex items-start gap-4 group">
-                  <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-secondary group-hover:bg-secondary group-hover:text-primary transition-all duration-500">
+                  <a
+                    href={googleMapsUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label="Open branch location in Google Maps"
+                    title="Open in Google Maps"
+                    className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-secondary group-hover:bg-secondary group-hover:text-primary transition-all duration-500"
+                  >
                     <MapPin className="w-5 h-5" />
-                  </div>
-                  <span className="font-light leading-relaxed transition-all duration-500">
+                  </a>
+                  <a
+                    href={googleMapsUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-light leading-relaxed transition-all duration-500 hover:text-secondary"
+                  >
                     {activeBranch?.address || ""}<br />
                     {activeBranch?.city || "Abu Dhabi"}{activeBranch?.city && activeBranch?.country ? " " : ""}{activeBranch?.country || ""}
-                  </span>
+                  </a>
                 </li>
                 <li className="flex items-center gap-4 group">
-                  <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-secondary group-hover:bg-secondary group-hover:text-primary transition-all duration-500">
+                  <a
+                    href={`tel:${sanitizedPhone}`}
+                    aria-label="Call branch landline"
+                    title="Call now"
+                    className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-secondary group-hover:bg-secondary group-hover:text-primary transition-all duration-500"
+                  >
                     <Phone className="w-5 h-5" />
-                  </div>
-                  <a href={`tel:${activeBranch?.phone || cmsSettings.phoneNumber}`} className="font-light transition-colors hover:text-secondary">
-                    {activeBranch?.phone || cmsSettings.phoneNumber}
+                  </a>
+                  <a href={`tel:${sanitizedPhone}`} className="font-light transition-colors hover:text-secondary">
+                    {contactPhone}
                   </a>
                 </li>
                 <li className="flex items-center gap-4 group">

@@ -3,7 +3,6 @@
 
 import { useState, useEffect, SetStateAction } from 'react';
 import { useRouter } from 'next/navigation';
-import { useSearchParams } from 'next/navigation';
 import { Header } from '@/components/shared/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -310,7 +309,6 @@ function cn(...inputs: any[]) {
 
 export default function BookingCheckout() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [customer, setCustomer] = useState<CustomerData | null>(null);
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
@@ -1296,8 +1294,11 @@ export default function BookingCheckout() {
   };
 
   useEffect(() => {
-    const payment = searchParams.get('payment');
-    const orderRef = searchParams.get('orderRef') || '';
+    if (typeof window === 'undefined') return;
+
+    const query = new URLSearchParams(window.location.search);
+    const payment = query.get('payment');
+    const orderRef = query.get('orderRef') || '';
 
     if (!payment) return;
 
@@ -1346,7 +1347,7 @@ export default function BookingCheckout() {
       console.error('Error reading pending card payment booking:', parseError);
       setValidationError('Unable to process successful payment return. Please confirm booking again.');
     }
-  }, [searchParams, handledCardReturn]);
+  }, [handledCardReturn]);
 
   if (bookingConfirmed) {
     return (
@@ -2213,7 +2214,9 @@ export default function BookingCheckout() {
                           (paymentMethod === 'wallet' && getWalletBalanceInAED() < finalTotal) ||
                           (paymentMethod === 'mixed' && (Math.abs((getNumericWalletAmount() + getNumericCashAmount()) - finalTotal) > 0.01 || (getNumericWalletAmount() > getWalletBalanceInAED()))) ||
                           (paymentMethod === 'card' && !cardEnabledForBranch)}
-                        onClick={handleConfirmBooking}
+                        onClick={() => {
+                          void handleConfirmBooking();
+                        }}
                       >
                         {isSubmitting ? 'PROCESSING...' : 'CONFIRM BOOKING'}
                       </Button>
