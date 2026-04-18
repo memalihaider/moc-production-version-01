@@ -2886,10 +2886,66 @@ const filteredAppointments = useMemo(() => {
         let digitalAmount = readPaymentAmount(paymentAmounts, ['digital', 'Digital']);
         let ewalletAmount = readPaymentAmount(paymentAmounts, ['ewallet', 'Ewallet', 'wallet', 'Wallet']);
 
+        const selectedMethods = new Set<string>();
+        const normalizeMethod = (value: unknown): string | null => {
+          const normalized = String(value || '').trim().toLowerCase();
+          if (!normalized) return null;
+          if (normalized === 'cash' || normalized.includes('cod')) return 'cash';
+          if (normalized.includes('card') || normalized.includes('credit') || normalized.includes('debit')) return 'card';
+          if (normalized === 'check' || normalized.includes('bank')) return 'check';
+          if (normalized === 'digital' || normalized.includes('online')) return 'digital';
+          if (normalized === 'wallet' || normalized === 'ewallet' || normalized.includes('wallet')) return 'ewallet';
+          return null;
+        };
+
+        (Array.isArray(appointment.paymentMethods) ? appointment.paymentMethods : []).forEach((method) => {
+          const normalized = normalizeMethod(method);
+          if (normalized) selectedMethods.add(normalized);
+        });
+
+        const paymentMethodText = String(appointment.paymentMethod || '').toLowerCase();
+        if (selectedMethods.size === 0 && paymentMethodText) {
+          paymentMethodText
+            .split(',')
+            .map((part) => part.trim())
+            .forEach((method) => {
+              const normalized = normalizeMethod(method);
+              if (normalized) selectedMethods.add(normalized);
+            });
+        }
+
+        const hasExplicitSelection = selectedMethods.size > 0;
+        if (hasExplicitSelection) {
+          if (!selectedMethods.has('cash')) cashAmount = 0;
+          if (!selectedMethods.has('card')) cardAmount = 0;
+          if (!selectedMethods.has('check')) checkAmount = 0;
+          if (!selectedMethods.has('digital')) digitalAmount = 0;
+          if (!selectedMethods.has('ewallet')) ewalletAmount = 0;
+        }
+
         const allocatedAmount = cashAmount + cardAmount + checkAmount + digitalAmount + ewalletAmount;
         if (allocatedAmount <= 0 && withTax > 0) {
-          const paymentMethodText = String(appointment.paymentMethod || '').toLowerCase();
-          if (paymentMethodText.includes('wallet') || paymentMethodText.includes('ewallet')) {
+          if (selectedMethods.size === 1) {
+            const onlyMethod = Array.from(selectedMethods)[0];
+            if (onlyMethod === 'ewallet') ewalletAmount += withTax;
+            else if (onlyMethod === 'card') cardAmount += withTax;
+            else if (onlyMethod === 'check') checkAmount += withTax;
+            else if (onlyMethod === 'digital') digitalAmount += withTax;
+            else cashAmount += withTax;
+          } else if (selectedMethods.size > 1) {
+            const selectedList = Array.from(selectedMethods);
+            const split = withTax / selectedList.length;
+            selectedList.forEach((method, index) => {
+              const amount = index === selectedList.length - 1
+                ? Math.max(0, withTax - split * (selectedList.length - 1))
+                : split;
+              if (method === 'ewallet') ewalletAmount += amount;
+              else if (method === 'card') cardAmount += amount;
+              else if (method === 'check') checkAmount += amount;
+              else if (method === 'digital') digitalAmount += amount;
+              else cashAmount += amount;
+            });
+          } else if (paymentMethodText.includes('wallet') || paymentMethodText.includes('ewallet')) {
             ewalletAmount += withTax;
           } else if (paymentMethodText.includes('card')) {
             cardAmount += withTax;
@@ -3836,8 +3892,8 @@ const filteredAppointments = useMemo(() => {
                                   </div>
                                   <div className="w-full h-full flex flex-col items-center justify-center text-xs p-1 pr-7">
                                     <div className="w-2 h-2 rounded-full mb-1 bg-white/80" />
-                                    <div className="font-medium truncate w-full text-center leading-tight">
-                                      {(appointment.customer || appointment.customerName || 'Customer').split(' ')[0]}
+                                    <div className="font-medium w-full text-center leading-tight whitespace-normal wrap-break-word">
+                                      {String(appointment.customer || appointment.customerName || 'Customer').trim()}
                                     </div>
                                     <div className="text-white/90 w-full text-center text-[10px] leading-tight whitespace-normal wrap-break-word">
                                       {formatServiceLabel(getAppointmentServiceNamesForStaff(appointment, barber))}
@@ -4045,8 +4101,8 @@ const filteredAppointments = useMemo(() => {
                                       <div className="text-white/80 text-[9px] mb-0.5 font-medium">
                                         {appointment.time || appointment.bookingTime || slot}
                                       </div>
-                                      <div className="font-medium truncate w-full text-center leading-tight">
-                                        {(appointment.customer || appointment.customerName || 'Customer').split(' ')[0]}
+                                      <div className="font-medium w-full text-center leading-tight whitespace-normal wrap-break-word">
+                                        {String(appointment.customer || appointment.customerName || 'Customer').trim()}
                                       </div>
                                       <div className="text-white/90 w-full text-center text-[10px] leading-tight whitespace-normal wrap-break-word">
                                         {formatServiceLabel(getAppointmentServiceNamesForStaff(appointment, barber))}

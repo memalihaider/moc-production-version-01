@@ -3943,10 +3943,14 @@ export default function AdminAppointments() {
     setInvoiceData((prev) => {
       if (!prev) return prev;
       const methods = normalizeInvoiceSplitMethods(prev.paymentMethods, prev.paymentMethod);
-      const nextAmounts = {
-        ...(prev.paymentAmounts || {}),
-        [method]: roundInvoiceAmount(numericAmount),
-      };
+      const nextAmounts = buildInvoiceSplitAmounts(
+        getInvoiceGrandTotal(prev),
+        methods,
+        {
+          ...(prev.paymentAmounts || {}),
+          [method]: roundInvoiceAmount(numericAmount),
+        } as Record<string, number | undefined>
+      );
 
       return {
         ...prev,
@@ -4306,6 +4310,11 @@ export default function AdminAppointments() {
               invoiceData.paymentMethods,
               invoiceData.paymentMethod
             );
+            const normalizedPaymentAmounts = buildInvoiceSplitAmounts(
+              getInvoiceGrandTotal(invoiceData),
+              normalizedMethods,
+              invoiceData.paymentAmounts as Record<string, number | undefined> | undefined
+            );
             const normalizedReferenceNumber = String(invoiceData.referenceNumber || '').trim();
 
             await Promise.all(
@@ -4313,7 +4322,7 @@ export default function AdminAppointments() {
                 updateDoc(doc(db, 'bookings', bookingId), {
                   paymentMethod: normalizedMethods.map((method) => INVOICE_SPLIT_LABELS[method]).join(', '),
                   paymentMethods: normalizedMethods,
-                  paymentAmounts: invoiceData.paymentAmounts || {},
+                  paymentAmounts: normalizedPaymentAmounts,
                   discount: Number(invoiceData.discount || 0),
                   discountType: invoiceData.discountType || 'fixed',
                   discountSource: invoiceData.discountSource || null,
@@ -4334,7 +4343,7 @@ export default function AdminAppointments() {
                     ...booking,
                     paymentMethod: normalizedMethods.map((method) => INVOICE_SPLIT_LABELS[method]).join(', '),
                     paymentMethods: normalizedMethods,
-                    paymentAmounts: (invoiceData.paymentAmounts as any) || booking.paymentAmounts,
+                  paymentAmounts: normalizedPaymentAmounts as any,
                     discount: Number(invoiceData.discount || 0),
                     discountType: invoiceData.discountType || 'fixed',
                     couponCode: String(invoiceData.couponCode || '').trim(),

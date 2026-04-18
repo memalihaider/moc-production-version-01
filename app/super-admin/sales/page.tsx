@@ -31,6 +31,7 @@ interface Booking {
   customerId: string;
   createdAt: Date;
   paymentMethod: string;
+  paymentMethods?: string[];
   paymentStatus: string;
   paymentAmounts: {
     cash: number;
@@ -231,6 +232,86 @@ export default function BookingReportPage() {
     };
   };
 
+  const getBookingPaymentBreakdown = (booking: Booking) => {
+    const paymentAmounts = (booking.paymentAmounts || {}) as Record<string, unknown>;
+    const readPaymentAmount = (keys: string[]) =>
+      keys.reduce((sum, key) => sum + Math.max(0, Number(paymentAmounts?.[key] || 0)), 0);
+
+    let cash = readPaymentAmount(['cash', 'Cash']);
+    let card = readPaymentAmount(['card', 'Card']);
+    let check = readPaymentAmount(['check', 'Check']);
+    let digital = readPaymentAmount(['digital', 'Digital']);
+    let ewallet = readPaymentAmount(['ewallet', 'Ewallet', 'wallet', 'Wallet']);
+
+    const normalizeMethod = (value: unknown): 'cash' | 'card' | 'check' | 'digital' | 'ewallet' | null => {
+      const normalized = String(value || '').trim().toLowerCase();
+      if (!normalized) return null;
+      if (normalized === 'cash' || normalized.includes('cod')) return 'cash';
+      if (normalized.includes('card') || normalized.includes('credit') || normalized.includes('debit')) return 'card';
+      if (normalized === 'check' || normalized.includes('bank')) return 'check';
+      if (normalized === 'digital' || normalized.includes('online')) return 'digital';
+      if (normalized === 'wallet' || normalized === 'ewallet' || normalized.includes('wallet')) return 'ewallet';
+      return null;
+    };
+
+    const selectedMethods = new Set<'cash' | 'card' | 'check' | 'digital' | 'ewallet'>();
+    (Array.isArray(booking.paymentMethods) ? booking.paymentMethods : []).forEach((method: unknown) => {
+      const normalized = normalizeMethod(method);
+      if (normalized) selectedMethods.add(normalized);
+    });
+
+    const methodText = String(booking.paymentMethod || '').toLowerCase();
+    if (selectedMethods.size === 0 && methodText) {
+      methodText
+        .split(',')
+        .map((part) => part.trim())
+        .forEach((method) => {
+          const normalized = normalizeMethod(method);
+          if (normalized) selectedMethods.add(normalized);
+        });
+    }
+
+    if (selectedMethods.size > 0) {
+      if (!selectedMethods.has('cash')) cash = 0;
+      if (!selectedMethods.has('card')) card = 0;
+      if (!selectedMethods.has('check')) check = 0;
+      if (!selectedMethods.has('digital')) digital = 0;
+      if (!selectedMethods.has('ewallet')) ewallet = 0;
+    }
+
+    const assigned = cash + card + check + digital + ewallet;
+    const totalAmount = Math.max(0, Number(booking.totalAmount || 0));
+    if (assigned <= 0 && totalAmount > 0) {
+      if (selectedMethods.size === 1) {
+        const method = Array.from(selectedMethods)[0];
+        if (method === 'ewallet') ewallet = totalAmount;
+        else if (method === 'card') card = totalAmount;
+        else if (method === 'check') check = totalAmount;
+        else if (method === 'digital') digital = totalAmount;
+        else cash = totalAmount;
+      } else if (methodText.includes('wallet') || methodText.includes('ewallet')) {
+        ewallet = totalAmount;
+      } else if (methodText.includes('card') || methodText.includes('credit') || methodText.includes('debit')) {
+        card = totalAmount;
+      } else if (methodText.includes('check')) {
+        check = totalAmount;
+      } else if (methodText.includes('digital') || methodText.includes('online') || methodText.includes('bank')) {
+        digital = totalAmount;
+      } else if (methodText.includes('cash') || methodText.includes('cod')) {
+        cash = totalAmount;
+      }
+    }
+
+    return {
+      cash,
+      card,
+      check,
+      digital,
+      ewallet,
+      other: card + check + digital,
+    };
+  };
+
   const fetchCustomerWalletBalances = async (customerIds: string[]) => {
     if (customerIds.length === 0) return {};
 
@@ -287,6 +368,7 @@ export default function BookingReportPage() {
           customerId: data.customerId || '',
           createdAt: data.createdAt?.toDate() || new Date(),
           paymentMethod: data.paymentMethod || '',
+          paymentMethods: Array.isArray(data.paymentMethods) ? data.paymentMethods : [],
           paymentStatus: data.paymentStatus || '',
           paymentAmounts: data.paymentAmounts || { cash: 0, wallet: 0 },
           serviceName: data.serviceName || data.services?.[0] || '',
@@ -350,37 +432,8 @@ export default function BookingReportPage() {
         ewallet: 0,
       };
 
-      const readPaymentAmount = (paymentAmounts: Record<string, unknown>, keys: string[]) =>
-        keys.reduce((sum, key) => sum + Math.max(0, Number(paymentAmounts?.[key] || 0)), 0);
-
       bookingsData.forEach((booking) => {
-        const paymentAmounts = (booking.paymentAmounts || {}) as Record<string, unknown>;
-
-        let cash = readPaymentAmount(paymentAmounts, ['cash', 'Cash']);
-        let card = readPaymentAmount(paymentAmounts, ['card', 'Card']);
-        let check = readPaymentAmount(paymentAmounts, ['check', 'Check']);
-        let digital = readPaymentAmount(paymentAmounts, ['digital', 'Digital']);
-        let ewallet = readPaymentAmount(paymentAmounts, ['ewallet', 'Ewallet', 'wallet', 'Wallet']);
-
-        const assigned = cash + card + check + digital + ewallet;
-        if (assigned <= 0 && Number(booking.totalAmount || 0) > 0) {
-          const methodText = String(booking.paymentMethod || '').toLowerCase();
-          if (methodText.includes('wallet') || methodText.includes('ewallet')) {
-            ewallet += Number(booking.totalAmount || 0);
-          } else if (methodText.includes('card') || methodText.includes('credit') || methodText.includes('debit')) {
-            card += Number(booking.totalAmount || 0);
-          } else if (methodText.includes('check')) {
-            check += Number(booking.totalAmount || 0);
-          } else if (
-            methodText.includes('digital') ||
-            methodText.includes('online') ||
-            methodText.includes('bank')
-          ) {
-            digital += Number(booking.totalAmount || 0);
-          } else if (methodText.includes('cash') || methodText.includes('cod')) {
-            cash += Number(booking.totalAmount || 0);
-          }
-        }
+        const { cash, card, check, digital, ewallet } = getBookingPaymentBreakdown(booking);
 
         paymentMethodTotals.cash += cash;
         paymentMethodTotals.card += card;
@@ -487,15 +540,13 @@ export default function BookingReportPage() {
     const csvContent = [
       headers.join(','),
       ...filteredBookings.map(booking => {
-        const paymentAmounts = booking.paymentAmounts || {};
-        const cashAmount = paymentAmounts.cash || 0;
-        const walletAmount = paymentAmounts.wallet || 0;
+        const paymentBreakdown = getBookingPaymentBreakdown(booking);
+        const cashAmount = paymentBreakdown.cash;
+        const walletAmount = paymentBreakdown.ewallet;
         const vatBreakdown = getVatBreakdown(booking);
         const walletBalance = walletBalances[booking.customerId] || 0;
         const walletLeft = Math.max(0, walletBalance - walletAmount);
-        
-        // For COD, entire amount is cash
-        const totalCashCOD = booking.paymentMethod === 'cod' ? booking.totalAmount : cashAmount;
+        const totalCashCOD = cashAmount;
         
         return [
           booking.bookingNumber,
@@ -863,16 +914,14 @@ export default function BookingReportPage() {
                       </TableHeader>
                       <TableBody>
                         {filteredBookings.map(booking => {
-                          const paymentAmounts = booking.paymentAmounts || {};
-                          const cashAmount = paymentAmounts.cash || 0;
-                          const walletAmount = paymentAmounts.wallet || 0;
+                          const paymentBreakdown = getBookingPaymentBreakdown(booking);
+                          const cashAmount = paymentBreakdown.cash;
+                          const walletAmount = paymentBreakdown.ewallet;
                           const vatBreakdown = getVatBreakdown(booking);
                           const walletBalance = walletBalances[booking.customerId] || 0;
                           const walletLeft = Math.max(0, walletBalance - walletAmount);
-                          
-                          // For COD, entire amount is cash
-                          const totalCashCOD = booking.paymentMethod === 'cod' ? booking.totalAmount : cashAmount;
-                          const otherAmount = booking.totalAmount - totalCashCOD - walletAmount;
+                          const totalCashCOD = cashAmount;
+                          const otherAmount = paymentBreakdown.other;
                           
                           return (
                             <TableRow key={booking.id}>
@@ -1029,16 +1078,14 @@ export default function BookingReportPage() {
                       </TableHeader>
                       <TableBody>
                         {filteredBookings.map(booking => {
-                          const paymentAmounts = booking.paymentAmounts || {};
-                          const cashAmount = paymentAmounts.cash || 0;
-                          const walletAmount = paymentAmounts.wallet || 0;
+                          const paymentBreakdown = getBookingPaymentBreakdown(booking);
+                          const cashAmount = paymentBreakdown.cash;
+                          const walletAmount = paymentBreakdown.ewallet;
                           const vatBreakdown = getVatBreakdown(booking);
                           const walletBalance = walletBalances[booking.customerId] || 0;
                           const walletLeft = Math.max(0, walletBalance - walletAmount);
-                          
-                          // For COD, entire amount is cash
-                          const totalCashCOD = booking.paymentMethod === 'cod' ? booking.totalAmount : cashAmount;
-                          const otherAmount = booking.totalAmount - totalCashCOD - walletAmount;
+                          const totalCashCOD = cashAmount;
+                          const otherAmount = paymentBreakdown.other;
                           
                           return (
                             <TableRow key={booking.id}>
@@ -1189,15 +1236,12 @@ export default function BookingReportPage() {
                               
                               existing.bookings += 1;
                               existing.revenue += booking.totalAmount;
-                              
-                              const paymentAmounts = booking.paymentAmounts || {};
-                              const cashAmount = paymentAmounts.cash || 0;
-                              const walletAmount = paymentAmounts.wallet || 0;
-                              
-                              // For COD, entire amount is cash
-                              const totalCashCOD = booking.paymentMethod === 'cod' ? booking.totalAmount : cashAmount;
-                              const otherAmount = booking.totalAmount - totalCashCOD - walletAmount;
-                              
+
+                              const paymentBreakdown = getBookingPaymentBreakdown(booking);
+                              const totalCashCOD = paymentBreakdown.cash;
+                              const walletAmount = paymentBreakdown.ewallet;
+                              const otherAmount = paymentBreakdown.other;
+
                               existing.cashCodRevenue += totalCashCOD;
                               existing.walletRevenue += walletAmount;
                               existing.otherRevenue += otherAmount;
@@ -1220,15 +1264,12 @@ export default function BookingReportPage() {
                               
                               memberExisting.bookings += 1;
                               memberExisting.revenue += booking.totalAmount;
-                              
-                              const paymentAmounts = booking.paymentAmounts || {};
-                              const cashAmount = paymentAmounts.cash || 0;
-                              const walletAmount = paymentAmounts.wallet || 0;
-                              
-                              // For COD, entire amount is cash
-                              const totalCashCOD = booking.paymentMethod === 'cod' ? booking.totalAmount : cashAmount;
-                              const otherAmount = booking.totalAmount - totalCashCOD - walletAmount;
-                              
+
+                              const paymentBreakdown = getBookingPaymentBreakdown(booking);
+                              const totalCashCOD = paymentBreakdown.cash;
+                              const walletAmount = paymentBreakdown.ewallet;
+                              const otherAmount = paymentBreakdown.other;
+
                               memberExisting.cashCodRevenue += totalCashCOD;
                               memberExisting.walletRevenue += walletAmount;
                               memberExisting.otherRevenue += otherAmount;
